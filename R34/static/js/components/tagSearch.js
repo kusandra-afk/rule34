@@ -387,8 +387,21 @@ export class TagSearch {
                 isLongPress = true;
                 const currentIdx = this.activeTags.indexOf(tagObj);
                 if (currentIdx !== -1) {
-                    // Long-press перемещает тег только из исключенных во включенные
-                    if (!tagObj.active) {
+                    // В режиме longpress долгое нажатие переключает тег между включенными и исключенными
+                    if (behavior === 'longpress') {
+                        if (tagObj.active) {
+                            handleExclude(tagObj);
+                        } else {
+                            handleInclude(tagObj);
+                        }
+                        if (navigator.vibrate) {
+                            try { navigator.vibrate(40); } catch(err) {}
+                        }
+                        tagEl.classList.add('long-pressed-feedback');
+                        setTimeout(() => tagEl.classList.remove('long-pressed-feedback'), 300);
+                    }
+                    // В других режимах долгое нажатие только из исключенных во включенные
+                    else if (!tagObj.active) {
                         handleInclude(tagObj);
                         if (navigator.vibrate) {
                             try { navigator.vibrate(40); } catch(err) {}
@@ -434,21 +447,19 @@ export class TagSearch {
         tagEl.addEventListener('touchmove', moveUniversalPress, { passive: true });
         tagEl.addEventListener('touchcancel', cancelUniversalPress, { passive: true });
 
-        // Добавляем mouse события для десктопа (только если не режим longpress)
-        if (behavior !== 'longpress') {
-            tagEl.addEventListener('mousedown', (e) => {
-                if (e.button !== 0) return;
-                startUniversalPress(e);
-            });
+        // Добавляем mouse события для десктопа (работает во всех режимах)
+        tagEl.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            startUniversalPress(e);
+        });
 
-            tagEl.addEventListener('mouseup', () => {
-                cancelUniversalPress();
-            });
+        tagEl.addEventListener('mouseup', () => {
+            cancelUniversalPress();
+        });
 
-            tagEl.addEventListener('mouseleave', () => {
-                cancelUniversalPress();
-            });
-        }
+        tagEl.addEventListener('mouseleave', () => {
+            cancelUniversalPress();
+        });
 
         if (behavior === 'default') {
             tagEl.onclick = (e) => {
