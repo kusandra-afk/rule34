@@ -462,17 +462,35 @@ def save_my_favorites_optimized(favorites):
     except Exception as e:
         print('Error saving my_favorites.json:', e)
 
+def are_favorites_equal(list_a, list_b):
+    """Compare two list of favorites for equality of content"""
+    if not isinstance(list_a, list) or not isinstance(list_b, list):
+        return False
+    if len(list_a) != len(list_b):
+        return False
+    map_a = {str(f.get('id')): f for f in list_a if isinstance(f, dict)}
+    for f in list_b:
+        if not isinstance(f, dict):
+            return False
+        fid = str(f.get('id'))
+        if fid not in map_a:
+            return False
+        if f.get('change', 0) != map_a[fid].get('change', 0) or f.get('is_deleted', 0) != map_a[fid].get('is_deleted', 0):
+            return False
+    return True
+
 def enrich_favorites_with_post_data(optimized_favorites):
     """Enrich optimized favorites with fresh post data from API"""
     enriched = []
     for fav in optimized_favorites:
-        if isinstance(fav, dict) and 'id' in fav and len(fav) <= 2:
+        if isinstance(fav, dict) and 'id' in fav and 'image' not in fav:
             fav_id = fav['id']
             post_data = fetch_post_data(fav_id)
             if post_data:
                 enriched.append({
                     'id': fav_id,
                     'change': fav.get('change', 0),
+                    'is_deleted': fav.get('is_deleted', 0),
                     **post_data
                 })
             else:
@@ -480,6 +498,7 @@ def enrich_favorites_with_post_data(optimized_favorites):
                 enriched.append({
                     'id': fav_id,
                     'change': fav.get('change', 0),
+                    'is_deleted': fav.get('is_deleted', 0),
                     'api_failed': True
                 })
         else:
@@ -698,21 +717,9 @@ def save_puzzle_completed_optimized(puzzles):
     except Exception as e:
         print('Error saving puzzle_completed.json:', e)
 
-POST_DATA_CACHE = {}
-POST_DATA_CACHE_TTL = 3600 # 1 hour
-
 def fetch_post_data(post_id):
-    """Fetch fresh post data from Rule34 API by ID with caching"""
+    """Fetch fresh post data from Rule34 API by ID"""
     try:
-        pid_str = str(post_id)
-        now = time.time()
-        
-        # Check cache
-        if pid_str in POST_DATA_CACHE:
-            cached_data, timestamp = POST_DATA_CACHE[pid_str]
-            if now - timestamp < POST_DATA_CACHE_TTL:
-                return cached_data
-                
         # Try direct API call with user_id and api_key as query parameters
         user_id, api_key = get_saved_api_key()
         url = f"https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&id={post_id}&json=1&fields=tag_info"
@@ -727,10 +734,7 @@ def fetch_post_data(post_id):
             if text and text.strip().startswith('['):
                 posts = json.loads(text)
                 if isinstance(posts, list) and len(posts) > 0:
-                    post_data = posts[0]
-                    # Update cache
-                    POST_DATA_CACHE[pid_str] = (post_data, now)
-                    return post_data
+                    return posts[0]
     except Exception as e:
         print(f'Error fetching post data for ID {post_id}: {e}')
     return None
@@ -856,9 +860,9 @@ def api_my_favorites_handler():
         turso_favorites = get_turso_favorites()
         local_favorites = load_my_favorites()
         
-        print(f'[Favorites Sync] GET favorites: Turso={len(turso_favorites) if turso_favorites else 0}, Local={len(local_favorites)}')
+        print(f'[Favorites Sync] GET favorites: Turso={len(turso_favorites) if turso_favorites is not None else "Error"}, Local={len(local_favorites)}')
         
-        if turso_favorites and local_favorites:
+        if turso_favorites is not None:
             # Merge by ID, keeping most recent by change timestamp
             turso_fav_map = {str(f.get('id')): f for f in turso_favorites}
             local_fav_map = {str(f.get('id')): f for f in local_favorites}
@@ -874,21 +878,26 @@ def api_my_favorites_handler():
                     if local_change > turso_change:
                         merged_favorites = [f for f in merged_favorites if str(f.get('id')) != fid]
                         merged_favorites.append(local_fav)
-            # Save merged data in optimized format to local file
-            save_my_favorites_optimized(merged_favorites)
-            # Enrich with fresh post data
-            enriched_favorites = enrich_favorites_with_post_data(merged_favorites)
-            return jsonify({'ok': True, 'favorites': enriched_favorites})
-        elif turso_favorites:
-            # Save Turso data in optimized format to local file
-            save_my_favorites_optimized(turso_favorites)
-            # Enrich with fresh post data
-            enriched_favorites = enrich_favorites_with_post_data(turso_favorites)
-            return jsonify({'ok': True, 'favorites': enriched_favorites})
+            
+            # Check if we need to write changes back to local/Turso
+            need_save_local = not are_favorites_equal(merged_favorites, local_favorites)
+            need_save_turso = not are_favorites_equal(merged_favorites, turso_favorites)
+            
+            if need_save_local:
+                print(f'[Favorites Sync] Saving merged favorites ({len(merged_favorites)}) locally')
+                save_my_favorites_optimized(merged_favorites)
+            
+            if need_save_turso:
+                print(f'[Favorites Sync] Uploading merged favorites ({len(merged_favorites)}) to Turso')
+                save_turso_favorites(merged_favorites)
+                
+            # Return only active favorites in optimized format
+            active_favorites = [f for f in merged_favorites if f.get('is_deleted', 0) == 0]
+            return jsonify({'ok': True, 'favorites': active_favorites})
         else:
-            # Enrich with fresh post data
-            enriched_favorites = enrich_favorites_with_post_data(local_favorites)
-            return jsonify({'ok': True, 'favorites': enriched_favorites})
+            # Return only active favorites in optimized format
+            active_favorites = [f for f in local_favorites if f.get('is_deleted', 0) == 0]
+            return jsonify({'ok': True, 'favorites': active_favorites})
     else:
         data = request.json or {}
         post_id = data.get('postId')
@@ -900,14 +909,31 @@ def api_my_favorites_handler():
 
         favorites = load_my_favorites()
         pid_str = str(post_id)
+        now_ts = int(time.time() * 1000)
+
+        # Find existing index to update it, or insert new
+        existing_idx = None
+        for i, f in enumerate(favorites):
+            if str(f.get('id')) == pid_str:
+                existing_idx = i
+                break
 
         if action == 'add':
-            if not any(str(p.get('id')) == pid_str for p in favorites):
-                # Add in optimized format (only ID and change)
-                change = post_data.get('change', 0) if post_data else 0
-                favorites.insert(0, {'id': pid_str, 'change': change})
+            if existing_idx is not None:
+                # Update existing entry with is_deleted=0 and new change timestamp
+                favorites[existing_idx]['is_deleted'] = 0
+                favorites[existing_idx]['change'] = now_ts
+            else:
+                # Insert new active favorite
+                favorites.insert(0, {'id': pid_str, 'change': now_ts, 'is_deleted': 0})
         elif action == 'delete':
-            favorites = [p for p in favorites if str(p.get('id')) != pid_str]
+            if existing_idx is not None:
+                # Soft delete existing entry
+                favorites[existing_idx]['is_deleted'] = 1
+                favorites[existing_idx]['change'] = now_ts
+            else:
+                # Insert soft deleted entry
+                favorites.insert(0, {'id': pid_str, 'change': now_ts, 'is_deleted': 1})
 
         # Save in optimized format
         save_my_favorites_optimized(favorites)
@@ -915,7 +941,9 @@ def api_my_favorites_handler():
         # Also save to Turso if enabled (in optimized format)
         save_turso_favorites(favorites)
         
-        return jsonify({'ok': True, 'favoritesCount': len(favorites)})
+        # Return only count of active favorites
+        active_count = len([f for f in favorites if f.get('is_deleted', 0) == 0])
+        return jsonify({'ok': True, 'favoritesCount': active_count})
 
 @app.route('/api/excluded-tags', methods=['GET', 'POST', 'OPTIONS'])
 def api_excluded_tags_handler():
@@ -1046,10 +1074,26 @@ def api_get_favorites():
             except Exception:
                 pass
         favorites = load_my_favorites()
-        return jsonify(favorites)
+        active_favorites = [f for f in favorites if f.get('is_deleted', 0) == 0]
+        return jsonify(active_favorites)
     except Exception:
         favorites = load_my_favorites()
-        return jsonify(favorites)
+        active_favorites = [f for f in favorites if f.get('is_deleted', 0) == 0]
+        return jsonify(active_favorites)
+
+@app.route('/api/enrich-favorites', methods=['POST', 'OPTIONS'])
+def api_enrich_favorites():
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True})
+    data = request.json or {}
+    ids = data.get('ids', [])
+    if not isinstance(ids, list):
+        return jsonify({'ok': False, 'error': 'Invalid IDs list'}), 400
+    
+    # We construct minimal optimized objects to pass to enrich_favorites_with_post_data
+    optimized_list = [{'id': fid} for fid in ids]
+    enriched = enrich_favorites_with_post_data(optimized_list)
+    return jsonify({'ok': True, 'posts': enriched})
 
 @app.route('/api/add-post-by-id', methods=['POST', 'OPTIONS'])
 def api_add_post_by_id():
@@ -1074,10 +1118,26 @@ def api_add_post_by_id():
                 if isinstance(posts, list) and len(posts) > 0 and posts[0]:
                     post = posts[0]
                     favorites = load_my_favorites()
-                    if not any(str(f.get('id')) == pid for f in favorites):
-                        favorites.insert(0, post)
-                        save_my_favorites(favorites)
-                    return jsonify({'ok': True, 'post': post, 'totalFavorites': len(favorites)})
+                    pid_str = str(pid)
+                    now_ts = int(time.time() * 1000)
+                    
+                    existing_idx = None
+                    for i, f in enumerate(favorites):
+                        if str(f.get('id')) == pid_str:
+                            existing_idx = i
+                            break
+                    
+                    if existing_idx is not None:
+                        favorites[existing_idx]['is_deleted'] = 0
+                        favorites[existing_idx]['change'] = now_ts
+                    else:
+                        favorites.insert(0, {'id': pid_str, 'change': now_ts, 'is_deleted': 0})
+                        
+                    save_my_favorites_optimized(favorites)
+                    save_turso_favorites(favorites)
+                    
+                    active_count = len([f for f in favorites if f.get('is_deleted', 0) == 0])
+                    return jsonify({'ok': True, 'post': post, 'totalFavorites': active_count})
         return jsonify({'ok': False, 'error': 'Пост с таким ID не найден на Rule34'}), 404
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
