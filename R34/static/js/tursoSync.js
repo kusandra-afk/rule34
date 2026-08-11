@@ -165,7 +165,8 @@ class TursoSync {
                 q: `CREATE TABLE IF NOT EXISTS favorites (
                     id TEXT PRIMARY KEY,
                     change INTEGER NOT NULL DEFAULT 0,
-                    updated_at INTEGER NOT NULL
+                    updated_at INTEGER NOT NULL,
+                    is_deleted INTEGER NOT NULL DEFAULT 0
                 )`,
                 params: []
             },
@@ -179,6 +180,13 @@ class TursoSync {
             }
         ]);
 
+        // Attempt to alter table to add column if it's an existing DB without is_deleted
+        try {
+            await this.executeQuery('ALTER TABLE favorites ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0');
+        } catch (e) {
+            // Ignore if column already exists
+        }
+
         console.log('[Turso Sync] Tables initialized');
         return true;
     }
@@ -186,15 +194,16 @@ class TursoSync {
     async getFavorites() {
         if (!this.enabled) return null;
 
-        const result = await this.executeQuery('SELECT id, change FROM favorites ORDER BY updated_at DESC');
+        const result = await this.executeQuery('SELECT id, change, is_deleted FROM favorites ORDER BY updated_at DESC');
         
         if (result && result.results && result.results[0] && result.results[0].rows) {
             const favorites = result.results[0].rows.map(row => {
                 try {
-                    // Row format: [id, change]
+                    // Row format: [id, change, is_deleted]
                     return {
                         id: row[0],
-                        change: row[1] || 0
+                        change: row[1] || 0,
+                        is_deleted: row[2] || 0
                     };
                 } catch (e) {
                     console.error('[Turso Sync] Failed to parse favorite data:', e);
@@ -221,9 +230,10 @@ class TursoSync {
             for (const fav of favorites) {
                 const favId = String(fav.id || fav);
                 const change = fav.change || 0;
+                const isDeleted = fav.is_deleted || 0;
                 statements.push({
-                    q: 'INSERT INTO favorites (id, change, updated_at) VALUES (?, ?, ?)',
-                    params: [favId, change, now]
+                    q: 'INSERT INTO favorites (id, change, updated_at, is_deleted) VALUES (?, ?, ?, ?)',
+                    params: [favId, change, now, isDeleted]
                 });
             }
 
@@ -299,9 +309,19 @@ class TursoSync {
                     merged.set(String(fav.id), fav);
                 });
                 
-                // Override with local favorites (local takes precedence)
+                // Override with local favorites if local has more recent change timestamp
                 localFavorites.forEach(fav => {
-                    merged.set(String(fav.id), fav);
+                    const fid = String(fav.id);
+                    if (merged.has(fid)) {
+                        const cloudFav = merged.get(fid);
+                        const localChange = fav.change || 0;
+                        const cloudChange = cloudFav.change || 0;
+                        if (localChange > cloudChange) {
+                            merged.set(fid, fav);
+                        }
+                    } else {
+                        merged.set(fid, fav);
+                    }
                 });
                 
                 const result = Array.from(merged.values());
