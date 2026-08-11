@@ -804,12 +804,47 @@ export class PuzzleGame {
         }
         
         const isDesktop = window.innerWidth >= 900;
-        if (isDesktop && this.isComplexMode) {
-            this.boardContainer.style.width = '100%';
-            this.boardContainer.style.height = 'auto';
+        if (isDesktop) {
+            const rightPanel = this.card ? this.card.querySelector('.puzzle-right-panel') : null;
+            let rawW = rightPanel && rightPanel.clientWidth > 100 ? rightPanel.clientWidth : (window.innerWidth - 600);
+            let rawH = rightPanel && rightPanel.clientHeight > 100 ? rightPanel.clientHeight : (window.innerHeight - 32);
+
+            let availW = Math.max(200, rawW - 10);
+            let availH = Math.max(200, rawH - 10);
+
+            // Minimum comfortable board width for tall/long posts so tiles aren't squeezed into thin slivers
+            const minBoardWidth = Math.min(availW, 480);
+
+            // Maximum board width that allows the board to fit strictly inside both availW and availH
+            let fitW = Math.min(availW, availH * boardRatio);
+
+            let targetW;
+            if (fitW < minBoardWidth) {
+                // Long / extremely long post: fitting in screen height would squeeze board too narrow,
+                // so enforce minBoardWidth and allow vertical scrolling in rightPanel
+                targetW = minBoardWidth;
+            } else {
+                // Normal post: fits completely inside screen height and width without scrolling
+                targetW = fitW;
+            }
+
+            const targetH = targetW / boardRatio;
+
+            this.boardContainer.style.width = `${targetW.toFixed(1)}px`;
+            this.boardContainer.style.height = `${targetH.toFixed(1)}px`;
+
+            if (targetH > availH) {
+                this.boardContainer.style.margin = '20px auto';
+            } else {
+                this.boardContainer.style.margin = 'auto';
+            }
+
+            this._layoutBoardRect = null;
+            this._layoutTrayRect = null;
         } else {
             this.boardContainer.style.width = '';
             this.boardContainer.style.height = '';
+            this.boardContainer.style.margin = '';
         }
 
         this._trayGridDirty = true;
@@ -884,10 +919,7 @@ export class PuzzleGame {
                     const totalTrayHeightPx = actualRows * (trayRowHeightPx + gapBetween) + 8;
                     this.trayScrollSpacer.style.height = `${totalTrayHeightPx}px`;
                 }
-                const newMargin = `20px`;
-                if (this.boardContainer.style.marginBottom !== newMargin) {
-                    this.boardContainer.style.marginBottom = newMargin;
-                }
+                // Margin is managed based on targetH vs availH above
                 const newTransform = `none`;
                 if (this.boardContainer.style.transform !== newTransform) {
                     this.boardContainer.style.transform = newTransform;
@@ -1611,7 +1643,7 @@ export class PuzzleGame {
                     flex-direction: row;
                     align-items: stretch;
                     gap: 20px;
-                    padding: 24px;
+                    padding: 16px;
                     overflow: hidden;
                 }
                 .puzzle-card.mode-complex .puzzle-left-panel {
@@ -1629,21 +1661,23 @@ export class PuzzleGame {
                 
                 .puzzle-card.mode-complex .puzzle-right-panel {
                     display: flex;
+                    flex-direction: column;
                     flex: 1;
                     height: 100%;
                     overflow-y: auto;
-                    justify-content: center;
-                    align-items: flex-start;
-                    padding-bottom: 40px;
+                    justify-content: flex-start;
+                    align-items: center;
+                    padding: 12px;
+                    box-sizing: border-box;
                 }
                 .puzzle-card.mode-complex .puzzle-right-panel::-webkit-scrollbar { width: 8px; }
                 .puzzle-card.mode-complex .puzzle-right-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
 
-                .puzzle-card.size-large .puzzle-board-container { max-width: 100%; max-height: none !important; }
+                .puzzle-card.mode-complex .puzzle-board-container,
+                .puzzle-card.size-large .puzzle-board-container { max-width: 100% !important; max-height: none !important; box-sizing: border-box; }
                 .puzzle-board-container.desktop-complex {
                     max-width: 100% !important;
-                    margin: 0 auto !important;
-                    max-height: none !important;
+                    box-sizing: border-box;
                 }
             }
 
@@ -4163,6 +4197,20 @@ export class PuzzleGame {
 
     async changeDifficulty(newSize) {
         if (this.isSolving) return;
+        const { cols: nextCols, rows: nextRows } = this.calculateGrid(newSize, this.aspectRatio || 1.0);
+        if (nextCols === this.cols && nextRows === this.rows) {
+            return; // No actual size change
+        }
+
+        let confirmed = true;
+        if (typeof window.showConfirmModal === 'function') {
+            confirmed = await window.showConfirmModal('Сменить сетку?', 'Вы уверены, что хотите сменить сетку? Текущий прогресс будет потерян.');
+        } else {
+            confirmed = confirm('Сменить сетку? Текущий прогресс будет потерян.');
+        }
+
+        if (!confirmed) return;
+
         this.targetPieces = newSize;
         this.updateGridDimensions();
         const card = this.overlay ? this.overlay.querySelector('.puzzle-card') : null;
