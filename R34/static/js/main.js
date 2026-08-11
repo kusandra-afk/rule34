@@ -3970,6 +3970,7 @@ document.addEventListener('DOMContentLoaded', () => {
             confirmBtn.addEventListener('click', onConfirm);
         });
     }
+    window.showConfirmModal = showConfirmModal;
 
     // 10. Кнопка сброса настроек
     const settingsResetBtn = document.getElementById('settingsResetBtn');
