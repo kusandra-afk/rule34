@@ -81,14 +81,21 @@ def initialize_turso_tables(session=None, load_settings_func=None, load_turso_co
     if not enabled:
         return False
     
-    # Create favorites table (optimized format - only id and change)
+    # Create favorites table with is_deleted column
     execute_turso_query('''
         CREATE TABLE IF NOT EXISTS favorites (
             id TEXT PRIMARY KEY,
             change INTEGER NOT NULL DEFAULT 0,
-            updated_at INTEGER NOT NULL
+            updated_at INTEGER NOT NULL,
+            is_deleted INTEGER NOT NULL DEFAULT 0
         )
-    ''', session=session, load_settings_func=load_settings_func)
+    ''', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
+    
+    # Try to add is_deleted column if table existed before without it
+    try:
+        execute_turso_query('ALTER TABLE favorites ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
+    except Exception:
+        pass
     
     # Create puzzles table
     execute_turso_query('''
@@ -97,47 +104,90 @@ def initialize_turso_tables(session=None, load_settings_func=None, load_turso_co
             data TEXT NOT NULL,
             updated_at INTEGER NOT NULL
         )
-    ''', session=session, load_settings_func=load_settings_func)
+    ''', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
     
     return True
 
 def get_turso_favorites(session=None, load_settings_func=None, load_turso_config_func=None):
-    """Get favorites from Turso (optimized format - only id and change)"""
-    result = execute_turso_query('SELECT id, change FROM favorites ORDER BY updated_at DESC', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
+    """Get favorites from Turso (optimized format - only id, change, is_deleted)"""
+    result = execute_turso_query('SELECT id, change, is_deleted FROM favorites ORDER BY updated_at DESC', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
+    
+    # Check for missing column error in result
+    has_column_error = False
+    err_msg = ""
+    if isinstance(result, list) and len(result) > 0 and isinstance(result[0], dict) and 'error' in result[0]:
+        has_column_error = True
+        err_msg = result[0]['error']
+    elif isinstance(result, dict) and 'error' in result:
+        has_column_error = True
+        err_msg = result['error']
+        
+    if has_column_error and 'is_deleted' in err_msg:
+        print('[Turso Debug] is_deleted column is missing. Attempting self-healing ALTER TABLE...')
+        try:
+            execute_turso_query('ALTER TABLE favorites ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
+        except Exception as alter_err:
+            print(f'[Turso Debug] ALTER TABLE failed: {alter_err}')
+        
+        # Retry original query
+        result = execute_turso_query('SELECT id, change, is_deleted FROM favorites ORDER BY updated_at DESC', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
+
     if result:
         try:
             # Handle both dict and list response formats
             rows = None
             if isinstance(result, dict):
-                if result.get('results') and result['results'].get('rows'):
+                if 'results' in result and isinstance(result['results'], dict) and 'rows' in result['results']:
                     rows = result['results']['rows']
             elif isinstance(result, list) and len(result) > 0:
-                if isinstance(result[0], dict) and result[0].get('results'):
-                    if isinstance(result[0]['results'], dict) and result[0]['results'].get('rows'):
-                        rows = result[0]['results']['rows']
+                if isinstance(result[0], dict) and 'results' in result[0]:
+                    res_obj = result[0]['results']
+                    if isinstance(res_obj, dict) and 'rows' in res_obj:
+                        rows = res_obj['rows']
             
-            if not rows:
-                return None
+            if rows is None:
+                # If we still have an error (like no is_deleted even after alter), fallback to selecting just id, change
+                print(f'[Turso Debug] query resulted in rows=None (or error). Result: {result}')
+                print('[Turso Debug] Falling back to query without is_deleted column...')
+                result_fallback = execute_turso_query('SELECT id, change FROM favorites ORDER BY updated_at DESC', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
+                
+                rows = None
+                if isinstance(result_fallback, dict):
+                    if 'results' in result_fallback and isinstance(result_fallback['results'], dict) and 'rows' in result_fallback['results']:
+                        rows = result_fallback['results']['rows']
+                elif isinstance(result_fallback, list) and len(result_fallback) > 0:
+                    if isinstance(result_fallback[0], dict) and 'results' in result_fallback[0]:
+                        res_obj = result_fallback[0]['results']
+                        if isinstance(res_obj, dict) and 'rows' in res_obj:
+                            rows = res_obj['rows']
+                
+                if rows is None:
+                    return None
             
             favorites = []
             for row in rows:
                 try:
-                    # Row format: [id, change]
+                    # Row format: [id, change, is_deleted] or [id, change]
                     fav_id = row[0]
                     change = row[1] if len(row) > 1 else 0
+                    is_deleted = row[2] if len(row) > 2 else 0
                     favorites.append({
                         'id': fav_id,
-                        'change': change
+                        'change': change,
+                        'is_deleted': is_deleted
                     })
                 except Exception as e:
                     pass
             return favorites
         except Exception as e:
+            print(f'[Turso Debug] Error parsing favorites result: {e}')
             return None
+    else:
+        print('[Turso Debug] execute_turso_query returned None')
     return None
 
 def save_turso_favorites(favorites, session=None, load_settings_func=None, load_turso_config_func=None):
-    """Save favorites to Turso in optimized format (only id and change)"""
+    """Save favorites to Turso in optimized format (only id, change, is_deleted)"""
     url, token, enabled = get_turso_settings(load_settings_func, load_turso_config_func)
     if not enabled:
         print('Turso sync disabled, skipping favorites save')
@@ -157,14 +207,15 @@ def save_turso_favorites(favorites, session=None, load_settings_func=None, load_
         # Clear existing
         statements.append({'q': 'DELETE FROM favorites', 'params': []})
         
-        # Insert new (optimized format - only id and change)
+        # Insert new (optimized format - only id, change, is_deleted)
         now = int(time.time() * 1000)
         for fav in favorites:
             fav_id = str(fav.get('id', ''))
             change = fav.get('change', 0) if isinstance(fav, dict) else 0
+            is_deleted = fav.get('is_deleted', 0) if isinstance(fav, dict) else 0
             statements.append({
-                'q': 'INSERT INTO favorites (id, change, updated_at) VALUES (?, ?, ?)',
-                'params': [fav_id, change, now]
+                'q': 'INSERT INTO favorites (id, change, updated_at, is_deleted) VALUES (?, ?, ?, ?)',
+                'params': [fav_id, change, now, is_deleted]
             })
         
         body = {
