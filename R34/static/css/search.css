@@ -566,10 +566,10 @@ body:has(.puzzle-stats-modal) {
   inset: 0;
   z-index: 60000;
   display: flex;
-  align-items: stretch;
-  justify-content: stretch;
-  padding: 0;
-  background: var(--modal-bg);
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--modal-bg, rgba(0, 0, 0, 0.72));
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   visibility: hidden;
@@ -589,29 +589,38 @@ body:has(.puzzle-stats-modal) {
 .settings-modal-card {
   display: flex;
   flex-direction: column;
-  width: 100vw;
-  max-width: 100vw;
-  height: 100vh;
-  max-height: 100vh;
+  width: 92vw;
+  max-width: 1080px;
+  height: auto;
+  max-height: 90vh;
   overflow: hidden;
   background: var(--modal-bg, rgba(13, 15, 22, 0.95));
   color: var(--modal-text-color, var(--adaptive-text-main, #fff));
-  border: none;
-  border-radius: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
   backdrop-filter: blur(40px) saturate(1.5);
   -webkit-backdrop-filter: blur(40px) saturate(1.5);
-  box-shadow: none;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
   opacity: 0;
-  transform: translate3d(0, 18px, 0) scale(0.98);
+  transform: translate3d(0, 18px, 0) scale(0.96);
   transition: transform 0.35s var(--ease), opacity 0.35s var(--ease);
   will-change: transform, opacity;
 }
 
-/* Mobile devices - use dynamic viewport height */
+/* Mobile devices - use full screen */
 @media (max-width: 768px) {
+  .settings-modal {
+    padding: 0 !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+  }
   .settings-modal-card {
-    height: 100dvh;
-    max-height: 100dvh;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    border: none !important;
   }
 }
 
@@ -693,7 +702,7 @@ body:has(.puzzle-stats-modal) {
   flex-direction: column;
   gap: 20px;
   padding: 26px 28px;
-  max-height: 75vh;
+  flex: 1;
   overflow-y: auto;
 }
 
