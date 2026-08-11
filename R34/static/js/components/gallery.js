@@ -615,40 +615,133 @@ export class Gallery {
 
                             const fragment = document.createDocumentFragment();
                             this.favoritesPosts.forEach((post, index) => {
-                                const card = this.createCard(post, index);
-                                card._post = post;
-                                card._isFavoriteCard = true;
+                                const placeholder = document.createElement('div');
+                                placeholder.id = `fav-card-${post.id}`;
+                                placeholder.className = 'media-container animate-pulse';
+                                placeholder.dataset.idx = index;
+                                placeholder.style.minHeight = '250px';
+                                placeholder.style.background = 'rgba(255,255,255,0.04)';
+                                placeholder.style.border = '1px solid rgba(255,255,255,0.08)';
+                                placeholder.style.borderRadius = 'var(--radius-sm)';
+                                placeholder.style.display = 'flex';
+                                placeholder.style.flexDirection = 'column';
+                                placeholder.style.alignItems = 'center';
+                                placeholder.style.justifyContent = 'center';
                                 if (favCols >= 2) {
-                                    card.classList.add('custom-cols');
-                                } else {
-                                    card.classList.remove('custom-cols');
+                                    placeholder.classList.add('custom-cols');
                                 }
-                                fragment.appendChild(card);
-                                const sourceBlock = this.createSourceBlock(post);
-                                if (sourceBlock) {
-                                    card._sourceBlock = sourceBlock;
-                                    if (card.style.display === 'none') {
-                                        sourceBlock.hidden = true;
-                                    }
-                                    fragment.appendChild(sourceBlock);
-                                }
-                                const extraInfo = this.createExtraInfo(post, index);
-                                extraInfo._post = post;
-                                card.extraInfo = extraInfo;
-                                if (card.style.display === 'none') {
-                                    extraInfo.style.display = 'none';
-                                    extraInfo.setAttribute('hidden', 'true');
-                                }
-                                fragment.appendChild(extraInfo);
-                                this.observer.observe(card);
                                 
-                                // Also observe for playback control
-                                if (this._playbackObserver) {
-                                    this._playbackObserver.observe(card);
-                                }
+                                const label = document.createElement('div');
+                                label.textContent = `Загрузка #${post.id}...`;
+                                label.style.color = 'rgba(255,255,255,0.3)';
+                                label.style.fontSize = '0.9rem';
+                                label.style.fontWeight = '500';
+                                placeholder.appendChild(label);
+                                
+                                fragment.appendChild(placeholder);
                             });
                             subGrid.appendChild(fragment);
                             container.appendChild(subGrid);
+
+                            // Queue up IDs of favorites that need details
+                            const idsToFetch = this.favoritesPosts.map(p => p.id);
+                            
+                            // Define a batch fetch function
+                            const fetchBatch = async (batchIds) => {
+                                try {
+                                    const response = await fetch('/api/enrich-favorites', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ ids: batchIds })
+                                    });
+                                    if (response.ok) {
+                                        const data = await response.json();
+                                        if (data.ok && Array.isArray(data.posts)) {
+                                            data.posts.forEach(fullPost => {
+                                                if (!fullPost || !fullPost.id) return;
+                                                
+                                                const placeholder = document.getElementById(`fav-card-${fullPost.id}`);
+                                                if (placeholder) {
+                                                    const idx = parseInt(placeholder.dataset.idx, 10);
+                                                    
+                                                    // Create real card
+                                                    const realCard = this.createCard(fullPost, idx);
+                                                    realCard._post = fullPost;
+                                                    realCard._isFavoriteCard = true;
+                                                    if (favCols >= 2) {
+                                                        realCard.classList.add('custom-cols');
+                                                    } else {
+                                                        realCard.classList.remove('custom-cols');
+                                                    }
+                                                    
+                                                    const sourceBlock = this.createSourceBlock(fullPost);
+                                                    if (sourceBlock) {
+                                                        realCard._sourceBlock = sourceBlock;
+                                                    }
+                                                    
+                                                    const extraInfo = this.createExtraInfo(fullPost, idx);
+                                                    extraInfo._post = fullPost;
+                                                    realCard.extraInfo = extraInfo;
+                                                    
+                                                    // Replace in DOM
+                                                    const parent = placeholder.parentNode;
+                                                    if (parent) {
+                                                        // Insert realCard, sourceBlock and extraInfo before the placeholder
+                                                        parent.insertBefore(realCard, placeholder);
+                                                        
+                                                        // Insert extraInfo and sourceBlock after the realCard
+                                                        if (realCard.nextSibling) {
+                                                            parent.insertBefore(extraInfo, realCard.nextSibling);
+                                                            if (sourceBlock) {
+                                                                parent.insertBefore(sourceBlock, extraInfo);
+                                                            }
+                                                        } else {
+                                                            parent.appendChild(extraInfo);
+                                                            if (sourceBlock) {
+                                                                parent.appendChild(sourceBlock);
+                                                            }
+                                                        }
+                                                        
+                                                        // Clean up placeholder
+                                                        parent.removeChild(placeholder);
+                                                        
+                                                        // Observe new realCard
+                                                        this.observer.observe(realCard);
+                                                        if (this._playbackObserver) {
+                                                            this._playbackObserver.observe(realCard);
+                                                        }
+                                                    }
+                                                }
+                                            });
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.error('Failed to fetch batch details:', e);
+                                }
+                            };
+                            
+                            // Process batches: 5 posts every 5 seconds
+                            let batchIndex = 0;
+                            const batchSize = 5;
+                            
+                            const processNextBatch = () => {
+                                // If the container is cleared or replaced, stop processing
+                                if (!document.body.contains(subGrid)) return;
+                                
+                                const start = batchIndex * batchSize;
+                                if (start >= idsToFetch.length) return;
+                                
+                                const batch = idsToFetch.slice(start, start + batchSize);
+                                fetchBatch(batch);
+                                
+                                batchIndex++;
+                                if (batchIndex * batchSize < idsToFetch.length) {
+                                    setTimeout(processNextBatch, 5000);
+                                }
+                            };
+                            
+                            // Run the first batch immediately!
+                            processNextBatch();
                         }
                     }
                 }
