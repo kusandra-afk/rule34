@@ -818,17 +818,21 @@ export class PuzzleGame {
             // Maximum board width that allows the board to fit strictly inside both availW and availH
             let fitW = Math.min(availW, availH * boardRatio);
 
-            let targetW;
-            if (fitW < minBoardWidth) {
-                // Long / extremely long post: fitting in screen height would squeeze board too narrow,
-                // so enforce minBoardWidth and allow vertical scrolling in rightPanel
-                targetW = minBoardWidth;
-            } else {
-                // Normal post: fits completely inside screen height and width without scrolling
-                targetW = fitW;
-            }
+            const isExtremeLong = boardRatio < 0.5 || boardRatio > 2.0;
 
-            const targetH = targetW / boardRatio;
+            let targetW, targetH;
+            if (fitW < minBoardWidth && isExtremeLong) {
+                // Extremely long post (falls under filter): enforce minBoardWidth and allow vertical scrolling in rightPanel
+                targetW = minBoardWidth;
+                targetH = targetW / boardRatio;
+            } else if (!isExtremeLong) {
+                // Not extremely long on PC: expand to fill available screen width and height (availW and availH) without page scrolling
+                targetW = availW;
+                targetH = availH;
+            } else {
+                targetW = fitW;
+                targetH = targetW / boardRatio;
+            }
 
             this.boardContainer.style.width = `${targetW.toFixed(1)}px`;
             this.boardContainer.style.height = `${targetH.toFixed(1)}px`;
@@ -1003,6 +1007,29 @@ export class PuzzleGame {
         } else {
             this.updateGridDimensions();
         }
+        if (this.trayIdBadge && this.trayIdContainer && this.post) {
+            const currentPostId = this.post.id || '';
+            this.trayIdBadge.innerHTML = `<span style="display:flex;align-items:center;">${icon('tag', { size: 12 })}</span><span>ID: ${currentPostId || 'N/A'}</span>`;
+            if (currentPostId) {
+                this.trayIdContainer.onclick = () => {
+                    navigator.clipboard.writeText(String(currentPostId)).then(() => {
+                        this.trayIdBadge.style.background = 'rgba(16,185,129,0.2)';
+                        this.trayIdBadge.style.borderColor = '#10b981';
+                        this.trayIdBadge.style.color = '#10b981';
+                        const oldHtml = this.trayIdBadge.innerHTML;
+                        this.trayIdBadge.innerHTML = `<span>Скопировано!</span>`;
+                        setTimeout(() => {
+                            this.trayIdBadge.style.background = 'rgba(56,189,248,0.1)';
+                            this.trayIdBadge.style.borderColor = 'rgba(56,189,248,0.2)';
+                            this.trayIdBadge.style.color = '#38bdf8';
+                            this.trayIdBadge.innerHTML = oldHtml;
+                        }, 1500);
+                    }).catch(err => {
+                        console.error('Failed to copy ID:', err);
+                    });
+                };
+            }
+        }
         this.updateDifficultyUI(); // Update UI whenever grid or aspect ratio changes
         const imageUrl = imageUrlOverride || (this.post ? (this.post.sample_url || this.post.file_url || this.post.preview_url || '') : this.imgUrl || '') || this.imgUrl || '';
         if (imageUrl) {
@@ -1170,7 +1197,7 @@ export class PuzzleGame {
 
                 const indexBadge = document.createElement('div');
                 indexBadge.textContent = `#${index + 1}`;
-                indexBadge.style.cssText = `position:absolute;top:12px;left:12px;background:rgba(0,0,0,0.6);color:rgba(255,255,255,0.8);font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:var(--radius-lg);`;
+                indexBadge.style.cssText = `position:absolute;top:12px;left:12px;background:rgba(0,0,0,0.6);color:rgba(255,255,255,0.8);font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:var(--radius-lg);z-index:2;`;
 
                 const thumbContainer = document.createElement('div');
                 thumbContainer.style.cssText = `position:relative;border-radius:12px;overflow:hidden;background:#1a1a2e;`;
@@ -1196,9 +1223,43 @@ export class PuzzleGame {
                 const variantCount = document.createElement('div');
                 variantCount.style.cssText = `font-size:0.8rem;font-weight:700;color:#10b981;display:flex;align-items:center;gap:6px;`;
                 variantCount.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>${puzzle.variants.length} вариант(ов)`;
+
+                const dateAndIdRow = document.createElement('div');
+                dateAndIdRow.style.cssText = `display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px;`;
+
                 const lastDate = document.createElement('div');
                 lastDate.style.cssText = `font-size:0.75rem;color:rgba(255,255,255,0.5);display:flex;align-items:center;gap:4px;`;
                 lastDate.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>${new Date(puzzle.lastUpdated).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+                dateAndIdRow.appendChild(lastDate);
+
+                const postIdVal = puzzle.postId || puzzle.id || puzzle.post?.id || '';
+                if (postIdVal) {
+                    const postIdBadge = document.createElement('div');
+                    postIdBadge.title = 'Нажмите, чтобы скопировать ID';
+                    postIdBadge.style.cssText = `background:rgba(56,189,248,0.1);color:#38bdf8;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:6px;cursor:pointer;border:1px solid rgba(56,189,248,0.2);display:flex;align-items:center;gap:4px;transition:all 0.2s;white-space:nowrap;`;
+                    postIdBadge.innerHTML = `<span>ID: ${postIdVal}</span>`;
+                    postIdBadge.onclick = (e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(String(postIdVal)).then(() => {
+                            const oldBg = postIdBadge.style.background;
+                            const oldColor = postIdBadge.style.color;
+                            const oldText = postIdBadge.innerHTML;
+                            postIdBadge.style.background = 'rgba(16,185,129,0.2)';
+                            postIdBadge.style.color = '#10b981';
+                            postIdBadge.style.borderColor = '#10b981';
+                            postIdBadge.innerHTML = `<span>Скопировано!</span>`;
+                            setTimeout(() => {
+                                postIdBadge.style.background = oldBg;
+                                postIdBadge.style.color = oldColor;
+                                postIdBadge.style.borderColor = 'rgba(56,189,248,0.2)';
+                                postIdBadge.innerHTML = oldText;
+                            }, 1500);
+                        }).catch(err => {
+                            console.error('Failed to copy ID:', err);
+                        });
+                    };
+                    dateAndIdRow.appendChild(postIdBadge);
+                }
 
                 const variantsContainer = document.createElement('div');
                 variantsContainer.style.cssText = `margin-top:8px;display:flex;flex-direction:column;gap:4px;`;
@@ -1213,7 +1274,7 @@ export class PuzzleGame {
                 });
 
                 info.appendChild(variantCount);
-                info.appendChild(lastDate);
+                info.appendChild(dateAndIdRow);
                 info.appendChild(variantsContainer);
                 card.appendChild(indexBadge);
                 card.appendChild(thumbContainer);
@@ -1288,9 +1349,10 @@ export class PuzzleGame {
         header.appendChild(closeBtn);
 
         const imageContainer = document.createElement('div');
-        imageContainer.style.cssText = `margin-bottom:24px;position:relative;border-radius:16px;overflow:hidden;background:#1a1a2e;`;
+        imageContainer.className = 'puzzle-stats-image';
+        imageContainer.style.cssText = `position:relative;border-radius:16px;overflow:hidden;background:#1a1a2e;`;
         const image = document.createElement('img');
-        image.style.cssText = `width:100%;height:auto;max-height:250px;object-fit:contain;transition:transform 0.3s ease;`;
+        image.style.cssText = `width:100%;height:auto;max-height:500px;object-fit:contain;transition:transform 0.3s ease;`;
         image.alt = 'Puzzle preview';
         image.onerror = () => { if (!image.dataset.fallbackApplied && puzzle.imageUrl && image.src !== puzzle.imageUrl) { image.dataset.fallbackApplied = 'true'; image.src = puzzle.imageUrl; } };
         const imageSrc = this.getPuzzleImageUrl(puzzle);
@@ -1301,7 +1363,7 @@ export class PuzzleGame {
         imageContainer.appendChild(image);
 
         const variantsList = document.createElement('div');
-        variantsList.style.cssText = `display:flex;flex-direction:column;gap:12px;`;
+        variantsList.className = 'puzzle-stats-variants';
         const getVariantPieces = (v) => v.targetPieces || ((v.cols && v.rows) ? v.cols * v.rows : null) || (v.size ? v.size * v.size : 0);
         const sortedVariants = puzzle.variants.sort((a, b) => getVariantPieces(a) - getVariantPieces(b));
         sortedVariants.forEach((variant, index) => {
@@ -1354,9 +1416,13 @@ export class PuzzleGame {
             variantsList.appendChild(variantCard);
         });
 
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'puzzle-stats-content-container';
+        contentContainer.appendChild(variantsList);
+        contentContainer.appendChild(imageContainer);
+
         modalContent.appendChild(header);
-        modalContent.appendChild(imageContainer);
-        modalContent.appendChild(variantsList);
+        modalContent.appendChild(contentContainer);
         modal.appendChild(modalContent);
         modal.onclick = (e) => {
             if (e.target === modal) {
@@ -1415,11 +1481,28 @@ export class PuzzleGame {
         if (this.isSolving) return;
         const completedPuzzles = await fetchPuzzleCompleted();
         const puzzleRecord = { cols: this.cols, rows: this.rows, targetPieces: this.targetPieces, time: this.seconds, moves: this.moves, date: new Date().toISOString() };
-        let puzzleEntry = completedPuzzles.find(p => p.imageUrl === this.imgUrl);
+        const currentPostId = this.post?.id || null;
+        let puzzleEntry = completedPuzzles.find(p => p.imageUrl === this.imgUrl || (currentPostId && (p.postId === currentPostId || p.id === currentPostId)));
         if (!puzzleEntry) {
             const stableImageUrl = this.getStableImageUrl();
-            puzzleEntry = { imageUrl: stableImageUrl, thumbnail: stableImageUrl, post: this.post, variants: [], lastUpdated: new Date().toISOString() };
+            puzzleEntry = { 
+                id: currentPostId,
+                postId: currentPostId,
+                imageUrl: stableImageUrl, 
+                thumbnail: stableImageUrl, 
+                post: this.post, 
+                variants: [], 
+                lastUpdated: new Date().toISOString() 
+            };
             completedPuzzles.push(puzzleEntry);
+        } else {
+            if (currentPostId && !puzzleEntry.postId) {
+                puzzleEntry.postId = currentPostId;
+                puzzleEntry.id = currentPostId;
+            }
+            if (this.post && !puzzleEntry.post) {
+                puzzleEntry.post = this.post;
+            }
         }
         let variant = puzzleEntry.variants.find(v => (v.cols === this.cols && v.rows === this.rows) || v.targetPieces === this.targetPieces || v.size === this.targetPieces || v.size === this.cols);
         if (variant) {
@@ -1541,6 +1624,41 @@ export class PuzzleGame {
             }
 
             .puzzle-stats-row { display: flex; gap: 10px; width: 100%; justify-content: center; flex-wrap: wrap; }
+
+            .puzzle-stats-content-container {
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+                width: 100%;
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            .puzzle-stats-variants {
+                order: 2;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            .puzzle-stats-image {
+                order: 1;
+                margin-bottom: 0 !important;
+            }
+            @media (min-width: 768px) {
+                .puzzle-stats-content-container {
+                    display: grid;
+                    grid-template-columns: 1.2fr 1fr;
+                    gap: 28px;
+                    align-items: start;
+                }
+                .puzzle-stats-variants {
+                    order: 1;
+                }
+                .puzzle-stats-image {
+                    order: 2;
+                    position: sticky;
+                    top: 20px;
+                }
+            }
 
             /* // ИЗМЕНЕНО: Бейджи с цветовыми акцентами */
             .puzzle-badge {
@@ -1707,9 +1825,6 @@ export class PuzzleGame {
                 user-select: none;
                 touch-action: none;
                 z-index: 1;
-                will-change: transform;
-                transform: translateZ(0);
-                contain: layout style;
             }
 
             /* // ИЗМЕНЕНО: Улучшенный hover */
@@ -1761,21 +1876,17 @@ export class PuzzleGame {
                 pointer-events: none !important;
             }
 
-            /* // ИЗМЕНЕНО: Flash-анимации с box-shadow пульсацией */
-            @keyframes puzzle-flash-red-pulse {
-                0% { box-shadow: 0 0 0 0 var(--accent-glow); }
-                70% { box-shadow: 0 0 0 12px rgba(255, 59, 107, 0); }
-                100% { box-shadow: 0 0 0 0 rgba(255, 59, 107, 0); }
+            /* // ИЗМЕНЕНО: Flash-анимации оптимизированы для производительности (убраны filter и box-shadow) */
+            .puzzle-tile.flash-green {
+                z-index: 50 !important;
             }
-            @keyframes puzzle-flash-green-pulse {
-                0% { box-shadow: 0 0 0 0 var(--success); }
-                70% { box-shadow: 0 0 0 12px rgba(52, 227, 154, 0); }
-                100% { box-shadow: 0 0 0 0 rgba(52, 227, 154, 0); }
+            .puzzle-tile.flash-green:not(.selected) .puzzle-tile-outline .stroke-dark,
+            .puzzle-tile.flash-green:not(.selected) .puzzle-tile-outline .stroke-light,
+            .puzzle-tile.flash-green .puzzle-tile-outline path {
+                stroke: var(--success) !important;
+                stroke-width: 4px !important;
+                opacity: 1 !important;
             }
-            .puzzle-tile.flash-red { z-index: 50 !important; animation: puzzle-flash-red-pulse 0.6s ease-out; }
-            .puzzle-tile.flash-red .puzzle-tile-outline path { stroke: var(--accent) !important; stroke-width: 3px !important; opacity: 1 !important; }
-            .puzzle-tile.flash-green { z-index: 50 !important; animation: puzzle-flash-green-pulse 0.6s ease-out; }
-            .puzzle-tile.flash-green .puzzle-tile-outline path { stroke: var(--success) !important; stroke-width: 3px !important; opacity: 1 !important; }
 
             .puzzle-tile-outline path {
                 fill: none;
@@ -2091,7 +2202,11 @@ export class PuzzleGame {
         // Tray Columns Selector
         const trayColsSelector = document.createElement('div');
         trayColsSelector.className = 'puzzle-tray-cols-selector';
-        trayColsSelector.style.cssText = `display:flex;align-items:center;gap:8px;width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:6px 10px;border-radius:14px;margin-top:8px;margin-bottom:2px;`;
+        trayColsSelector.style.cssText = `display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:6px 10px;border-radius:14px;margin-top:8px;margin-bottom:2px;`;
+        
+        const rightControlsContainer = document.createElement('div');
+        rightControlsContainer.style.cssText = `display:flex;align-items:center;gap:8px;`;
+
         const trayColsLabel = document.createElement('span');
         trayColsLabel.innerHTML = `<span style="display:flex;align-items:center;gap:6px;">${icon('box', { size: 16 })} Лоток:</span>`;
         trayColsLabel.style.cssText = `font-size:0.8rem;font-weight:bold;color:var(--adaptive-text-main, #fbbf24);white-space:nowrap;display:flex;align-items:center;`;
@@ -2125,8 +2240,41 @@ export class PuzzleGame {
             this.updateBoardSize(true);
             playSound('click');
         };
-        trayColsSelector.appendChild(trayColsLabel);
-        trayColsSelector.appendChild(trayColsSelect);
+        rightControlsContainer.appendChild(trayColsLabel);
+        rightControlsContainer.appendChild(trayColsSelect);
+
+        const currentPostId = this.post?.id || '';
+        const rightIdContainer = document.createElement('div');
+        rightIdContainer.style.cssText = `display:flex;align-items:center;gap:6px;cursor:pointer;`;
+        rightIdContainer.title = 'Нажмите, чтобы скопировать ID';
+        const idBadge = document.createElement('div');
+        idBadge.style.cssText = `font-size:0.75rem;font-weight:700;color:#38bdf8;background:rgba(56,189,248,0.1);padding:4px 8px;border-radius:8px;border:1px solid rgba(56,189,248,0.2);display:flex;align-items:center;gap:4px;white-space:nowrap;transition:all 0.2s;`;
+        idBadge.innerHTML = `<span style="display:flex;align-items:center;">${icon('tag', { size: 12 })}</span><span>ID: ${currentPostId || 'N/A'}</span>`;
+        if (currentPostId) {
+            rightIdContainer.onclick = () => {
+                navigator.clipboard.writeText(String(currentPostId)).then(() => {
+                    idBadge.style.background = 'rgba(16,185,129,0.2)';
+                    idBadge.style.borderColor = '#10b981';
+                    idBadge.style.color = '#10b981';
+                    const oldHtml = idBadge.innerHTML;
+                    idBadge.innerHTML = `<span>Скопировано!</span>`;
+                    setTimeout(() => {
+                        idBadge.style.background = 'rgba(56,189,248,0.1)';
+                        idBadge.style.borderColor = 'rgba(56,189,248,0.2)';
+                        idBadge.style.color = '#38bdf8';
+                        idBadge.innerHTML = oldHtml;
+                    }, 1500);
+                }).catch(err => {
+                    console.error('Failed to copy ID:', err);
+                });
+            };
+        }
+        rightIdContainer.appendChild(idBadge);
+        this.trayIdContainer = rightIdContainer;
+        this.trayIdBadge = idBadge;
+
+        trayColsSelector.appendChild(rightControlsContainer);
+        trayColsSelector.appendChild(rightIdContainer);
         leftPanel.appendChild(trayColsSelector);
 
         // ID Selector
@@ -2380,7 +2528,15 @@ export class PuzzleGame {
         this.resetBtn = resetBtn;
         resetBtn.className = 'puzzle-btn';
         resetBtn.innerHTML = `<span style="display:flex;align-items:center;justify-content:center;">${icon('refresh', { size: 16 })}</span><span>Заново</span>`;
-        resetBtn.onclick = () => this.initPuzzle();
+        resetBtn.onclick = async () => {
+            let confirmed = true;
+            if (typeof window.showConfirmModal === 'function') {
+                confirmed = await window.showConfirmModal('Начать заново?', 'Вы уверены, что хотите начать заново? Текущий прогресс будет потерян.');
+            } else {
+                confirmed = confirm('Начать заново? Текущий прогресс будет потерян.');
+            }
+            if (confirmed) this.initPuzzle();
+        };
         const hintBtn = document.createElement('button');
         this.hintBtn = hintBtn;
         hintBtn.className = 'puzzle-btn';
@@ -2392,12 +2548,28 @@ export class PuzzleGame {
         solveBtn.className = 'puzzle-btn';
         solveBtn.id = 'puzzle-solve-btn';
         solveBtn.innerHTML = `<span style="display:flex;align-items:center;justify-content:center;">${icon('bot', { size: 16 })}</span><span>Собрать</span>`;
-        solveBtn.onclick = () => this.autoSolve();
+        solveBtn.onclick = async () => {
+            let confirmed = true;
+            if (typeof window.showConfirmModal === 'function') {
+                confirmed = await window.showConfirmModal('Автоматически собрать?', 'Вы уверены, что хотите автоматически собрать пазл?');
+            } else {
+                confirmed = confirm('Автоматически собрать пазл?');
+            }
+            if (confirmed) this.autoSolve();
+        };
         const skipBtn = document.createElement('button');
         skipBtn.className = 'puzzle-btn';
         skipBtn.id = 'puzzle-skip-btn';
         skipBtn.innerHTML = `<span style="display:flex;align-items:center;justify-content:center;">${icon('skipForward', { size: 16 })}</span><span>Пропустить</span>`;
-        skipBtn.onclick = () => { this.destroy(); if (this.onNext) this.onNext(); };
+        skipBtn.onclick = async () => {
+            let confirmed = true;
+            if (typeof window.showConfirmModal === 'function') {
+                confirmed = await window.showConfirmModal('Пропустить пазл?', 'Вы уверены, что хотите пропустить этот пазл и перейти к следующему?');
+            } else {
+                confirmed = confirm('Пропустить этот пазл и перейти к следующему?');
+            }
+            if (confirmed) { this.destroy(); if (this.onNext) this.onNext(); }
+        };
         controls.appendChild(resetBtn);
         controls.appendChild(hintBtn);
         controls.appendChild(solveBtn);
@@ -2737,6 +2909,10 @@ export class PuzzleGame {
                 this.startTimer();
                 this.setControlsEnabled(true);
                 this.updatePuzzleStatus('playing');
+                
+                if (window.innerWidth >= 900 && this.trayDiv) {
+                    this.trayDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
             }, totalScatterTime);
 
             if (this.gameId === currentId) {
@@ -3445,6 +3621,9 @@ export class PuzzleGame {
         this.tiles.forEach(t => { parent[t.id] = t.id; });
         const find = (i) => { if (parent[i] === i) return i; parent[i] = find(parent[i]); return parent[i]; };
         const union = (i, j) => { const rootI = find(i); const rootJ = find(j); if (rootI !== rootJ) parent[rootI] = rootJ; };
+        const maxDim = this.boardContainer ? Math.max(this.boardContainer.clientWidth, this.boardContainer.clientHeight) : 800;
+        const tolerancePct = (45.0 / maxDim) * 100;
+
         const checkAdjacent = (t1, t2) => {
             if (t1.currentPos >= total || t2.currentPos >= total) return false;
             const isCorrectAdjacent = (Math.abs(t1.correctRow - t2.correctRow) + Math.abs(t1.correctCol - t2.correctCol)) === 1;
@@ -3456,7 +3635,7 @@ export class PuzzleGame {
             const actualDiffX = t2.boardX - t1.boardX;
             const actualDiffY = t2.boardY - t1.boardY;
             const err = Math.hypot(actualDiffX - correctDiffX, actualDiffY - correctDiffY);
-            return err < 10.0;
+            return err < tolerancePct;
         };
         this.tiles.forEach((tile) => {
             const row = tile.correctRow;
@@ -3477,6 +3656,25 @@ export class PuzzleGame {
             const groupId = t.groupId;
             if (!this.groupTiles.has(groupId)) this.groupTiles.set(groupId, []);
             this.groupTiles.get(groupId).push(t);
+        });
+
+        // ИДЕАЛЬНОЕ СОВМЕЩЕНИЕ: выравниваем все пазлы внутри каждой группы без малейших зазоров
+        this.groupTiles.forEach((groupTilesList, groupId) => {
+            if (groupTilesList.length <= 1) return;
+            const leaderTile = groupTilesList[0];
+            const correctLeader = correctPositions.get(leaderTile.id);
+            groupTilesList.forEach((t) => {
+                if (t.id === leaderTile.id) return;
+                const correctT = correctPositions.get(t.id);
+                const idealDiffX = correctT.x - correctLeader.x;
+                const idealDiffY = correctT.y - correctLeader.y;
+                t.boardX = leaderTile.boardX + idealDiffX;
+                t.boardY = leaderTile.boardY + idealDiffY;
+                const el = this.tileElements.get(t.id);
+                if (el) {
+                    this.updateTileElementPosition(el, t);
+                }
+            });
         });
         
         // Определяем пазлы которые были склеены (группа изменилась)
@@ -3518,7 +3716,7 @@ export class PuzzleGame {
         return result;
     }
 
-    flashGroupTiles(groupTiles, timeout = 800) {
+    flashGroupTiles(groupTiles, timeout = 1000) {
         groupTiles.forEach(gt => {
             const el = this.tileElements.get(gt.id);
             if (el) { 
@@ -3531,7 +3729,9 @@ export class PuzzleGame {
     isTileAtAbsoluteCorrectPosition(tile) {
         const correctPos = this.getCorrectTilePosition(tile);
         const dist = Math.hypot(correctPos.x - tile.boardX, correctPos.y - tile.boardY);
-        return dist < 5.0;
+        const maxDim = this.boardContainer ? Math.max(this.boardContainer.clientWidth, this.boardContainer.clientHeight) : 800;
+        const tolerancePct = (45.0 / maxDim) * 100;
+        return dist < tolerancePct;
     }
 
     placeGroupComplex(srcTileId, targetLeftPct, targetTopPct, isTrayTarget, targetTrayPos) {
@@ -3586,7 +3786,8 @@ export class PuzzleGame {
         });
 
         let snapped = false;
-        const RELATIVE_MATCH_THRESHOLD = 30.0;
+        const maxDim = this.boardContainer ? Math.max(this.boardContainer.clientWidth, this.boardContainer.clientHeight) : 800;
+        const RELATIVE_MATCH_THRESHOLD = (45.0 / maxDim) * 100;
         let minRelDist = Infinity;
         let snapToTileDelta = { x: 0, y: 0 };
         for (const gt of groupTiles) {
@@ -3617,8 +3818,16 @@ export class PuzzleGame {
                     if (oTile.currentPos >= total || groupTiles.some(g => g.id === oTile.id)) continue;
                     const shouldAdjacent = Math.abs(oTile.correctRow - gt.correctRow) + Math.abs(oTile.correctCol - gt.correctCol) === 1;
                     if (!shouldAdjacent) continue;
-                    const actualDist = Math.hypot(oTile.boardX - gt.boardX, oTile.boardY - gt.boardY);
-                    if (actualDist > 30.0) continue;
+                    
+                    const correctOTile = this.getCorrectTilePosition(oTile);
+                    const correctGt = this.getCorrectTilePosition(gt);
+                    const correctDiffX = correctOTile.x - correctGt.x;
+                    const correctDiffY = correctOTile.y - correctGt.y;
+                    const actualDiffX = oTile.boardX - gt.boardX;
+                    const actualDiffY = oTile.boardY - gt.boardY;
+                    const errDist = Math.hypot(actualDiffX - correctDiffX, actualDiffY - correctDiffY);
+                    
+                    if (errDist > RELATIVE_MATCH_THRESHOLD) continue;
                     const oGroupId = oTile.groupId;
                     if (!connectedGroups.has(oGroupId)) connectedGroups.set(oGroupId, { tiles: this.tiles.filter(t => t.groupId === oGroupId) });
                 }
@@ -4087,73 +4296,7 @@ export class PuzzleGame {
     }
 
     _updateOverlapsNow() {
-        const total = this.cols * this.rows;
-        this.tiles.forEach(tile => { const el = this.tileElements.get(tile.id); if (el) el.classList.remove('flash-red'); });
-        if (!this.isPlaying || this.isSolving) return;
-        const overlappingTileIds = new Set();
-        const posToTile = new Map();
-        this.tiles.forEach(tile => { if (tile.currentPos < total) posToTile.set(tile.currentPos, tile); });
-        posToTile.forEach((tileA, posA) => {
-            const rA = Math.floor(posA / this.cols);
-            const cA = posA % this.cols;
-            const infoA = this.getTileEdgeInfo(tileA);
-            if (cA < this.cols - 1) {
-                const posRight = posA + 1;
-                const tileB = posToTile.get(posRight);
-                if (tileB) {
-                    const infoB = this.getTileEdgeInfo(tileB);
-                    const isCorrectPair = (infoA.trueRow === infoB.trueRow && infoB.trueCol === infoA.trueCol + 1);
-                    let overlap = false;
-                    if (infoA.extendsRight) {
-                        if (!infoB.hasHoleLeft) overlap = true;
-                        else if (!isCorrectPair) {
-                            const seamA = this.vertSeams[infoA.trueRow]?.[infoA.trueCol];
-                            const seamB = this.vertSeams[infoB.trueRow]?.[infoB.trueCol - 1];
-                            if (!seamA || !seamB || Math.abs(seamA.tabPos - seamB.tabPos) > 0.02 || Math.abs(seamA.tabSize - seamB.tabSize) > 0.02 || Math.abs(seamA.tabWidth - seamB.tabWidth) > 0.02) overlap = true;
-                        }
-                    }
-                    if (infoB.extendsLeft) {
-                        if (!infoA.hasHoleRight) overlap = true;
-                        else if (!isCorrectPair) {
-                            const seamA = this.vertSeams[infoA.trueRow]?.[infoA.trueCol];
-                            const seamB = this.vertSeams[infoB.trueRow]?.[infoB.trueCol - 1];
-                            if (!seamA || !seamB || Math.abs(seamA.tabPos - seamB.tabPos) > 0.02 || Math.abs(seamA.tabSize - seamB.tabSize) > 0.02 || Math.abs(seamA.tabWidth - seamB.tabWidth) > 0.02) overlap = true;
-                        }
-                    }
-                    if (overlap) { overlappingTileIds.add(tileA.id); overlappingTileIds.add(tileB.id); }
-                }
-            }
-            if (rA < this.rows - 1) {
-                const posBottom = posA + this.cols;
-                const tileB = posToTile.get(posBottom);
-                if (tileB) {
-                    const infoB = this.getTileEdgeInfo(tileB);
-                    const isCorrectPair = (infoA.trueCol === infoB.trueCol && infoB.trueRow === infoA.trueRow + 1);
-                    let overlap = false;
-                    if (infoA.extendsDown) {
-                        if (!infoB.hasHoleTop) overlap = true;
-                        else if (!isCorrectPair) {
-                            const seamA = this.horizSeams[infoA.trueRow]?.[infoA.trueCol];
-                            const seamB = this.horizSeams[infoB.trueRow - 1]?.[infoB.trueCol];
-                            if (!seamA || !seamB || Math.abs(seamA.tabPos - seamB.tabPos) > 0.02 || Math.abs(seamA.tabSize - seamB.tabSize) > 0.02 || Math.abs(seamA.tabWidth - seamB.tabWidth) > 0.02) overlap = true;
-                        }
-                    }
-                    if (infoB.extendsUp) {
-                        if (!infoA.hasHoleBottom) overlap = true;
-                        else if (!isCorrectPair) {
-                            const seamA = this.horizSeams[infoA.trueRow]?.[infoA.trueCol];
-                            const seamB = this.horizSeams[infoB.trueRow - 1]?.[infoB.trueCol];
-                            if (!seamA || !seamB || Math.abs(seamA.tabPos - seamB.tabPos) > 0.02 || Math.abs(seamA.tabSize - seamB.tabSize) > 0.02 || Math.abs(seamA.tabWidth - seamB.tabWidth) > 0.02) overlap = true;
-                        }
-                    }
-                    if (overlap) { overlappingTileIds.add(tileA.id); overlappingTileIds.add(tileB.id); }
-                }
-            }
-        });
-        const hasNewOverlaps = overlappingTileIds.size > 0;
-        overlappingTileIds.forEach(tileId => { const el = this.tileElements.get(tileId); if (el) el.classList.add('flash-red'); });
-        if (hasNewOverlaps && !this.wasOverlappingLastCheck) playSound('wrong');
-        this.wasOverlappingLastCheck = hasNewOverlaps;
+        // Red flash effect removed per user request
     }
 
     toggleHint() {
@@ -4240,6 +4383,11 @@ export class PuzzleGame {
         this.isSolving = true;
         this.selectedIdx = null;
         this.updateOverlaps();
+        
+        if (this.boardContainer) {
+            this.boardContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
         this.tiles.forEach(t => this.highlightTile(t.id, false));
         if (this.hintBtn) this.hintBtn.disabled = true;
         if (this.solveBtn) this.solveBtn.disabled = true;
