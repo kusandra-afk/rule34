@@ -1,4 +1,5 @@
-from flask import Flask, request, send_file, redirect, jsonify, Response, stream_with_context
+from flask import Flask, request, send_file, send_from_directory, redirect, jsonify, Response, stream_with_context
+from werkzeug.utils import secure_filename
 import os
 import json
 import time
@@ -69,6 +70,8 @@ EXCLUDED_TAGS_FILE = os.path.join(BASE_DIR, 'R34', '.secrets', 'excluded_tags.js
 SETTINGS_FILE = os.path.join(BASE_DIR, 'R34', '.secrets', 'settings.json')
 PUZZLE_COMPLETED_FILE = os.path.join(BASE_DIR, 'R34', '.secrets', 'puzzle_completed.json')
 TURSO_CONFIG_FILE = os.path.join(BASE_DIR, 'R34', '.secrets', 'turso_config.json')
+SAFE_SCREEN_DIR = os.path.join(BASE_DIR, 'safe_screen')
+os.makedirs(SAFE_SCREEN_DIR, exist_ok=True)
 
 # In-memory caches for performance
 validated_keys_cache = {}  # key -> (is_valid, timestamp)
@@ -1150,6 +1153,83 @@ def api_puzzle_completed():
         print(f"Error in api_puzzle_completed: {e}")
         import traceback
         traceback.print_exc()
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+@app.route('/safe_screen/<path:filename>')
+def serve_safe_screen_file(filename):
+    return send_from_directory(SAFE_SCREEN_DIR, filename)
+
+@app.route('/api/safe-screen/files', methods=['GET', 'OPTIONS'])
+def api_safe_screen_files():
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True})
+    try:
+        os.makedirs(SAFE_SCREEN_DIR, exist_ok=True)
+        valid_exts = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.mp4', '.webm', '.mov', '.ogg', '.m4v'}
+        files = []
+        for f in os.listdir(SAFE_SCREEN_DIR):
+            if f.startswith('.'):
+                continue
+            ext = os.path.splitext(f)[1].lower()
+            if ext in valid_exts:
+                files.append({
+                    'filename': f,
+                    'url': f'/safe_screen/{f}',
+                    'type': 'video' if ext in {'.mp4', '.webm', '.mov', '.ogg', '.m4v'} else 'image'
+                })
+        return jsonify({'ok': True, 'files': files, 'count': len(files)})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e), 'files': [], 'count': 0}), 500
+
+@app.route('/api/safe-screen/upload', methods=['POST', 'OPTIONS'])
+def api_safe_screen_upload():
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True})
+    try:
+        os.makedirs(SAFE_SCREEN_DIR, exist_ok=True)
+        if 'file' not in request.files:
+            return jsonify({'ok': False, 'error': 'Файл не выбран'}), 400
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'ok': False, 'error': 'Файл не выбран'}), 400
+        
+        filename = secure_filename(file.filename)
+        if not filename:
+            filename = f"upload_{int(time.time())}"
+        filepath = os.path.join(SAFE_SCREEN_DIR, filename)
+        file.save(filepath)
+        
+        ext = os.path.splitext(filename)[1].lower()
+        file_type = 'video' if ext in {'.mp4', '.webm', '.mov', '.ogg', '.m4v'} else 'image'
+        return jsonify({
+            'ok': True, 
+            'file': {
+                'filename': filename,
+                'url': f'/safe_screen/{filename}',
+                'type': file_type
+            }
+        })
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+@app.route('/api/safe-screen/delete', methods=['POST', 'DELETE', 'OPTIONS'])
+def api_safe_screen_delete():
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True})
+    try:
+        data = request.get_json(silent=True) or {}
+        filename = data.get('filename') or request.args.get('filename')
+        if not filename:
+            return jsonify({'ok': False, 'error': 'Filename is required'}), 400
+        
+        clean_filename = os.path.basename(filename)
+        filepath = os.path.join(SAFE_SCREEN_DIR, clean_filename)
+        if os.path.exists(filepath) and os.path.isfile(filepath):
+            os.remove(filepath)
+            return jsonify({'ok': True, 'filename': clean_filename})
+        else:
+            return jsonify({'ok': False, 'error': 'File not found'}), 404
+    except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 @app.errorhandler(404)
