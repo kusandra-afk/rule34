@@ -290,7 +290,7 @@ export class Gallery {
     }
 
     updateAutoSlide() {
-        const autoSlideEnabled = localStorage.getItem('r34_auto_slide') === 'true';
+        const autoSlideEnabled = localStorage.getItem('r34_auto_slide') !== 'false';
         const autoSlideInterval = parseInt(localStorage.getItem('r34_auto_slide_interval'), 10) || 5;
         
         if (this._photoViewer) {
@@ -916,7 +916,7 @@ export class Gallery {
         }
 
         const isLong = (post.width && post.height && (post.height / post.width > 2.8));
-        const isProtected = localStorage.getItem('r34_long_image_protection') === 'true';
+        const isProtected = localStorage.getItem('r34_long_image_protection') !== 'false';
         if (isLong && isProtected && !isVideo) {
             container.classList.add('long-truncated');
             const expandBtn = document.createElement('button');
@@ -958,21 +958,66 @@ export class Gallery {
         container.appendChild(fullscreenBtn);
 
         if (isVideo) {
+            const soundWrapper = document.createElement('div');
+            soundWrapper.className = 'sound-control-wrapper';
+
+            const sliderContainer = document.createElement('div');
+            sliderContainer.className = 'sound-volume-slider-container';
+
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.className = 'sound-volume-slider';
+            slider.min = '0';
+            slider.max = '1';
+            slider.step = '0.01';
+            const defaultVol = localStorage.getItem('r34_default_volume');
+            const initialVol = defaultVol !== null ? (parseFloat(defaultVol) || 50) / 100 : 0.50;
+            slider.value = initialVol;
+
+            sliderContainer.appendChild(slider);
+
             const soundBtn = document.createElement('button');
             soundBtn.className = 'sound-toggle-btn';
             soundBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
             soundBtn.title = 'Выключить звук';
+
+            soundWrapper.appendChild(sliderContainer);
+            soundWrapper.appendChild(soundBtn);
+            container.appendChild(soundWrapper);
+
+            container._soundToggleBtn = soundBtn;
+            container._soundWrapper = soundWrapper;
+            container._soundVolumeSlider = slider;
+
             soundBtn.onclick = (e) => {
                 e.stopPropagation();
                 if (container._videoEl) {
-                    const defaultVol = localStorage.getItem('r34_default_volume');
-                    const volumeVal = defaultVol !== null ? (parseFloat(defaultVol) || 50) / 100 : 0.50;
-                    container._videoEl.volume = volumeVal;
                     container._videoEl.muted = !container._videoEl.muted;
+                    if (!container._videoEl.muted && container._videoEl.volume === 0) {
+                        container._videoEl.volume = 0.5;
+                        slider.value = 0.5;
+                    }
                 }
             };
-            container.appendChild(soundBtn);
-            container._soundToggleBtn = soundBtn;
+
+            slider.oninput = (e) => {
+                e.stopPropagation();
+                if (container._videoEl) {
+                    const volNum = parseFloat(slider.value);
+                    container._videoEl.volume = volNum;
+                    if (volNum > 0 && container._videoEl.muted) {
+                        container._videoEl.muted = false;
+                    }
+                    if (volNum === 0) {
+                        container._videoEl.muted = true;
+                    }
+                    const volPct = Math.round(volNum * 100);
+                    localStorage.setItem('r34_default_volume', volPct.toString());
+                }
+            };
+
+            soundWrapper.onclick = (e) => e.stopPropagation();
+            soundWrapper.onmousedown = (e) => e.stopPropagation();
         }
 
         const centerOverlay = document.createElement('div');
@@ -1563,7 +1608,7 @@ export class Gallery {
             const volumeVal = defaultVolume !== null ? parseFloat(defaultVolume) / 100 : 0.50;
             video.volume = volumeVal;
             
-            video.muted = !lowPowerMode;
+            video.muted = false;
             video.preload = 'metadata';
 
             const updateSoundBtnUI = () => {
@@ -1571,9 +1616,15 @@ export class Gallery {
                     if (video.muted || video.volume === 0) {
                         container._soundToggleBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>`;
                         container._soundToggleBtn.title = 'Включить звук';
+                        if (container._soundVolumeSlider) {
+                            container._soundVolumeSlider.value = 0;
+                        }
                     } else {
                         container._soundToggleBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
                         container._soundToggleBtn.title = 'Выключить звук';
+                        if (container._soundVolumeSlider) {
+                            container._soundVolumeSlider.value = video.volume;
+                        }
                     }
                 }
             };
@@ -1948,7 +1999,7 @@ export class Gallery {
         this.fullscreenIdx = index;
         this.fullscreenContainer = fsContainer;
 
-        if (fsContainer.requestFullscreen) fsContainer.requestFullscreen();
+        if (fsContainer.requestFullscreen) fsContainer.requestFullscreen().catch(() => {});
         else if (fsContainer.webkitRequestFullscreen) fsContainer.webkitRequestFullscreen();
         else if (fsContainer.msRequestFullscreen) fsContainer.msRequestFullscreen();
 
@@ -2294,7 +2345,7 @@ export class Gallery {
             if (this._photoViewer) this._photoViewer.stop();
             this._photoViewer = new PhotoViewer(progress, timerLabel);
             
-            const autoSlideEnabled = localStorage.getItem('r34_auto_slide') === 'true';
+            const autoSlideEnabled = localStorage.getItem('r34_auto_slide') !== 'false';
             const autoSlideInterval = parseInt(localStorage.getItem('r34_auto_slide_interval'), 10) || 5;
             
             this._photoViewer.start(autoSlideInterval, () => this._fullscreenNext("down"));
@@ -2423,12 +2474,18 @@ export class Gallery {
 
         const keyHandler = (e) => {
             if (!this.fullscreenContainer) return;
+            const isShiftEsc = e.shiftKey && e.key === 'Escape';
+            const isCtrlShiftS = e.ctrlKey && e.shiftKey && (e.key === 's' || e.key === 'S' || e.key === 'ы' || e.key === 'Ы');
+            const isAltS = e.altKey && (e.key === 's' || e.key === 'S' || e.key === 'ы' || e.key === 'Ы');
+            if (isShiftEsc || isCtrlShiftS || isAltS) {
+                return; // Let SafeScreen handle hotkey
+            }
             if (['Escape', 'ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 
                 'd', 'D', 'a', 'A', 's', 'S', 'w', 'W', ' '].includes(e.key)) {
                 e.preventDefault();
                 e.stopPropagation();
             }
-            if (e.key === 'Escape') {
+            if (e.key === 'Escape' && !e.shiftKey) {
                 this._exitFullscreen();
             } else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') {
                 this._autoSlidePausedByUser = false;
@@ -2477,7 +2534,7 @@ export class Gallery {
 
         let lastWheelTime = 0;
         const wheelHandler = (e) => {
-            if (!document.fullscreenElement) return;
+            if (!this.fullscreenContainer) return;
             e.preventDefault();
             e.stopPropagation();
             
