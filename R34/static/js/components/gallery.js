@@ -720,7 +720,7 @@ export class Gallery {
                                 }
                             };
                             
-                            // Process batches: 5 posts every 5 seconds
+                            // Process batches: 5 posts every 2 seconds
                             let batchIndex = 0;
                             const batchSize = 5;
                             
@@ -736,7 +736,7 @@ export class Gallery {
                                 
                                 batchIndex++;
                                 if (batchIndex * batchSize < idsToFetch.length) {
-                                    setTimeout(processNextBatch, 5000);
+                                    setTimeout(processNextBatch, 2000);
                                 }
                             };
                             
