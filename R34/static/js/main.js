@@ -6,8 +6,82 @@ import { PuzzleGame } from './components/puzzleGame.js';
 import { tursoSync } from './tursoSync.js';
 import { icon } from './icons.js';
 import { StorageManager } from './storage.js';
+import { SafeScreen } from './components/safeScreen.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize SafeScreen
+    window.safeScreen = new SafeScreen();
+
+    const safeScreenTestBtn = document.getElementById('safeScreenTestBtn');
+    const safeScreenUploadBtn = document.getElementById('safeScreenUploadBtn');
+    const safeScreenFileInput = document.getElementById('safeScreenFileInput');
+    const safeScreenUploadStatus = document.getElementById('safeScreenUploadStatus');
+    const safeScreenHotkeyDisplay = document.getElementById('safeScreenHotkeyDisplay');
+    const safeScreenChangeHotkeyBtn = document.getElementById('safeScreenChangeHotkeyBtn');
+    const safeScreenFileList = document.getElementById('safeScreenFileList');
+
+    const checkMobileSafeScreen = () => {
+        const safeBlock = document.getElementById('safeScreenSettingsBlock');
+        if (!safeBlock) return;
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+            || ('ontouchstart' in window && window.innerWidth <= 900)
+            || window.innerWidth <= 768;
+        if (isMobile) {
+            safeBlock.classList.add('mobile-disabled');
+        } else {
+            safeBlock.classList.remove('mobile-disabled');
+        }
+    };
+    checkMobileSafeScreen();
+    window.addEventListener('resize', checkMobileSafeScreen);
+
+    if (safeScreenHotkeyDisplay) {
+        safeScreenHotkeyDisplay.textContent = window.safeScreen.formatHotkey();
+    }
+
+    if (safeScreenChangeHotkeyBtn) {
+        safeScreenChangeHotkeyBtn.onclick = () => {
+            window.safeScreen.startHotkeyRecording(safeScreenChangeHotkeyBtn, safeScreenHotkeyDisplay);
+        };
+    }
+
+    if (safeScreenFileList) {
+        window.safeScreen.renderFileListContainer(safeScreenFileList);
+    }
+
+    if (safeScreenTestBtn) {
+        safeScreenTestBtn.onclick = () => {
+            window.safeScreen.trigger();
+        };
+    }
+
+    if (safeScreenUploadBtn && safeScreenFileInput) {
+        safeScreenUploadBtn.onclick = () => {
+            safeScreenFileInput.click();
+        };
+
+        safeScreenFileInput.onchange = async () => {
+            if (safeScreenFileInput.files && safeScreenFileInput.files.length > 0) {
+                if (safeScreenUploadStatus) {
+                    safeScreenUploadStatus.style.color = '#ff8a00';
+                    safeScreenUploadStatus.textContent = 'Загрузка...';
+                }
+                const count = await window.safeScreen.uploadFiles(safeScreenFileInput);
+                if (safeScreenUploadStatus) {
+                    safeScreenUploadStatus.style.color = '#2ecc71';
+                    safeScreenUploadStatus.textContent = `Загружено: ${count}`;
+                    setTimeout(() => {
+                        safeScreenUploadStatus.textContent = '';
+                    }, 4000);
+                }
+                safeScreenFileInput.value = '';
+                if (safeScreenFileList) {
+                    window.safeScreen.renderFileListContainer(safeScreenFileList);
+                }
+            }
+        };
+    }
+
     // DOM elements
     const tagInput = document.getElementById('tagInput');
     const arrowButton = document.getElementById('arrowButton');
@@ -953,13 +1027,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (media === closestMedia) {
                     if (isVideo && videoAutoplayEnabled) {
                         if (media.paused && media.dataset.manuallyPaused !== 'true') {
-                            media.muted = true;
+                            media.muted = false;
                             const container = media.closest('.media-container');
                             if (container && container._soundToggleBtn) {
-                                container._soundToggleBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>`;
-                                container._soundToggleBtn.title = 'Включить звук';
+                                container._soundToggleBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
+                                container._soundToggleBtn.title = 'Выключить звук';
                             }
-                            media.play().catch(() => {});
+                            media.play().catch(() => {
+                                media.muted = true;
+                                if (container && container._soundToggleBtn) {
+                                    container._soundToggleBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>`;
+                                    container._soundToggleBtn.title = 'Включить звук';
+                                }
+                                media.play().catch(() => {});
+                            });
                             if (container) {
                                 const playBtn = container.querySelector('.center-play-btn');
                                 if (playBtn) {
@@ -1276,6 +1357,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     const game = new PuzzleGame(currentPost, null, async () => {
+                        window.activePuzzleGame = null;
                         // Request more media in the background upon completion/skip
                         loadMorePostsForPuzzle();
                         
@@ -1293,6 +1375,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
                     });
+                    window.activePuzzleGame = game;
                     game.start();
                 };
 
@@ -1384,6 +1467,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Открытие/закрытие модального окна настроек
     if (settingsBtn && settingsModal) {
         settingsBtn.addEventListener('click', () => {
+            // Обновляем SafeScreen в настройках
+            if (window.safeScreen) {
+                const hkDisp = document.getElementById('safeScreenHotkeyDisplay');
+                if (hkDisp) hkDisp.textContent = window.safeScreen.formatHotkey();
+                const flList = document.getElementById('safeScreenFileList');
+                if (flList) window.safeScreen.renderFileListContainer(flList);
+            }
+
             // Синхронизируем текущие значения перед показом
             
             // Сортировка
@@ -1448,8 +1539,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (settingsOnlyGifsCheckbox) {
                 settingsOnlyGifsCheckbox.checked = localStorage.getItem('r34_only_gifs') === 'true';
             }
-            settingsAutoSlideCheckbox.checked = localStorage.getItem('r34_auto_slide') === 'true';
-            settingsLongImageCheckbox.checked = localStorage.getItem('r34_long_image_protection') === 'true';
+            settingsAutoSlideCheckbox.checked = localStorage.getItem('r34_auto_slide') !== 'false';
+            settingsLongImageCheckbox.checked = localStorage.getItem('r34_long_image_protection') !== 'false';
             if (settingsLowPowerCheckbox) {
                 settingsLowPowerCheckbox.checked = localStorage.getItem('r34_low_power_mode') === 'true';
             }
@@ -1517,6 +1608,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 tabAdvBtn.style.borderBottomColor = 'transparent';
                 contentBasic.style.display = 'flex';
                 contentAdv.style.display = 'none';
+            }
+
+            // Hide settingsResetBtn by default on open (since basic tab is active)
+            const resetBtnOnOpen = document.getElementById('settingsResetBtn');
+            if (resetBtnOnOpen) {
+                resetBtnOnOpen.style.display = 'none';
             }
 
             // Синхронизация продвинутых настроек
@@ -1886,7 +1983,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function checkAndRemoveModalOpenClass() {
-        const activeModal = document.querySelector('#settings-modal.open, .puzzle-overlay, .puzzle-completed-modal, .puzzle-stats-modal, .tag-modal[style*="display: flex"], .tag-modal[style*="display:flex"]');
+        const activeModal = document.querySelector('#settings-modal.open, #tutorial-modal.open, .puzzle-overlay, .puzzle-completed-modal, .puzzle-stats-modal, .tag-modal[style*="display: flex"], .tag-modal[style*="display:flex"]');
         if (!activeModal) {
             document.body.classList.remove('modal-open');
             document.documentElement.classList.remove('modal-open');
@@ -1908,6 +2005,60 @@ document.addEventListener('DOMContentLoaded', () => {
                 checkAndRemoveModalOpenClass();
             }
         });
+    }
+
+    // --- МОДАЛЬНОЕ ОКНО ИНСТРУКТАЖА (Tutorial Modal) ---
+    const tutorialModal = document.getElementById('tutorial-modal');
+    const openTutorialBtn = document.getElementById('openTutorialBtn');
+    const tutorialCloseBtn = document.getElementById('tutorial-close-btn');
+    const tutorialGotItBtn = document.getElementById('tutorialGotItBtn');
+
+    function showTutorial() {
+        if (tutorialModal) {
+            document.body.classList.add('modal-open');
+            document.documentElement.classList.add('modal-open');
+            tutorialModal.classList.add('open');
+        }
+    }
+
+    function closeTutorial() {
+        if (tutorialModal) {
+            tutorialModal.classList.remove('open');
+            localStorage.setItem('r34_onboarding_shown', 'true');
+            checkAndRemoveModalOpenClass();
+        }
+    }
+
+    if (openTutorialBtn) openTutorialBtn.addEventListener('click', showTutorial);
+    if (tutorialCloseBtn) tutorialCloseBtn.addEventListener('click', closeTutorial);
+    if (tutorialGotItBtn) tutorialGotItBtn.addEventListener('click', closeTutorial);
+
+    if (tutorialModal) {
+        tutorialModal.addEventListener('click', (e) => {
+            if (e.target === tutorialModal) {
+                closeTutorial();
+            }
+        });
+    }
+
+    // Закрытие модалок по клавише Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (tutorialModal && tutorialModal.classList.contains('open')) {
+                closeTutorial();
+            } else if (settingsModal && settingsModal.classList.contains('open')) {
+                settingsModal.classList.remove('open');
+                if (typeof stopDemoScroll === 'function') stopDemoScroll();
+                checkAndRemoveModalOpenClass();
+            }
+        }
+    });
+
+    // Авто-показ при первом визите пользователя
+    if (localStorage.getItem('r34_onboarding_shown') !== 'true') {
+        setTimeout(() => {
+            showTutorial();
+        }, 500);
     }
 
     // --- ОБРАБОТЧИКИ ВКЛАДОК НАСТРОЕК (Settings modal tabs switching) ---
@@ -1936,6 +2087,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (paneTarget !== 'settings-content-advanced' && typeof stopDemoScroll === 'function') {
                     stopDemoScroll();
+                }
+
+                const rBtn = document.getElementById('settingsResetBtn');
+                if (rBtn) {
+                    if (paneTarget === 'settings-content-advanced') {
+                        rBtn.style.display = '';
+                    } else {
+                        rBtn.style.display = 'none';
+                    }
                 }
 
                 // Refresh range input background gradients on tab switch
@@ -3853,7 +4013,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 'r34_card_glow_intensity': '45',
                 'r34_tag_size': '11',
                 'r34_tags_only_on_hover': 'false',
-                'r34_header_style': 'glass'
+                'r34_header_style': 'glass',
+                'r34_auto_slide': 'true',
+                'r34_long_image_protection': 'true'
             };
             
             Object.keys(defaults).forEach(key => localStorage.setItem(key, defaults[key]));
@@ -5263,7 +5425,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const escHandler = (e) => {
-            if (e.key === 'Escape') {
+            if (e.key === 'Escape' && !e.shiftKey) {
                 zoomOverlay.style.display = 'none';
                 if (isVideo && mediaEl) {
                     mediaEl.pause();
