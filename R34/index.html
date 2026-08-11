@@ -83,7 +83,13 @@
   <div class="settings-modal-card">
 
     <div class="settings-modal-header">
-      <h2>Настройки</h2>
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2>Настройки</h2>
+        <button id="openTutorialBtn" class="tutorial-badge-btn" title="Открыть инструктаж по поиску и управлению">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>Инструктаж</span>
+        </button>
+      </div>
       <div class="settings-header-actions">
         <button id="settingsResetBtn" class="r34-btn-secondary settings-reset-btn">Сбросить всё</button>
         <button id="settings-close-btn" class="settings-close-btn">&times;</button>
@@ -105,20 +111,6 @@
         <div class="settings-section-title">
           <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <span>Поиск и фильтрация</span>
-        </div>
-
-        <!-- Исключенные теги -->
-        <div class="settings-option settings-option--divided-compact">
-          <div class="settings-row">
-            <div class="settings-label-group">
-              <label class="settings-label">Исключенные теги (Blacklist)</label>
-              <button class="info-btn" data-info="blacklist" title="Инструкция">!</button>
-            </div>
-            <button id="settingsResetTagsBtn" class="r34-btn-secondary">Редактировать список</button>
-          </div>
-          <div class="info-help-box" id="info-blacklist" style="display: none;">
-            Позволяет настроить список тегов, которые будут автоматически исключаться из всех результатов поиска.
-          </div>
         </div>
 
         <!-- Режим прокрутки -->
@@ -218,7 +210,7 @@
         <div class="settings-option settings-option-row">
           <label class="settings-label" title="Сворачивать слишком длинные изображения (манга) и добавлять кнопку развернуть">Защита от длинных изображений</label>
           <label class="r34-toggle-switch">
-            <input type="checkbox" id="settingsLongImageCheckbox">
+            <input type="checkbox" id="settingsLongImageCheckbox" checked>
             <span class="r34-slider"></span>
           </label>
         </div>
@@ -295,6 +287,54 @@
           <span>Воспроизведение медиа</span>
         </div>
 
+        <!-- СЕКЦИЯ: SAFE SCREEN (ЭКРАН БЕЗОПАСНОСТИ) -->
+        <div id="safeScreenSettingsBlock" class="safe-screen-settings-wrapper">
+          <div class="settings-section-title">
+            <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              Safe Screen (Экран безопасности)
+              <span class="pc-only-badge">(только для ПК)</span>
+            </span>
+          </div>
+
+          <div class="settings-option settings-option--divided-compact">
+            <!-- Горячие клавиши -->
+            <div class="settings-row settings-row--wrap" style="gap: 12px; align-items: center;">
+              <div class="settings-label-group" style="flex: 1;">
+                <label class="settings-label">Быстрый вызов (Горячая клавиша)</label>
+                <div style="font-size: 0.85rem; color: rgba(255, 255, 255, 0.6); margin-top: 4px; display: flex; align-items: center; gap: 8px;">
+                  <span>Текущая комбинация:</span>
+                  <kbd id="safeScreenHotkeyDisplay" style="background: var(--accent); padding: 3px 8px; border-radius: 6px; color: #fff; font-weight: 600; font-size: 0.85rem;">Alt + S</kbd>
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <button id="safeScreenChangeHotkeyBtn" class="r34-btn-secondary" style="min-width: 140px;">Изменить клавишу</button>
+                <button id="safeScreenTestBtn" class="r34-btn-secondary" style="min-width: 90px;">Проверить</button>
+              </div>
+            </div>
+
+            <!-- Загрузка и Список файлов в safe_screen -->
+            <div style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                <label class="settings-label" style="font-size: 0.9rem;">Файлы в папке safe_screen:</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <input type="file" id="safeScreenFileInput" multiple accept="image/*,video/*" style="display: none;">
+                  <button id="safeScreenUploadBtn" class="r34-btn-secondary" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; padding: 6px 12px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Загрузить файлы
+                  </button>
+                  <span id="safeScreenUploadStatus" style="font-size: 0.85rem; color: #2ecc71;"></span>
+                </div>
+              </div>
+
+              <!-- Контейнер со списком загруженных файлов -->
+              <div id="safeScreenFileList" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px;">
+                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.5); text-align: center; padding: 12px;">Загрузка списка файлов...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Бесконечный повтор видео -->
         <div class="settings-option">
           <div class="settings-row">
@@ -351,7 +391,7 @@
         <div class="settings-option settings-option-row">
           <label class="settings-label" title="Автоматически переключать изображения в полноэкранном режиме">Автопролистывание изображений</label>
           <label class="r34-toggle-switch">
-            <input type="checkbox" id="settingsAutoSlideCheckbox">
+            <input type="checkbox" id="settingsAutoSlideCheckbox" checked>
             <span class="r34-slider"></span>
           </label>
         </div>
@@ -1376,6 +1416,122 @@
   </div>
   <div class="end-of-results-title">Вы дошли до конца</div>
   <div class="end-of-results-subtitle">Вы просмотрели все доступные публикации по этому запросу</div>
+</div>
+
+<!-- ═══ Модальное окно инструктажа ═══ -->
+<div id="tutorial-modal" class="settings-modal">
+  <div class="settings-modal-card tutorial-modal-card">
+    <div class="settings-modal-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        <h2 style="font-size: 1.25rem;">Быстрый инструктаж по поиску и управлению</h2>
+      </div>
+    </div>
+
+    <div class="settings-modal-body tutorial-modal-body">
+      
+      <!-- Карточка 1: Поиск тегов и подчеркивание -->
+      <div class="tutorial-card">
+        <div class="tutorial-card-header">
+          <span class="tutorial-step-num">1</span>
+          <h3>Как искать теги (подчеркивание <code>_</code> вместо пробела)</h3>
+        </div>
+        <p>
+          В базе данных Rule34 все теги из нескольких слов пишутся через нижнее подчеркивание <code>_</code> без пробелов.
+        </p>
+        <p style="margin-top: 6px;">
+          <b>Примеры:</b> <code>genshin_impact</code>, <code>hatsune_miku</code>, <code>cat_ears</code>.
+        </p>
+      </div>
+
+      <!-- Карточка 2: Кнопка режима + и - слева от поиска -->
+      <div class="tutorial-card">
+        <div class="tutorial-card-header">
+          <span class="tutorial-step-num">2</span>
+          <h3>Кнопка переключения режима <code>+</code> и <code>-</code> слева от поиска</h3>
+        </div>
+        <p>
+          Слева от строки ввода поиска находится специальная кнопка выбора режима (<b><code>+</code></b> / <b><code>-</code></b>):
+        </p>
+        <ul class="tutorial-list">
+          <li>
+            <span class="badge-plus">+ Режим добавления:</span> Нажмите кнопку слева, чтобы включить зеленый плюс <b><code>+</code></b>. Все вводимые или выбираемые из автопоиска теги будут <b>включаться</b> в поиск.
+          </li>
+          <li>
+            <span class="badge-minus">- Режим исключения:</span> Нажмите кнопку слева, чтобы переключить на красный минус <b><code>-</code></b>. Все вводимые или выбираемые теги будут <b>исключаться</b> из поиска.
+          </li>
+        </ul>
+      </div>
+
+      <!-- Карточка 3: Переключение и удаление тегов -->
+      <div class="tutorial-card">
+        <div class="tutorial-card-header">
+          <span class="tutorial-step-num">3</span>
+          <h3>Управление активными тегами (над строкой поиска)</h3>
+        </div>
+        <p>
+          Все выбранные теги отображаются над строкой поиска в виде цветных плашек:
+        </p>
+        <div class="tutorial-demo-row">
+          <span class="tutorial-demo-tag tag-include">+genshin_impact</span>
+          <span class="tutorial-demo-tag tag-exclude">-animated</span>
+        </div>
+        <ul class="tutorial-list">
+          <li><b>Клик по включенному (зеленому) тегу:</b> Выключает тег и переводит его в <b>исключенные</b> (красная плашка).</li>
+          <li><b>Повторный клик по выключенному (красному) тегу:</b> Полностью <b>удаляет</b> тег из поиска.</li>
+          <li><b>Зажатие (Long Press) или Shift+клик по выключенному тегу:</b> Перемещает его обратно во <b>включенные теги</b> (зеленая плашка).</li>
+          <li><b>Продвинутые настройки:</b> В разделе <i>«Настройки» → «Продвинутые настройки»</i> (параметр <i>«Поведение клика по тегу»</i>) можно изменить этот логический режим (напр. переключать кликом, двойным кликом или зажатием).</li>
+        </ul>
+      </div>
+
+      <!-- Карточка 4: Теги под медиа карточками -->
+      <div class="tutorial-card">
+        <div class="tutorial-card-header">
+          <span class="tutorial-step-num">4</span>
+          <h3>Управление тегами под медиафайлами</h3>
+        </div>
+        <p>
+          При нажатии на медиа открывается блок с тэгами.
+        </p>
+        <div class="tutorial-devices-grid">
+          <div class="tutorial-device-box">
+            <div class="tutorial-device-title">🖥️ На компьютерах (ПК):</div>
+            <ul>
+              <li><b>Левый клик (ЛКМ)</b> — добавляет тег во <b>включенные</b> (<code>+</code>).</li>
+              <li><b>Правый клик (ПКМ)</b> или иконка <b><code>-</code></b> — добавляет тег в <b>исключенные</b> (<code>-</code>).</li>
+            </ul>
+          </div>
+          <div class="tutorial-device-box">
+            <div class="tutorial-device-title">📱 На телефонах (Touch):</div>
+            <ul>
+              <li><b>Быстрый тап</b> — добавляет тег во <b>включенные</b> (<code>+</code>).</li>
+              <li><b>Долгое зажатие (Long Press)</b> или повторный тап по активному тегу — переключает его в <b>исключенные</b> (<code>-</code>).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Карточка 5: Информационные знаки ! в настройках -->
+      <div class="tutorial-card">
+        <div class="tutorial-card-header">
+          <span class="tutorial-step-num">5</span>
+          <h3>Подсказки и знаки <code>!</code> напротив функций в настройках</h3>
+        </div>
+        <p>
+          В окне <b>«Настройки»</b> напротив названий функций расположены значки <code>!</code> (или информации):
+        </p>
+        <div style="display:flex; align-items:center; gap:10px; margin-top: 6px;">
+          <span class="help-trigger-demo" style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; background:rgba(167,139,250,0.25); border:1px solid rgba(167,139,250,0.5); border-radius:50%; color:#c4b5fd; font-weight:bold; font-size:0.85rem;">!</span>
+          <span style="font-size:0.9rem; color:rgba(255,255,255,0.85);">Нажмите на любой знак <code>!</code>, чтобы прочитать подробное описание работы конкретной функции!</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="tutorial-modal-footer">
+      <button id="tutorialGotItBtn" class="r34-btn-primary tutorial-ack-btn">Понятно, приступить к поиску</button>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ Кастомное модальное окно подтверждения ═══ -->
