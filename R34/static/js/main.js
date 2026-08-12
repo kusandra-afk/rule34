@@ -493,6 +493,465 @@ document.addEventListener('DOMContentLoaded', () => {
         const rgbMatch = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
         if (rgbMatch) {
             const r = parseInt(rgbMatch[1], 10) || 0;
+            const
+    if (safeScreenHotkeyDisplay) {
+        safeScreenHotkeyDisplay.textContent = window.safeScreen.formatHotkey();
+    }
+
+    if (safeScreenChangeHotkeyBtn) {
+        safeScreenChangeHotkeyBtn.onclick = () => {
+            window.safeScreen.startHotkeyRecording(safeScreenChangeHotkeyBtn, safeScreenHotkeyDisplay);
+        };
+    }
+
+    if (safeScreenFileList) {
+        window.safeScreen.renderFileListContainer(safeScreenFileList);
+    }
+
+    if (safeScreenTestBtn) {
+        safeScreenTestBtn.onclick = () => {
+            window.safeScreen.trigger();
+        };
+    }
+
+    if (safeScreenUploadBtn && safeScreenFileInput) {
+        safeScreenUploadBtn.onclick = () => {
+            safeScreenFileInput.click();
+        };
+
+        safeScreenFileInput.onchange = async () => {
+            if (safeScreenFileInput.files && safeScreenFileInput.files.length > 0) {
+                if (safeScreenUploadStatus) {
+                    safeScreenUploadStatus.style.color = '#ff8a00';
+                    safeScreenUploadStatus.textContent = 'Загрузка...';
+                }
+                const count = await window.safeScreen.uploadFiles(safeScreenFileInput);
+                if (safeScreenUploadStatus) {
+                    safeScreenUploadStatus.style.color = '#2ecc71';
+                    safeScreenUploadStatus.textContent = `Загружено: ${count}`;
+                    setTimeout(() => {
+                        safeScreenUploadStatus.textContent = '';
+                    }, 4000);
+                }
+                safeScreenFileInput.value = '';
+                if (safeScreenFileList) {
+                    window.safeScreen.renderFileListContainer(safeScreenFileList);
+                }
+            }
+        };
+    }
+
+    // DOM elements
+    const tagInput = document.getElementById('tagInput');
+    const arrowButton = document.getElementById('arrowButton');
+    const tagModeToggle = document.getElementById('tagModeToggle');
+    const r34ResultsCount = document.getElementById('r34ResultsCount');
+    
+    window.isCountExpanded = false;
+    if (r34ResultsCount) {
+        r34ResultsCount.style.cursor = 'pointer';
+        r34ResultsCount.style.userSelect = 'none';
+        r34ResultsCount.style.webkitUserSelect = 'none';
+        r34ResultsCount.addEventListener('click', () => {
+            window.isCountExpanded = !window.isCountExpanded;
+            if (window.gallery) {
+                window.gallery.updateCountDisplay();
+            }
+        });
+    }
+
+    const activeTagsContainer = document.getElementById('activeTags');
+    const loader = document.getElementById('loader');
+    const paginationLoader = document.getElementById('pagination-loader');
+    const resultsDiv = document.getElementById('results');
+    const errorEl = document.getElementById('error');
+    const suggestionsContainer = document.getElementById('suggestions');
+    
+    // Sort state
+    let currentSort = localStorage.getItem('r34_current_sort') || 'new';
+
+    // Загрузка тегов из API
+    let serverExcludedTags = [];
+
+    function rebuildExcludedTagsInTagSearch(tagsList) {
+        const normalizedTags = (Array.isArray(tagsList) ? tagsList : [])
+            .map(tag => String(tag || '').trim())
+            .filter(Boolean);
+
+        if (!window.tagSearch) return;
+
+        // Сохраняем все текущие теги (и активные, и неактивные)
+        const currentTags = window.tagSearch.activeTags || [];
+        const nextTags = [...currentTags];
+        const seen = new Set(currentTags.map(tagObj => tagObj.value));
+
+        normalizedTags.forEach(tag => {
+            if (!seen.has(tag)) {
+                nextTags.push({ value: tag, active: false });
+                seen.add(tag);
+            }
+        });
+
+        window.tagSearch.activeTags = nextTags.filter(tagObj => {
+            if (!tagObj || !tagObj.value) return false;
+            // Оставляем те, что уже были, либо те, что пришли с сервера
+            return true;
+        });
+
+        window.tagSearch.updateActiveTagsDisplay();
+    }
+
+    async function loadExcludedTagsFromServer() {
+        try {
+            console.log('Fetching excluded tags from /api/excluded-tags');
+            const response = await fetch('/api/excluded-tags');
+            console.log('Response status:', response.status);
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Response data:', data);
+                if (data.ok && Array.isArray(data.tags)) {
+                    serverExcludedTags = data.tags;
+                    rebuildExcludedTagsInTagSearch(data.tags);
+                    console.log('Loaded excluded tags from server:', data.tags);
+                    return data.tags;
+                }
+            }
+        } catch (e) {
+            console.error('Error loading excluded tags from server:', e);
+        }
+        console.log('Returning empty array for excluded tags');
+        return [];
+    }
+    
+    // Сохранение тегов на сервер
+    async function saveExcludedTagsToServer(tagsList) {
+        try {
+            const response = await fetch('/api/excluded-tags', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tags: tagsList })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.ok) {
+                    serverExcludedTags = Array.isArray(data.tags) ? data.tags : tagsList;
+                    rebuildExcludedTagsInTagSearch(serverExcludedTags);
+                    return true;
+                }
+            }
+        } catch (e) {
+            console.error('Error saving excluded tags to server:', e);
+        }
+        return false;
+    }
+
+    // Загрузка настроек с сервера
+    let serverSettings = null;
+    async function loadSettingsFromServer() {
+        try {
+            const response = await fetch('/api/settings');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.ok && typeof data.settings === 'object') {
+                    serverSettings = data.settings;
+                    // Применяем только реальные настройки к localStorage
+                    Object.keys(data.settings).forEach(key => {
+                        if (isSettingsSyncKey(key)) {
+                            originalSetItem.call(localStorage, key, data.settings[key]);
+                        }
+                    });
+                    return data.settings;
+                }
+            }
+        } catch (e) {
+            console.error('Error loading settings from server:', e);
+        }
+        return {};
+    }
+
+    // Загрузка turso config с сервера
+    let serverTursoConfig = null;
+    async function loadTursoConfigFromServer() {
+        try {
+            const response = await fetch('/api/turso-config');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.ok && typeof data.config === 'object') {
+                    serverTursoConfig = data.config;
+                    // Сохраняем в localStorage для совместимости
+                    if (data.config.turso_url !== undefined) {
+                        originalSetItem.call(localStorage, 'r34_turso_url', data.config.turso_url);
+                    }
+                    if (data.config.turso_token !== undefined) {
+                        originalSetItem.call(localStorage, 'r34_turso_token', data.config.turso_token);
+                    }
+                    return data.config;
+                }
+            }
+        } catch (e) {
+            console.error('Error loading turso config from server:', e);
+        }
+        return { turso_url: '', turso_token: '' };
+    }
+
+    // Сохранение turso config на сервер
+    async function saveTursoConfigToServer(url, token) {
+        try {
+            const response = await fetch('/api/turso-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ turso_url: url, turso_token: token })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.ok) {
+                    serverTursoConfig = data.config;
+                    return true;
+                }
+            }
+        } catch (e) {
+            console.error('Error saving turso config to server:', e);
+        }
+        return false;
+    }
+
+    const SETTINGS_SYNC_EXCLUDE_PREFIXES = [
+        'r34_duration_',
+        'r34_video_position_',
+        'liked_',
+        'r34_tagtype_',
+        'r34_puzzle_',
+        'r34_solved_',
+        'r34_tagcnt_'
+    ];
+    const SETTINGS_SYNC_EXCLUDE_KEYS = new Set([
+        'r34_active_tags',
+        'r34_turso_url',
+        'r34_turso_token'
+    ]);
+
+    function isSettingsSyncKey(key) {
+        return key && key.startsWith('r34_') && !SETTINGS_SYNC_EXCLUDE_KEYS.has(key) && !SETTINGS_SYNC_EXCLUDE_PREFIXES.some(prefix => key.startsWith(prefix));
+    }
+
+    // Сохранение настроек на сервер
+    let settingsSaveTimeout = null;
+    async function saveSettingsToServer() {
+        // Собираем только реальные настройки из localStorage
+        const allSettings = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (isSettingsSyncKey(key)) {
+                allSettings[key] = localStorage.getItem(key);
+            }
+        }
+        
+        try {
+            const response = await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ settings: allSettings })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.ok) {
+                    serverSettings = data.settings;
+                    return true;
+                }
+            }
+        } catch (e) {
+            console.error('Error saving settings to server:', e);
+        }
+        return false;
+    }
+
+    // Обертка для localStorage.setItem с отложенной отправкой на сервер и защитой от переполнения
+    const originalSetItem = localStorage.setItem;
+    localStorage.setItem = function(key, value) {
+        try {
+            originalSetItem.call(this, key, value);
+        } catch (e) {
+            if (StorageManager.isQuotaExceeded(e)) {
+                console.warn('LocalStorage quota exceeded during global setItem. Cleaning up...', key);
+                StorageManager.cleanup();
+                try {
+                    originalSetItem.call(this, key, value);
+                } catch (retryError) {
+                    console.error('LocalStorage still full after global cleanup.', retryError);
+                }
+            } else {
+                console.error('LocalStorage setItem error:', e);
+            }
+        }
+        
+        // Синхронизируем только реальные настройки, исключая кешируемые данные и пазлы
+        if (isSettingsSyncKey(key)) {
+            if (settingsSaveTimeout) clearTimeout(settingsSaveTimeout);
+            settingsSaveTimeout = setTimeout(() => {
+                saveSettingsToServer();
+            }, 1000); // Отправляем через 1 секунду после последнего изменения
+        }
+    };
+    
+    const originalRemoveItem = localStorage.removeItem;
+    localStorage.removeItem = function(key) {
+        const existed = this.getItem(key);
+        originalRemoveItem.call(this, key);
+        if (isSettingsSyncKey(key) && existed !== null) {
+            if (settingsSaveTimeout) clearTimeout(settingsSaveTimeout);
+            settingsSaveTimeout = setTimeout(() => {
+                saveSettingsToServer();
+            }, 1000);
+        }
+    };
+
+    const getSavedExcludedTags = () => {
+        return Array.isArray(serverExcludedTags) ? serverExcludedTags : [];
+    };
+    const saveSavedExcludedTags = async (tagsList) => {
+        const normalizedTags = (Array.isArray(tagsList) ? tagsList : [])
+            .map(tag => String(tag || '').trim())
+            .filter(Boolean);
+        await saveExcludedTagsToServer(normalizedTags);
+    };
+
+    window.getSavedExcludedTags = getSavedExcludedTags;
+    window.saveSavedExcludedTags = saveSavedExcludedTags;
+    window.addExcludedTag = async (tag) => {
+        const saved = getSavedExcludedTags();
+        if (!saved.includes(tag)) {
+            saved.push(tag);
+            await saveSavedExcludedTags(saved);
+        }
+    };
+    window.removeExcludedTag = async (tag) => {
+        const saved = getSavedExcludedTags();
+        const updated = saved.filter(t => t !== tag);
+        await saveSavedExcludedTags(updated);
+    };
+
+    // --- ПРЕДУСТАНОВКИ КАСТОМИЗАЦИИ (Advanced customization presets) ---
+    const colorPresets = {
+        pink: { accent: '#ff3b6b', alt: '#ff5e8c', glow: 'rgba(255, 59, 107, 0.4)' },
+        cyan: { accent: '#00f0ff', alt: '#00bfff', glow: 'rgba(0, 240, 255, 0.4)' },
+        green: { accent: '#39ff14', alt: '#32cd32', glow: 'rgba(57, 255, 20, 0.4)' },
+        purple: { accent: '#9b51e0', alt: '#bb6bd9', glow: 'rgba(155, 81, 224, 0.4)' },
+        gold: { accent: '#f2c94c', alt: '#f2994a', glow: 'rgba(242, 201, 76, 0.4)' }
+    };
+
+    const bgPresets = {
+        midnight: { dark: '#0a0b10', bodyBg: 'radial-gradient(circle at top right, #1b1622 0%, #0a0b10 100%)' },
+        obsidian: { dark: '#000000', bodyBg: '#000000' },
+        forest: { dark: '#040c06', bodyBg: 'radial-gradient(circle at top right, #0a1f10 0%, #040c06 100%)' },
+        indigo: { dark: '#080816', bodyBg: 'radial-gradient(circle at top right, #0e122b 0%, #080816 100%)' }
+    };
+
+    const hoverPresets = {
+        zoom: {
+            transform: 'translateY(-6px) scale(1.015)',
+            borderColor: 'var(--accent)',
+            boxShadow: '0 15px 40px var(--accent-glow), 0 0 0 1px var(--accent)',
+            animation: 'none'
+        },
+        glow: {
+            transform: 'none',
+            borderColor: 'var(--accent)',
+            boxShadow: '0 0 25px var(--accent-glow), inset 0 0 15px var(--accent-glow)',
+            animation: 'none'
+        },
+        slide: {
+            transform: 'translateY(-3px)',
+            borderColor: 'var(--glass-border-strong)',
+            boxShadow: '0 8px 20px rgba(0, 0, 0, 0.4)',
+            animation: 'none'
+        },
+        pulse: {
+            transform: 'scale(1.03)',
+            borderColor: 'var(--accent)',
+            boxShadow: '0 0 20px var(--accent-glow), 0 0 0 1px var(--accent)',
+            animation: 'cardPulse 1.5s infinite ease-in-out'
+        },
+        borderPop: {
+            transform: 'none',
+            borderColor: 'white',
+            boxShadow: 'inset 0 0 0 2px white',
+            animation: 'none'
+        },
+        none: {
+            transform: 'none',
+            borderColor: 'var(--glass-border)',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
+        }
+    };
+
+    const fontPresets = {
+        sans: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        mono: "'JetBrains Mono', 'Courier New', Courier, monospace",
+        rounded: "system-ui, -apple-system, sans-serif"
+    };
+
+    function getAccentGlow(hexColor, intensity) {
+        const alpha = typeof intensity === 'number' ? (intensity / 100) * 0.9 : 0.45;
+        if (hexColor && hexColor.startsWith('#')) {
+            const hex = hexColor.replace('#', '');
+            if (hex.length === 3) {
+                const r = parseInt(hex[0] + hex[0], 16) || 0;
+                const g = parseInt(hex[1] + hex[1], 16) || 0;
+                const b = parseInt(hex[2] + hex[2], 16) || 0;
+                return `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)})`;
+            } else if (hex.length === 6) {
+                const r = parseInt(hex.substring(0, 2), 16) || 0;
+                const g = parseInt(hex.substring(2, 4), 16) || 0;
+                const b = parseInt(hex.substring(4, 6), 16) || 0;
+                return `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)})`;
+            }
+        }
+        return `rgba(255, 59, 107, ${alpha.toFixed(3)})`;
+    }
+
+    function getAccentAlt(hexColor) {
+        if (hexColor && hexColor.startsWith('#')) {
+            const hex = hexColor.replace('#', '');
+            let r, g, b;
+            if (hex.length === 3) {
+                r = parseInt(hex[0] + hex[0], 16) || 0;
+                g = parseInt(hex[1] + hex[1], 16) || 0;
+                b = parseInt(hex[2] + hex[2], 16) || 0;
+            } else if (hex.length === 6) {
+                r = parseInt(hex.substring(0, 2), 16) || 0;
+                g = parseInt(hex.substring(2, 4), 16) || 0;
+                b = parseInt(hex.substring(4, 6), 16) || 0;
+            } else {
+                return hexColor;
+            }
+            const isTooLight = (r * 0.299 + g * 0.587 + b * 0.114) > 180;
+            const factor = isTooLight ? -0.15 : 0.15;
+            const rAlt = Math.max(0, Math.min(255, Math.round(r + (isTooLight ? r : 255 - r) * factor)));
+            const gAlt = Math.max(0, Math.min(255, Math.round(g + (isTooLight ? g : 255 - g) * factor)));
+            const bAlt = Math.max(0, Math.min(255, Math.round(b + (isTooLight ? b : 255 - b) * factor)));
+            return `rgb(${rAlt}, ${gAlt}, ${bAlt})`;
+        }
+        return hexColor;
+    }
+
+    function getBgLuminance(colorStr) {
+        if (!colorStr) return 0;
+        let hex = colorStr.trim();
+        if (hex.startsWith('#')) {
+            hex = hex.replace('#', '');
+            if (hex.length === 3) {
+                hex = hex.split('').map(c => c + c).join('');
+            }
+            if (hex.length >= 6) {
+                const r = parseInt(hex.substr(0, 2), 16) || 0;
+                const g = parseInt(hex.substr(2, 2), 16) || 0;
+                const b = parseInt(hex.substr(4, 2), 16) || 0;
+                return (r * 299 + g * 587 + b * 114) / 1000;
+            }
+        }
+        const rgbMatch = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+        if (rgbMatch) {
+            const r = parseInt(rgbMatch[1], 10) || 0;
             const g = parseInt(rgbMatch[2], 10) || 0;
             const b = parseInt(rgbMatch[3], 10) || 0;
             return (r * 299 + g * 587 + b * 114) / 1000;
