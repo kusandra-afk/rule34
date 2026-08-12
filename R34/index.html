@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="static/css/controls.css">
 <link rel="stylesheet" href="static/css/adaptive.css">
 <link rel="stylesheet" href="static/css/ui.css">
+<link rel="stylesheet" href="static/css/higherLower.css">
 </head>
 <body>
 
@@ -54,7 +55,7 @@
   </button>
 </div>
 
-<h1>Rule34 Gallery</h1>
+<h1 title="(Нажми 5 раз)">Rule34 Gallery</h1>
 
 <!-- ═══ Поиск ═══ -->
 <div class="search-container">
@@ -1498,14 +1499,14 @@
             <div class="tutorial-device-title">🖥️ На компьютерах (ПК):</div>
             <ul>
               <li><b>Левый клик (ЛКМ)</b> — добавляет тег во <b>включенные</b> (<code>+</code>).</li>
-              <li><b>Правый клик (ПКМ)</b> — добавляет тег в <b>исключенные</b> (<code>-</code>).</li>
+              <li><b>Правый клик (ПКМ)</b> или иконка <b><code>-</code></b> — добавляет тег в <b>исключенные</b> (<code>-</code>).</li>
             </ul>
           </div>
           <div class="tutorial-device-box">
             <div class="tutorial-device-title">📱 На телефонах (Touch):</div>
             <ul>
               <li><b>Быстрый тап</b> — добавляет тег во <b>включенные</b> (<code>+</code>).</li>
-              <li><b>Долгое зажатие (Long Press)</b> переключает его в <b>исключенные</b> (<code>-</code>).</li>
+              <li><b>Долгое зажатие (Long Press)</b> или повторный тап по активному тегу — переключает его в <b>исключенные</b> (<code>-</code>).</li>
             </ul>
           </div>
         </div>
@@ -1550,6 +1551,9 @@
 </div>
 
 <p id="error" class="error"></p>
+
+<!-- PeerJS for fully serverless P2P multiplayer -->
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
 <script type="module" src="static/js/main.js?v=1.0.3"></script>
 

@@ -26,8 +26,12 @@ def is_allowed_origin(origin):
     if not origin:
         return False
     parsed = urlparse(origin)
-    host = parsed.hostname or ''
-    return host in {'localhost', '127.0.0.1'} or host.endswith('.localhost')
+    host = (parsed.hostname or '').lower()
+    return (host in {'localhost', '127.0.0.1'} or 
+            host.endswith('.localhost') or 
+            host.endswith('.run.app') or 
+            host.endswith('google.com') or 
+            'aistudio' in host)
 
 
 def is_allowed_target_url(target_url):
@@ -285,6 +289,13 @@ def check_api_key_valid(user_id, api_key):
     except Exception as e:
         print('API key check error:', e)
         return False
+
+@app.route('/firebase-applet-config.json')
+def firebase_config_page():
+    config_path = os.path.join(BASE_DIR, 'firebase-applet-config.json')
+    if os.path.exists(config_path):
+        return send_file(config_path)
+    return jsonify({}), 404
 
 @app.route('/')
 def index():
@@ -1215,6 +1226,10 @@ def api_puzzle_completed():
         traceback.print_exc()
         return jsonify({'ok': False, 'error': str(e)}), 500
 
+
+
+
+
 @app.route('/safe_screen/<path:filename>')
 def serve_safe_screen_file(filename):
     return send_from_directory(SAFE_SCREEN_DIR, filename)
@@ -1294,6 +1309,8 @@ def api_safe_screen_delete():
 
 @app.errorhandler(404)
 def page_not_found(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'ok': False, 'error': 'not_found'}), 404
     return redirect('/')
 
 if __name__ == '__main__':

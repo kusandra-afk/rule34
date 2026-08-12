@@ -3,6 +3,7 @@ import { Gallery } from './components/gallery.js';
 import { fetchPosts, proxyUrl, fetchTagCount, fetchPuzzleCompleted, savePuzzleCompleted } from './api.js';
 import { setRangeGradient, formatCount, extractHexColor, debounce } from './utils.js';
 import { PuzzleGame } from './components/puzzleGame.js';
+import { HigherLowerGame } from './components/higherLowerGame.js';
 import { tursoSync } from './tursoSync.js';
 import { icon } from './icons.js';
 import { StorageManager } from './storage.js';
@@ -35,465 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
     checkMobileSafeScreen();
     window.addEventListener('resize', checkMobileSafeScreen);
 
-    if (safeScreenHotkeyDisplay) {
-        safeScreenHotkeyDisplay.textContent = window.safeScreen.formatHotkey();
-    }
-
-    if (safeScreenChangeHotkeyBtn) {
-        safeScreenChangeHotkeyBtn.onclick = () => {
-            window.safeScreen.startHotkeyRecording(safeScreenChangeHotkeyBtn, safeScreenHotkeyDisplay);
-        };
-    }
-
-    if (safeScreenFileList) {
-        window.safeScreen.renderFileListContainer(safeScreenFileList);
-    }
-
-    if (safeScreenTestBtn) {
-        safeScreenTestBtn.onclick = () => {
-            window.safeScreen.trigger();
-        };
-    }
-
-    if (safeScreenUploadBtn && safeScreenFileInput) {
-        safeScreenUploadBtn.onclick = () => {
-            safeScreenFileInput.click();
-        };
-
-        safeScreenFileInput.onchange = async () => {
-            if (safeScreenFileInput.files && safeScreenFileInput.files.length > 0) {
-                if (safeScreenUploadStatus) {
-                    safeScreenUploadStatus.style.color = '#ff8a00';
-                    safeScreenUploadStatus.textContent = 'Загрузка...';
-                }
-                const count = await window.safeScreen.uploadFiles(safeScreenFileInput);
-                if (safeScreenUploadStatus) {
-                    safeScreenUploadStatus.style.color = '#2ecc71';
-                    safeScreenUploadStatus.textContent = `Загружено: ${count}`;
-                    setTimeout(() => {
-                        safeScreenUploadStatus.textContent = '';
-                    }, 4000);
-                }
-                safeScreenFileInput.value = '';
-                if (safeScreenFileList) {
-                    window.safeScreen.renderFileListContainer(safeScreenFileList);
-                }
-            }
-        };
-    }
-
-    // DOM elements
-    const tagInput = document.getElementById('tagInput');
-    const arrowButton = document.getElementById('arrowButton');
-    const tagModeToggle = document.getElementById('tagModeToggle');
-    const r34ResultsCount = document.getElementById('r34ResultsCount');
-    
-    window.isCountExpanded = false;
-    if (r34ResultsCount) {
-        r34ResultsCount.style.cursor = 'pointer';
-        r34ResultsCount.style.userSelect = 'none';
-        r34ResultsCount.style.webkitUserSelect = 'none';
-        r34ResultsCount.addEventListener('click', () => {
-            window.isCountExpanded = !window.isCountExpanded;
-            if (window.gallery) {
-                window.gallery.updateCountDisplay();
-            }
-        });
-    }
-
-    const activeTagsContainer = document.getElementById('activeTags');
-    const loader = document.getElementById('loader');
-    const paginationLoader = document.getElementById('pagination-loader');
-    const resultsDiv = document.getElementById('results');
-    const errorEl = document.getElementById('error');
-    const suggestionsContainer = document.getElementById('suggestions');
-    
-    // Sort state
-    let currentSort = localStorage.getItem('r34_current_sort') || 'new';
-
-    // Загрузка тегов из API
-    let serverExcludedTags = [];
-
-    function rebuildExcludedTagsInTagSearch(tagsList) {
-        const normalizedTags = (Array.isArray(tagsList) ? tagsList : [])
-            .map(tag => String(tag || '').trim())
-            .filter(Boolean);
-
-        if (!window.tagSearch) return;
-
-        // Сохраняем все текущие теги (и активные, и неактивные)
-        const currentTags = window.tagSearch.activeTags || [];
-        const nextTags = [...currentTags];
-        const seen = new Set(currentTags.map(tagObj => tagObj.value));
-
-        normalizedTags.forEach(tag => {
-            if (!seen.has(tag)) {
-                nextTags.push({ value: tag, active: false });
-                seen.add(tag);
-            }
-        });
-
-        window.tagSearch.activeTags = nextTags.filter(tagObj => {
-            if (!tagObj || !tagObj.value) return false;
-            // Оставляем те, что уже были, либо те, что пришли с сервера
-            return true;
-        });
-
-        window.tagSearch.updateActiveTagsDisplay();
-    }
-
-    async function loadExcludedTagsFromServer() {
-        try {
-            console.log('Fetching excluded tags from /api/excluded-tags');
-            const response = await fetch('/api/excluded-tags');
-            console.log('Response status:', response.status);
-            if (response.ok) {
-                const data = await response.json();
-                console.log('Response data:', data);
-                if (data.ok && Array.isArray(data.tags)) {
-                    serverExcludedTags = data.tags;
-                    rebuildExcludedTagsInTagSearch(data.tags);
-                    console.log('Loaded excluded tags from server:', data.tags);
-                    return data.tags;
-                }
-            }
-        } catch (e) {
-            console.error('Error loading excluded tags from server:', e);
-        }
-        console.log('Returning empty array for excluded tags');
-        return [];
-    }
-    
-    // Сохранение тегов на сервер
-    async function saveExcludedTagsToServer(tagsList) {
-        try {
-            const response = await fetch('/api/excluded-tags', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tags: tagsList })
-            });
-            if (response.ok) {
-                const data = await response.json();
-                if (data.ok) {
-                    serverExcludedTags = Array.isArray(data.tags) ? data.tags : tagsList;
-                    rebuildExcludedTagsInTagSearch(serverExcludedTags);
-                    return true;
-                }
-            }
-        } catch (e) {
-            console.error('Error saving excluded tags to server:', e);
-        }
-        return false;
-    }
-
-    // Загрузка настроек с сервера
-    let serverSettings = null;
-    async function loadSettingsFromServer() {
-        try {
-            const response = await fetch('/api/settings');
-            if (response.ok) {
-                const data = await response.json();
-                if (data.ok && typeof data.settings === 'object') {
-                    serverSettings = data.settings;
-                    // Применяем только реальные настройки к localStorage
-                    Object.keys(data.settings).forEach(key => {
-                        if (isSettingsSyncKey(key)) {
-                            originalSetItem.call(localStorage, key, data.settings[key]);
-                        }
-                    });
-                    return data.settings;
-                }
-            }
-        } catch (e) {
-            console.error('Error loading settings from server:', e);
-        }
-        return {};
-    }
-
-    // Загрузка turso config с сервера
-    let serverTursoConfig = null;
-    async function loadTursoConfigFromServer() {
-        try {
-            const response = await fetch('/api/turso-config');
-            if (response.ok) {
-                const data = await response.json();
-                if (data.ok && typeof data.config === 'object') {
-                    serverTursoConfig = data.config;
-                    // Сохраняем в localStorage для совместимости
-                    if (data.config.turso_url !== undefined) {
-                        originalSetItem.call(localStorage, 'r34_turso_url', data.config.turso_url);
-                    }
-                    if (data.config.turso_token !== undefined) {
-                        originalSetItem.call(localStorage, 'r34_turso_token', data.config.turso_token);
-                    }
-                    return data.config;
-                }
-            }
-        } catch (e) {
-            console.error('Error loading turso config from server:', e);
-        }
-        return { turso_url: '', turso_token: '' };
-    }
-
-    // Сохранение turso config на сервер
-    async function saveTursoConfigToServer(url, token) {
-        try {
-            const response = await fetch('/api/turso-config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ turso_url: url, turso_token: token })
-            });
-            if (response.ok) {
-                const data = await response.json();
-                if (data.ok) {
-                    serverTursoConfig = data.config;
-                    return true;
-                }
-            }
-        } catch (e) {
-            console.error('Error saving turso config to server:', e);
-        }
-        return false;
-    }
-
-    const SETTINGS_SYNC_EXCLUDE_PREFIXES = [
-        'r34_duration_',
-        'r34_video_position_',
-        'liked_',
-        'r34_tagtype_',
-        'r34_puzzle_',
-        'r34_solved_',
-        'r34_tagcnt_'
-    ];
-    const SETTINGS_SYNC_EXCLUDE_KEYS = new Set([
-        'r34_active_tags',
-        'r34_turso_url',
-        'r34_turso_token'
-    ]);
-
-    function isSettingsSyncKey(key) {
-        return key && key.startsWith('r34_') && !SETTINGS_SYNC_EXCLUDE_KEYS.has(key) && !SETTINGS_SYNC_EXCLUDE_PREFIXES.some(prefix => key.startsWith(prefix));
-    }
-
-    // Сохранение настроек на сервер
-    let settingsSaveTimeout = null;
-    async function saveSettingsToServer() {
-        // Собираем только реальные настройки из localStorage
-        const allSettings = {};
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (isSettingsSyncKey(key)) {
-                allSettings[key] = localStorage.getItem(key);
-            }
-        }
-        
-        try {
-            const response = await fetch('/api/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ settings: allSettings })
-            });
-            if (response.ok) {
-                const data = await response.json();
-                if (data.ok) {
-                    serverSettings = data.settings;
-                    return true;
-                }
-            }
-        } catch (e) {
-            console.error('Error saving settings to server:', e);
-        }
-        return false;
-    }
-
-    // Обертка для localStorage.setItem с отложенной отправкой на сервер и защитой от переполнения
-    const originalSetItem = localStorage.setItem;
-    localStorage.setItem = function(key, value) {
-        try {
-            originalSetItem.call(this, key, value);
-        } catch (e) {
-            if (StorageManager.isQuotaExceeded(e)) {
-                console.warn('LocalStorage quota exceeded during global setItem. Cleaning up...', key);
-                StorageManager.cleanup();
-                try {
-                    originalSetItem.call(this, key, value);
-                } catch (retryError) {
-                    console.error('LocalStorage still full after global cleanup.', retryError);
-                }
-            } else {
-                console.error('LocalStorage setItem error:', e);
-            }
-        }
-        
-        // Синхронизируем только реальные настройки, исключая кешируемые данные и пазлы
-        if (isSettingsSyncKey(key)) {
-            if (settingsSaveTimeout) clearTimeout(settingsSaveTimeout);
-            settingsSaveTimeout = setTimeout(() => {
-                saveSettingsToServer();
-            }, 1000); // Отправляем через 1 секунду после последнего изменения
-        }
-    };
-    
-    const originalRemoveItem = localStorage.removeItem;
-    localStorage.removeItem = function(key) {
-        const existed = this.getItem(key);
-        originalRemoveItem.call(this, key);
-        if (isSettingsSyncKey(key) && existed !== null) {
-            if (settingsSaveTimeout) clearTimeout(settingsSaveTimeout);
-            settingsSaveTimeout = setTimeout(() => {
-                saveSettingsToServer();
-            }, 1000);
-        }
-    };
-
-    const getSavedExcludedTags = () => {
-        return Array.isArray(serverExcludedTags) ? serverExcludedTags : [];
-    };
-    const saveSavedExcludedTags = async (tagsList) => {
-        const normalizedTags = (Array.isArray(tagsList) ? tagsList : [])
-            .map(tag => String(tag || '').trim())
-            .filter(Boolean);
-        await saveExcludedTagsToServer(normalizedTags);
-    };
-
-    window.getSavedExcludedTags = getSavedExcludedTags;
-    window.saveSavedExcludedTags = saveSavedExcludedTags;
-    window.addExcludedTag = async (tag) => {
-        const saved = getSavedExcludedTags();
-        if (!saved.includes(tag)) {
-            saved.push(tag);
-            await saveSavedExcludedTags(saved);
-        }
-    };
-    window.removeExcludedTag = async (tag) => {
-        const saved = getSavedExcludedTags();
-        const updated = saved.filter(t => t !== tag);
-        await saveSavedExcludedTags(updated);
-    };
-
-    // --- ПРЕДУСТАНОВКИ КАСТОМИЗАЦИИ (Advanced customization presets) ---
-    const colorPresets = {
-        pink: { accent: '#ff3b6b', alt: '#ff5e8c', glow: 'rgba(255, 59, 107, 0.4)' },
-        cyan: { accent: '#00f0ff', alt: '#00bfff', glow: 'rgba(0, 240, 255, 0.4)' },
-        green: { accent: '#39ff14', alt: '#32cd32', glow: 'rgba(57, 255, 20, 0.4)' },
-        purple: { accent: '#9b51e0', alt: '#bb6bd9', glow: 'rgba(155, 81, 224, 0.4)' },
-        gold: { accent: '#f2c94c', alt: '#f2994a', glow: 'rgba(242, 201, 76, 0.4)' }
-    };
-
-    const bgPresets = {
-        midnight: { dark: '#0a0b10', bodyBg: 'radial-gradient(circle at top right, #1b1622 0%, #0a0b10 100%)' },
-        obsidian: { dark: '#000000', bodyBg: '#000000' },
-        forest: { dark: '#040c06', bodyBg: 'radial-gradient(circle at top right, #0a1f10 0%, #040c06 100%)' },
-        indigo: { dark: '#080816', bodyBg: 'radial-gradient(circle at top right, #0e122b 0%, #080816 100%)' }
-    };
-
-    const hoverPresets = {
-        zoom: {
-            transform: 'translateY(-6px) scale(1.015)',
-            borderColor: 'var(--accent)',
-            boxShadow: '0 15px 40px var(--accent-glow), 0 0 0 1px var(--accent)',
-            animation: 'none'
-        },
-        glow: {
-            transform: 'none',
-            borderColor: 'var(--accent)',
-            boxShadow: '0 0 25px var(--accent-glow), inset 0 0 15px var(--accent-glow)',
-            animation: 'none'
-        },
-        slide: {
-            transform: 'translateY(-3px)',
-            borderColor: 'var(--glass-border-strong)',
-            boxShadow: '0 8px 20px rgba(0, 0, 0, 0.4)',
-            animation: 'none'
-        },
-        pulse: {
-            transform: 'scale(1.03)',
-            borderColor: 'var(--accent)',
-            boxShadow: '0 0 20px var(--accent-glow), 0 0 0 1px var(--accent)',
-            animation: 'cardPulse 1.5s infinite ease-in-out'
-        },
-        borderPop: {
-            transform: 'none',
-            borderColor: 'white',
-            boxShadow: 'inset 0 0 0 2px white',
-            animation: 'none'
-        },
-        none: {
-            transform: 'none',
-            borderColor: 'var(--glass-border)',
-            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
-        }
-    };
-
-    const fontPresets = {
-        sans: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-        mono: "'JetBrains Mono', 'Courier New', Courier, monospace",
-        rounded: "system-ui, -apple-system, sans-serif"
-    };
-
-    function getAccentGlow(hexColor, intensity) {
-        const alpha = typeof intensity === 'number' ? (intensity / 100) * 0.9 : 0.45;
-        if (hexColor && hexColor.startsWith('#')) {
-            const hex = hexColor.replace('#', '');
-            if (hex.length === 3) {
-                const r = parseInt(hex[0] + hex[0], 16) || 0;
-                const g = parseInt(hex[1] + hex[1], 16) || 0;
-                const b = parseInt(hex[2] + hex[2], 16) || 0;
-                return `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)})`;
-            } else if (hex.length === 6) {
-                const r = parseInt(hex.substring(0, 2), 16) || 0;
-                const g = parseInt(hex.substring(2, 4), 16) || 0;
-                const b = parseInt(hex.substring(4, 6), 16) || 0;
-                return `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)})`;
-            }
-        }
-        return `rgba(255, 59, 107, ${alpha.toFixed(3)})`;
-    }
-
-    function getAccentAlt(hexColor) {
-        if (hexColor && hexColor.startsWith('#')) {
-            const hex = hexColor.replace('#', '');
-            let r, g, b;
-            if (hex.length === 3) {
-                r = parseInt(hex[0] + hex[0], 16) || 0;
-                g = parseInt(hex[1] + hex[1], 16) || 0;
-                b = parseInt(hex[2] + hex[2], 16) || 0;
-            } else if (hex.length === 6) {
-                r = parseInt(hex.substring(0, 2), 16) || 0;
-                g = parseInt(hex.substring(2, 4), 16) || 0;
-                b = parseInt(hex.substring(4, 6), 16) || 0;
-            } else {
-                return hexColor;
-            }
-            const isTooLight = (r * 0.299 + g * 0.587 + b * 0.114) > 180;
-            const factor = isTooLight ? -0.15 : 0.15;
-            const rAlt = Math.max(0, Math.min(255, Math.round(r + (isTooLight ? r : 255 - r) * factor)));
-            const gAlt = Math.max(0, Math.min(255, Math.round(g + (isTooLight ? g : 255 - g) * factor)));
-            const bAlt = Math.max(0, Math.min(255, Math.round(b + (isTooLight ? b : 255 - b) * factor)));
-            return `rgb(${rAlt}, ${gAlt}, ${bAlt})`;
-        }
-        return hexColor;
-    }
-
-    function getBgLuminance(colorStr) {
-        if (!colorStr) return 0;
-        let hex = colorStr.trim();
-        if (hex.startsWith('#')) {
-            hex = hex.replace('#', '');
-            if (hex.length === 3) {
-                hex = hex.split('').map(c => c + c).join('');
-            }
-            if (hex.length >= 6) {
-                const r = parseInt(hex.substr(0, 2), 16) || 0;
-                const g = parseInt(hex.substr(2, 2), 16) || 0;
-                const b = parseInt(hex.substr(4, 2), 16) || 0;
-                return (r * 299 + g * 587 + b * 114) / 1000;
-            }
-        }
-        const rgbMatch = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
-        if (rgbMatch) {
-            const r = parseInt(rgbMatch[1], 10) || 0;
-            const
     if (safeScreenHotkeyDisplay) {
         safeScreenHotkeyDisplay.textContent = window.safeScreen.formatHotkey();
     }
@@ -1144,6 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const mainLogo = document.querySelector('h1');
         if (mainLogo) {
             mainLogo.textContent = customLogoText.trim() !== '' ? customLogoText : 'Rule34 Gallery';
+            mainLogo.title = '(Нажми 5 раз)';
         }
         const previewLogo = document.getElementById('previewLogoContainer');
         if (previewLogo) {
@@ -1592,272 +1135,508 @@ document.addEventListener('DOMContentLoaded', () => {
     window.gallery = gallery;
     window.galleryApp = gallery;
 
-    // Секретный триггер на заголовок для открытия Пазла
+    // Секретный триггер на заголовок для открытия Окна выбора игры
     let headerClicks = 0;
     let headerClickTimeout = null;
+
+    const startPuzzleGame = () => {
+        // Check if video tag is in active tags before starting puzzle
+        const activeTags = window.tagSearch ? window.tagSearch.activeTags.filter(t => t.active).map(t => t.value.toLowerCase()) : [];
+        if (activeTags.includes('video')) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.6);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 100000;
+                animation: fadeIn 0.2s ease-out;
+            `;
+            
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: var(--modal-bg, rgba(4, 5, 9, 0.72));
+                color: white;
+                padding: 30px 40px;
+                border-radius: var(--radius-xl, 28px);
+                font-size: 1.2rem;
+                font-weight: 500;
+                max-width: 500px;
+                text-align: center;
+                box-shadow: var(--shadow-lg);
+                border: 1px solid var(--glass-border);
+                backdrop-filter: blur(var(--glass-blur));
+                animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            `;
+            modalContent.textContent = "Уберите тэг 'video' из активных тэгов, чтобы играть в пазл!";
+            
+            const okBtn = document.createElement('button');
+            okBtn.textContent = 'ОК';
+            okBtn.style.cssText = `
+                margin-top: 25px;
+                padding: 12px 35px;
+                background: var(--accent, #ff3b6b);
+                color: white;
+                border: none;
+                border-radius: 12px;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                box-shadow: 0 4px 15px rgba(255, 59, 107, 0.3);
+            `;
+            okBtn.onmouseover = () => {
+                okBtn.style.transform = 'translateY(-2px)';
+                okBtn.style.boxShadow = '0 6px 20px rgba(255, 59, 107, 0.4)';
+            };
+            okBtn.onmouseout = () => {
+                okBtn.style.transform = 'translateY(0)';
+                okBtn.style.boxShadow = '0 4px 15px rgba(255, 59, 107, 0.3)';
+            };
+            okBtn.onclick = () => {
+                modal.style.animation = 'fadeOut 0.2s ease-out';
+                modalContent.style.animation = 'slideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+                setTimeout(() => modal.remove(), 200);
+            };
+            
+            modalContent.appendChild(okBtn);
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+            
+            // Add animations if not exists
+            if (!document.getElementById('modal-animations')) {
+                const style = document.createElement('style');
+                style.id = 'modal-animations';
+                style.textContent = `
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    @keyframes fadeOut {
+                        from { opacity: 1; }
+                        to { opacity: 0; }
+                    }
+                    @keyframes slideUp {
+                        from { transform: translateY(30px); opacity: 0; }
+                        to { transform: translateY(0); opacity: 1; }
+                    }
+                    @keyframes slideDown {
+                        from { transform: translateY(0); opacity: 1; }
+                        to { transform: translateY(30px); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            return;
+        }
+        
+        const getEligiblePosts = () => {
+            const isFavActive = window.gallery && window.gallery.isFavoritesActive;
+            const allPosts = (window.gallery && Array.isArray(isFavActive ? window.gallery.favoritesPosts : window.gallery.currentPosts))
+                ? (isFavActive ? window.gallery.favoritesPosts : window.gallery.currentPosts)
+                : [];
+            const isVideo = p => p.file_url && (p.file_url.endsWith('.webm') || p.file_url.endsWith('.mp4'));
+            const allowLong = localStorage.getItem('r34_puzzle_allow_long_images') === 'true';
+            const isTooTall = p => {
+                if (allowLong) return false;
+                return p.width && p.height && (p.height / p.width > 1.4);
+            };
+            
+            const inactiveTags = window.tagSearch ? window.tagSearch.activeTags.filter(t => !t.active).map(t => t.value.toLowerCase()) : [];
+            const excludedTagsSet = new Set([...getSavedExcludedTags().map(t => t.toLowerCase()), ...inactiveTags]);
+
+            return allPosts.filter(p => {
+                if (!p || !p.file_url || isVideo(p) || isTooTall(p)) return false;
+                
+                if (p.tags) {
+                    const postTags = p.tags.split(' ').filter(Boolean).map(t => t.toLowerCase());
+                    const postTagsSet = new Set(postTags);
+                    
+                    // Check active (included) tags
+                    for (const t of activeTags) {
+                        if (!postTagsSet.has(t)) {
+                            return false;
+                        }
+                    }
+                    
+                    // Check excluded tags
+                    for (const t of postTags) {
+                        if (excludedTagsSet.has(t)) {
+                            return false;
+                        }
+                    }
+                } else if (activeTags.length > 0) {
+                    return false;
+                }
+                
+                return true;
+            });
+        };
+
+        const loadMorePostsForPuzzle = async (forceLoad = false) => {
+            console.log('[Puzzle] loadMorePostsForPuzzle called', { forceLoad, puzzleActive: window.puzzleGameActive, loading, reachedEnd });
+            if (loading || reachedEnd) return false;
+            const modeGalleryBtn = document.getElementById('modeGalleryBtn');
+            if (modeGalleryBtn && !modeGalleryBtn.classList.contains('active')) {
+                return false;
+            }
+            // Set force flag if needed
+            if (forceLoad) {
+                window._forceLoadPosts = true;
+            }
+            page++;
+            try {
+                const currentQuery = window.tagSearch ? window.tagSearch.getTagsQuery() : lastTagsQuery;
+                await loadPosts(currentQuery, true);
+                window._forceLoadPosts = false;
+                return true;
+            } catch (e) {
+                console.error('Failed to load more posts for puzzle:', e);
+                window._forceLoadPosts = false;
+                return false;
+            }
+        };
+
+        const showPuzzleToast = (msg, duration = 3500) => {
+            const tempErr = document.getElementById('error');
+            if (tempErr) {
+                tempErr.textContent = msg;
+                tempErr.style.display = 'block';
+                tempErr.classList.add('active');
+                setTimeout(() => {
+                    tempErr.style.display = 'none';
+                    tempErr.classList.remove('active');
+                }, duration);
+            }
+        };
+
+        const getUnsolvedPost = (excludePostId = null) => {
+            const eligible = getEligiblePosts();
+            let solvedIds = [];
+            try {
+                solvedIds = JSON.parse(localStorage.getItem('r34_solved_puzzles') || '[]');
+            } catch (err) {}
+            
+            let unsolved = eligible.filter(p => p && p.id && !solvedIds.includes(p.id) && p.id !== excludePostId);
+            if (unsolved.length === 0) {
+                unsolved = eligible.filter(p => p && p.id !== excludePostId);
+            }
+            if (unsolved.length === 0) {
+                unsolved = eligible;
+            }
+            if (unsolved.length === 0) return null;
+            const idx = Math.floor(Math.random() * unsolved.length);
+            return unsolved[idx];
+        };
+
+        const startGame = (currentPost) => {
+            if (!currentPost) {
+                showPuzzleToast("Не удалось найти подходящих медиа для пазла!", 4000);
+                return;
+            }
+            
+            // Set flag before any operations to prevent background loading
+            window.puzzleGameActive = true;
+            
+            // Pre-emptively fetch more in the background if pool is low (will be blocked by flag)
+            if (getEligiblePosts().length < 15) {
+                loadMorePostsForPuzzle();
+            }
+
+            const game = new PuzzleGame(currentPost, null, async () => {
+                window.activePuzzleGame = null;
+                // Request more media in the background upon completion/skip
+                loadMorePostsForPuzzle();
+                
+                const nextPost = getUnsolvedPost(currentPost ? currentPost.id : null);
+                if (nextPost) {
+                    startGame(nextPost);
+                } else {
+                    showPuzzleToast("Загружаем новые картинки...", 2500);
+                    const loadedMore = await loadMorePostsForPuzzle(true); // Force load when no unsolved posts
+                    const retryPost = getUnsolvedPost(currentPost ? currentPost.id : null);
+                    if (retryPost) {
+                        startGame(retryPost);
+                    } else {
+                        showPuzzleToast("В галерее больше нет подходящих картинок!", 4000);
+                    }
+                }
+            });
+            window.activePuzzleGame = game;
+            game.start();
+        };
+
+        const initialEligible = getEligiblePosts();
+        if (initialEligible.length === 0) {
+            showPuzzleToast("В галерее пусто, автоматически подгружаем картинки для пазла...", 4000);
+            (async () => {
+                try {
+                    const currentQuery = window.tagSearch ? window.tagSearch.getTagsQuery() : lastTagsQuery;
+                    await loadPosts(currentQuery, false);
+                    const loadedEligible = getEligiblePosts();
+                    if (loadedEligible.length > 0) {
+                        startGame(getUnsolvedPost(null));
+                    } else {
+                        showPuzzleToast("Не удалось найти подходящие картинки для пазла (видео и вертикальные пропускаются)!", 5000);
+                    }
+                } catch (e) {
+                    showPuzzleToast("Ошибка при загрузке картинок для пазла!", 4000);
+                }
+            })();
+        } else {
+            startGame(getUnsolvedPost(null));
+        }
+    };
+
+    const openGameChoiceModal = () => {
+        const existing = document.getElementById('game-choice-modal');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'game-choice-modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100000;
+            animation: fadeIn 0.2s ease-out;
+            backdrop-filter: blur(8px);
+        `;
+
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background: var(--modal-bg, rgba(15, 17, 26, 0.92));
+            color: white;
+            padding: 32px 36px;
+            border-radius: 28px;
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.15));
+            backdrop-filter: blur(16px);
+            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        `;
+
+        modalContent.innerHTML = `
+            <button id="closeGameChoiceBtn" style="
+                position: absolute;
+                top: 18px;
+                right: 20px;
+                background: rgba(255,255,255,0.08);
+                border: 1px solid rgba(255,255,255,0.15);
+                color: #a1a1aa;
+                font-size: 1.3rem;
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
+            ">&times;</button>
+            <div style="font-size: 2.5rem; margin-bottom: 8px;">🎮</div>
+            <h2 style="font-size: 1.6rem; font-weight: 800; margin: 0 0 4px 0; background: var(--title-gradient, linear-gradient(135deg, #fff, #b8b8d1)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Выбор Игры</h2>
+            <p style="font-size: 0.85rem; color: rgba(255,255,255,0.65); margin: 0 0 16px 0;">Выберите во что хотите сыграть:</p>
+            
+            <div class="custom-scroll" style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 6px; text-align: left; margin-bottom: 4px;">
+                
+                <!-- Доступно сейчас -->
+                <div style="font-size: 0.7rem; font-weight: 800; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Доступно сейчас</div>
+
+                <button id="selectPuzzleBtn" style="
+                    padding: 14px 16px;
+                    background: linear-gradient(135deg, rgba(255, 59, 107, 0.15) 0%, rgba(255, 59, 107, 0.05) 100%);
+                    border: 1px solid var(--accent, #ff3b6b);
+                    border-radius: 16px;
+                    color: white;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    transition: all 0.2s ease;
+                    box-shadow: 0 4px 12px rgba(255, 59, 107, 0.15);
+                    width: 100%;
+                ">
+                    <span style="font-size: 1.6rem;">🧩</span>
+                    <div style="text-align: left;">
+                        <div style="font-size: 1rem; font-weight: 700;">Пазл</div>
+                        <div style="font-size: 0.75rem; opacity: 0.75; font-weight: 400; margin-top: 1px;">Соберите картинку из элементов</div>
+                    </div>
+                </button>
+
+                <button id="selectHigherLowerBtn" style="
+                    padding: 14px 16px;
+                    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(167, 139, 250, 0.05) 100%);
+                    border: 1px solid #a78bfa;
+                    border-radius: 16px;
+                    color: white;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    transition: all 0.2s ease;
+                    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.15);
+                    position: relative;
+                    width: 100%;
+                ">
+                    <span style="position: absolute; top: -8px; right: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; font-size: 0.6rem; font-weight: 800; padding: 1px 6px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.3px;">Бета</span>
+                    <span style="font-size: 1.6rem;">⚖️</span>
+                    <div style="text-align: left;">
+                        <div style="font-size: 1rem; font-weight: 700;">Больше / Меньше</div>
+                        <div style="font-size: 0.75rem; opacity: 0.75; font-weight: 400; margin-top: 1px;">Угадайте популярность тегов</div>
+                    </div>
+                </button>
+
+                <!-- Онлайн скоро -->
+                <div style="font-size: 0.7rem; font-weight: 800; color: #fbbf24; text-transform: uppercase; letter-spacing: 0.5px; margin: 8px 0 2px 0;">Онлайн скоро</div>
+
+                <button disabled style="
+                    padding: 14px 16px;
+                    background: rgba(255,255,255,0.02);
+                    border: 1px dashed rgba(245, 158, 11, 0.25);
+                    border-radius: 16px;
+                    color: #71717a;
+                    cursor: not-allowed;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    position: relative;
+                    opacity: 0.6;
+                    width: 100%;
+                ">
+                    <span style="position: absolute; top: -8px; right: 12px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); color: #fbbf24; font-size: 0.6rem; font-weight: 800; padding: 1px 6px; border-radius: 8px;">СКОРО</span>
+                    <span style="font-size: 1.6rem; filter: grayscale(1);">⚔️🧩</span>
+                    <div style="text-align: left;">
+                        <div style="font-size: 1rem; font-weight: 700; color: #a1a1aa;">Пазл-дуэль</div>
+                        <div style="font-size: 0.75rem; opacity: 0.7; font-weight: 400; margin-top: 1px;">Сборка пазла на скорость онлайн</div>
+                    </div>
+                </button>
+
+                <!-- Другие игры -->
+                <div style="font-size: 0.7rem; font-weight: 800; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; margin: 8px 0 2px 0;">Новые игры (в разработке)</div>
+
+                <button disabled style="
+                    padding: 14px 16px;
+                    background: rgba(255,255,255,0.02);
+                    border: 1px solid rgba(255,255,255,0.05);
+                    border-radius: 16px;
+                    color: #71717a;
+                    cursor: not-allowed;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    position: relative;
+                    opacity: 0.6;
+                    width: 100%;
+                ">
+                    <span style="position: absolute; top: -8px; right: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #71717a; font-size: 0.6rem; font-weight: 800; padding: 1px 6px; border-radius: 8px;">СКОРО</span>
+                    <span style="font-size: 1.6rem; filter: grayscale(1);">❓</span>
+                    <div style="text-align: left;">
+                        <div style="font-size: 1rem; font-weight: 700; color: #a1a1aa;">Угадай тег / Персонажа</div>
+                        <div style="font-size: 0.75rem; opacity: 0.7; font-weight: 400; margin-top: 1px;">Викторина на знание тегов наперегонки</div>
+                    </div>
+                </button>
+
+                <button disabled style="
+                    padding: 14px 16px;
+                    background: rgba(255,255,255,0.02);
+                    border: 1px solid rgba(255,255,255,0.05);
+                    border-radius: 16px;
+                    color: #71717a;
+                    cursor: not-allowed;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    position: relative;
+                    opacity: 0.6;
+                    width: 100%;
+                ">
+                    <span style="position: absolute; top: -8px; right: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #71717a; font-size: 0.6rem; font-weight: 800; padding: 1px 6px; border-radius: 8px;">СКОРО</span>
+                    <span style="font-size: 1.6rem; filter: grayscale(1);">🔍</span>
+                    <div style="text-align: left;">
+                        <div style="font-size: 1rem; font-weight: 700; color: #a1a1aa;">Детектив: Найди фрагмент</div>
+                        <div style="font-size: 0.75rem; opacity: 0.7; font-weight: 400; margin-top: 1px;">Игра на внимательность наперегонки</div>
+                    </div>
+                </button>
+
+                <button disabled style="
+                    padding: 14px 16px;
+                    background: rgba(255,255,255,0.02);
+                    border: 1px solid rgba(255,255,255,0.05);
+                    border-radius: 16px;
+                    color: #71717a;
+                    cursor: not-allowed;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    position: relative;
+                    opacity: 0.6;
+                    width: 100%;
+                ">
+                    <span style="position: absolute; top: -8px; right: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #71717a; font-size: 0.6rem; font-weight: 800; padding: 1px 6px; border-radius: 8px;">СКОРО</span>
+                    <span style="font-size: 1.6rem; filter: grayscale(1);">🎴</span>
+                    <div style="text-align: left;">
+                        <div style="font-size: 1rem; font-weight: 700; color: #a1a1aa;">Рейтинг / Драфт артов</div>
+                        <div style="font-size: 0.75rem; opacity: 0.7; font-weight: 400; margin-top: 1px;">Совместный выбор лучших артов</div>
+                    </div>
+                </button>
+
+            </div>
+        `;
+
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+
+        const closeModal = () => {
+            modal.style.animation = 'fadeOut 0.2s ease-out';
+            modalContent.style.animation = 'slideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+            setTimeout(() => modal.remove(), 200);
+        };
+
+        modal.querySelector('#closeGameChoiceBtn').onclick = closeModal;
+        modal.onclick = (e) => {
+            if (e.target === modal) closeModal();
+        };
+
+        modal.querySelector('#selectPuzzleBtn').onclick = () => {
+            closeModal();
+            startPuzzleGame();
+        };
+
+        modal.querySelector('#selectHigherLowerBtn').onclick = () => {
+            closeModal();
+            if (window.higherLowerGame) {
+                window.higherLowerGame.open();
+            }
+        };
+    };
+
     const header = document.querySelector('h1');
     if (header) {
         header.style.cursor = 'pointer';
-        header.title = 'чё вылупился';
+        header.title = '(Нажми 5 раз)';
         header.addEventListener('click', () => {
             headerClicks++;
             if (headerClickTimeout) clearTimeout(headerClickTimeout);
             
             if (headerClicks >= 5) {
                 headerClicks = 0;
-                
-                // Check if video tag is in active tags before starting puzzle
-                const activeTags = window.tagSearch ? window.tagSearch.activeTags.filter(t => t.active).map(t => t.value.toLowerCase()) : [];
-                if (activeTags.includes('video')) {
-                    const modal = document.createElement('div');
-                    modal.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: rgba(0, 0, 0, 0.6);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        z-index: 100000;
-                        animation: fadeIn 0.2s ease-out;
-                    `;
-                    
-                    const modalContent = document.createElement('div');
-                    modalContent.style.cssText = `
-                        background: var(--modal-bg, rgba(4, 5, 9, 0.72));
-                        color: white;
-                        padding: 30px 40px;
-                        border-radius: var(--radius-xl, 28px);
-                        font-size: 1.2rem;
-                        font-weight: 500;
-                        max-width: 500px;
-                        text-align: center;
-                        box-shadow: var(--shadow-lg);
-                        border: 1px solid var(--glass-border);
-                        backdrop-filter: blur(var(--glass-blur));
-                        animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                    `;
-                    modalContent.textContent = "Уберите тэг 'video' из активных тэгов, чтобы играть в пазл!";
-                    
-                    const okBtn = document.createElement('button');
-                    okBtn.textContent = 'ОК';
-                    okBtn.style.cssText = `
-                        margin-top: 25px;
-                        padding: 12px 35px;
-                        background: var(--accent, #ff3b6b);
-                        color: white;
-                        border: none;
-                        border-radius: 12px;
-                        font-size: 1rem;
-                        font-weight: 600;
-                        cursor: pointer;
-                        transition: all 0.2s ease;
-                        box-shadow: 0 4px 15px rgba(255, 59, 107, 0.3);
-                    `;
-                    okBtn.onmouseover = () => {
-                        okBtn.style.transform = 'translateY(-2px)';
-                        okBtn.style.boxShadow = '0 6px 20px rgba(255, 59, 107, 0.4)';
-                    };
-                    okBtn.onmouseout = () => {
-                        okBtn.style.transform = 'translateY(0)';
-                        okBtn.style.boxShadow = '0 4px 15px rgba(255, 59, 107, 0.3)';
-                    };
-                    okBtn.onclick = () => {
-                        modal.style.animation = 'fadeOut 0.2s ease-out';
-                        modalContent.style.animation = 'slideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
-                        setTimeout(() => modal.remove(), 200);
-                    };
-                    
-                    modalContent.appendChild(okBtn);
-                    modal.appendChild(modalContent);
-                    document.body.appendChild(modal);
-                    
-                    // Add animations if not exists
-                    if (!document.getElementById('modal-animations')) {
-                        const style = document.createElement('style');
-                        style.id = 'modal-animations';
-                        style.textContent = `
-                            @keyframes fadeIn {
-                                from { opacity: 0; }
-                                to { opacity: 1; }
-                            }
-                            @keyframes fadeOut {
-                                from { opacity: 1; }
-                                to { opacity: 0; }
-                            }
-                            @keyframes slideUp {
-                                from { transform: translateY(30px); opacity: 0; }
-                                to { transform: translateY(0); opacity: 1; }
-                            }
-                            @keyframes slideDown {
-                                from { transform: translateY(0); opacity: 1; }
-                                to { transform: translateY(30px); opacity: 0; }
-                            }
-                        `;
-                        document.head.appendChild(style);
-                    }
-                    
-                    return;
-                }
-                
-                const getEligiblePosts = () => {
-                    const isFavActive = window.gallery && window.gallery.isFavoritesActive;
-                    const allPosts = (window.gallery && Array.isArray(isFavActive ? window.gallery.favoritesPosts : window.gallery.currentPosts))
-                        ? (isFavActive ? window.gallery.favoritesPosts : window.gallery.currentPosts)
-                        : [];
-                    const isVideo = p => p.file_url && (p.file_url.endsWith('.webm') || p.file_url.endsWith('.mp4'));
-                    const allowLong = localStorage.getItem('r34_puzzle_allow_long_images') === 'true';
-                    const isTooTall = p => {
-                        if (allowLong) return false;
-                        return p.width && p.height && (p.height / p.width > 1.4);
-                    };
-                    
-                    const inactiveTags = window.tagSearch ? window.tagSearch.activeTags.filter(t => !t.active).map(t => t.value.toLowerCase()) : [];
-                    const excludedTagsSet = new Set([...getSavedExcludedTags().map(t => t.toLowerCase()), ...inactiveTags]);
-
-                    return allPosts.filter(p => {
-                        if (!p || !p.file_url || isVideo(p) || isTooTall(p)) return false;
-                        
-                        if (p.tags) {
-                            const postTags = p.tags.split(' ').filter(Boolean).map(t => t.toLowerCase());
-                            const postTagsSet = new Set(postTags);
-                            
-                            // Check active (included) tags
-                            for (const t of activeTags) {
-                                if (!postTagsSet.has(t)) {
-                                    return false;
-                                }
-                            }
-                            
-                            // Check excluded tags
-                            for (const t of postTags) {
-                                if (excludedTagsSet.has(t)) {
-                                    return false;
-                                }
-                            }
-                        } else if (activeTags.length > 0) {
-                            return false;
-                        }
-                        
-                        return true;
-                    });
-                };
-
-                const loadMorePostsForPuzzle = async (forceLoad = false) => {
-                    console.log('[Puzzle] loadMorePostsForPuzzle called', { forceLoad, puzzleActive: window.puzzleGameActive, loading, reachedEnd });
-                    if (loading || reachedEnd) return false;
-                    const modeGalleryBtn = document.getElementById('modeGalleryBtn');
-                    if (modeGalleryBtn && !modeGalleryBtn.classList.contains('active')) {
-                        return false;
-                    }
-                    // Set force flag if needed
-                    if (forceLoad) {
-                        window._forceLoadPosts = true;
-                    }
-                    page++;
-                    try {
-                        const currentQuery = window.tagSearch ? window.tagSearch.getTagsQuery() : lastTagsQuery;
-                        await loadPosts(currentQuery, true);
-                        window._forceLoadPosts = false;
-                        return true;
-                    } catch (e) {
-                        console.error('Failed to load more posts for puzzle:', e);
-                        window._forceLoadPosts = false;
-                        return false;
-                    }
-                };
-
-                const showPuzzleToast = (msg, duration = 3500) => {
-                    const tempErr = document.getElementById('error');
-                    if (tempErr) {
-                        tempErr.textContent = msg;
-                        tempErr.style.display = 'block';
-                        tempErr.classList.add('active');
-                        setTimeout(() => {
-                            tempErr.style.display = 'none';
-                            tempErr.classList.remove('active');
-                        }, duration);
-                    }
-                };
-
-                const getUnsolvedPost = (excludePostId = null) => {
-                    const eligible = getEligiblePosts();
-                    let solvedIds = [];
-                    try {
-                        solvedIds = JSON.parse(localStorage.getItem('r34_solved_puzzles') || '[]');
-                    } catch (err) {}
-                    
-                    let unsolved = eligible.filter(p => p && p.id && !solvedIds.includes(p.id) && p.id !== excludePostId);
-                    if (unsolved.length === 0) {
-                        unsolved = eligible.filter(p => p && p.id !== excludePostId);
-                    }
-                    if (unsolved.length === 0) {
-                        unsolved = eligible;
-                    }
-                    if (unsolved.length === 0) return null;
-                    const idx = Math.floor(Math.random() * unsolved.length);
-                    return unsolved[idx];
-                };
-
-                const startGame = (currentPost) => {
-                    if (!currentPost) {
-                        showPuzzleToast("Не удалось найти подходящих медиа для пазла!", 4000);
-                        return;
-                    }
-                    
-                    // Set flag before any operations to prevent background loading
-                    window.puzzleGameActive = true;
-                    
-                    // Pre-emptively fetch more in the background if pool is low (will be blocked by flag)
-                    if (getEligiblePosts().length < 15) {
-                        loadMorePostsForPuzzle();
-                    }
-
-                    const game = new PuzzleGame(currentPost, null, async () => {
-                        window.activePuzzleGame = null;
-                        // Request more media in the background upon completion/skip
-                        loadMorePostsForPuzzle();
-                        
-                        const nextPost = getUnsolvedPost(currentPost ? currentPost.id : null);
-                        if (nextPost) {
-                            startGame(nextPost);
-                        } else {
-                            showPuzzleToast("Загружаем новые картинки...", 2500);
-                            const loadedMore = await loadMorePostsForPuzzle(true); // Force load when no unsolved posts
-                            const retryPost = getUnsolvedPost(currentPost ? currentPost.id : null);
-                            if (retryPost) {
-                                startGame(retryPost);
-                            } else {
-                                showPuzzleToast("В галерее больше нет подходящих картинок!", 4000);
-                            }
-                        }
-                    });
-                    window.activePuzzleGame = game;
-                    game.start();
-                };
-
-                const initialEligible = getEligiblePosts();
-                if (initialEligible.length === 0) {
-                    showPuzzleToast("В галерее пусто, автоматически подгружаем картинки для пазла...", 4000);
-                    (async () => {
-                        try {
-                            const currentQuery = window.tagSearch ? window.tagSearch.getTagsQuery() : lastTagsQuery;
-                            await loadPosts(currentQuery, false);
-                            const loadedEligible = getEligiblePosts();
-                            if (loadedEligible.length > 0) {
-                                startGame(getUnsolvedPost(null));
-                            } else {
-                                showPuzzleToast("Не удалось найти подходящие картинки для пазла (видео и вертикальные пропускаются)!", 5000);
-                            }
-                        } catch (e) {
-                            showPuzzleToast("Ошибка при загрузке картинок для пазла!", 4000);
-                        }
-                    })();
-                } else {
-                    startGame(getUnsolvedPost(null));
-                }
+                openGameChoiceModal();
             } else {
                 headerClickTimeout = setTimeout(() => {
                     headerClicks = 0;
@@ -3940,7 +3719,9 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('r34_custom_presets', JSON.stringify(presets));
         } catch (e) {
             console.error('Error saving custom presets:', e);
-            alert('Ошибка при сохранении пресета: ' + e.message);
+            if (typeof window.showConfirmModal === 'function') {
+                window.showConfirmModal('Внимание', 'Ошибка при сохранении пресета: ' + e.message);
+            }
         }
     }
     
@@ -3972,8 +3753,9 @@ document.addEventListener('DOMContentLoaded', () => {
             deleteBtn.className = 'custom-preset-delete';
             deleteBtn.innerHTML = '×';
             deleteBtn.title = 'Удалить пресет';
-            deleteBtn.addEventListener('click', () => {
-                if (confirm(`Удалить пресет "${name}"?`)) {
+            deleteBtn.addEventListener('click', async () => {
+                const confirmed = await window.showConfirmModal('Удаление', `Удалить пресет "${name}"?`);
+                if (confirmed) {
                     delete presets[name];
                     saveCustomPresets(presets);
                     renderCustomPresets();
@@ -4056,10 +3838,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const customPresetName = document.getElementById('customPresetName');
     
     if (savePresetBtn && customPresetName) {
-        savePresetBtn.addEventListener('click', () => {
+        savePresetBtn.addEventListener('click', async () => {
             const name = customPresetName.value.trim();
             if (!name) {
-                alert('Введите название пресета');
+                if (typeof window.showConfirmModal === 'function') {
+                    await window.showConfirmModal('Внимание', 'Введите название пресета');
+                }
                 return;
             }
             
@@ -4074,7 +3858,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             renderCustomPresets();
             
-            alert(`Пресет "${name}" сохранен!`);
+            if (typeof window.showConfirmModal === 'function') {
+                await window.showConfirmModal('Успех', `Пресет "${name}" сохранен!`);
+            }
         });
     }
     
@@ -4228,18 +4014,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!file) return;
             
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
                 try {
                     const themeData = JSON.parse(event.target.result);
                     if (themeData.settings && typeof themeData.settings === 'object') {
-                        if (confirm('Это заменит все текущие настройки. Продолжить?')) {
+                        const confirmed = await window.showConfirmModal('Подтверждение', 'Это заменит все текущие настройки. Продолжить?');
+                        if (confirmed) {
                             applySettings(themeData.settings);
                         }
                     } else {
-                        alert('Неверный формат файла темы');
+                        if (typeof window.showConfirmModal === 'function') {
+                            await window.showConfirmModal('Ошибка', 'Неверный формат файла темы');
+                        }
                     }
                 } catch (error) {
-                    alert('Ошибка при чтении файла: ' + error.message);
+                    if (typeof window.showConfirmModal === 'function') {
+                        await window.showConfirmModal('Ошибка', 'Ошибка при чтении файла: ' + error.message);
+                    }
                 }
             };
             reader.readAsText(file);
@@ -4265,7 +4056,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     copySettingsBtn.textContent = 'Копировать';
                 }, 2000);
             } catch (error) {
-                alert('Ошибка при копировании: ' + error.message);
+                if (typeof window.showConfirmModal === 'function') {
+                    await window.showConfirmModal('Ошибка', 'Ошибка при копировании: ' + error.message);
+                }
             }
         });
     }
@@ -4279,14 +4072,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 const themeData = JSON.parse(text);
                 
                 if (themeData.settings && typeof themeData.settings === 'object') {
-                    if (confirm('Это заменит все текущие настройки. Продолжить?')) {
+                    const confirmed = await window.showConfirmModal('Подтверждение', 'Это заменит все текущие настройки. Продолжить?');
+                    if (confirmed) {
                         applySettings(themeData.settings);
                     }
                 } else {
-                    alert('Неверный формат настроек в буфере обмена');
+                    if (typeof window.showConfirmModal === 'function') {
+                        await window.showConfirmModal('Ошибка', 'Неверный формат настроек в буфере обмена');
+                    }
                 }
             } catch (error) {
-                alert('Ошибка при вставке: ' + error.message);
+                if (typeof window.showConfirmModal === 'function') {
+                    await window.showConfirmModal('Ошибка', 'Ошибка при вставке: ' + error.message);
+                }
             }
         });
     }
@@ -5122,9 +4920,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Режимы: Галерея и Профиль (Избранное) ---
+    // --- Режимы: Галерея, Профиль (Избранное) и Игра Больше/Меньше ---
     const modeGalleryBtn = document.getElementById('modeGalleryBtn');
     const modeProfileBtn = document.getElementById('modeProfileBtn');
+    const modeGameBtn = document.getElementById('modeGameBtn');
+
+    window.higherLowerGame = new HigherLowerGame();
+
+    if (modeGameBtn) {
+        modeGameBtn.addEventListener('click', () => {
+            if (window.higherLowerGame) {
+                window.higherLowerGame.open();
+            }
+        });
+    }
 
     if (modeGalleryBtn && modeProfileBtn) {
         modeGalleryBtn.addEventListener('click', () => {
@@ -6824,8 +6633,9 @@ document.addEventListener('DOMContentLoaded', () => {
             resetBtn.innerHTML = 'Сбросить все настройки';
             resetBtn.title = 'Сбросить все экспертные переменные к значениям по умолчанию';
             resetBtn.style.cssText = 'background: rgba(255, 75, 75, 0.15); border: 1px solid rgba(255, 75, 75, 0.4); color: #ff6b6b; padding: 8px 14px; border-radius: 8px; font-size: 0.75rem; font-weight: bold; cursor: pointer; transition: all 0.2s; white-space: nowrap;';
-            resetBtn.addEventListener('click', () => {
-                if (confirm('Сбросить все экспертные настройки стиля к значениям по умолчанию?')) {
+            resetBtn.addEventListener('click', async () => {
+                const confirmed = await window.showConfirmModal('Сбросить настройки', 'Сбросить все экспертные настройки стиля к значениям по умолчанию?');
+                if (confirmed) {
                     Object.keys(defaultVariables).forEach(varName => {
                         localStorage.removeItem('r34_expert_' + varName);
                         document.documentElement.style.removeProperty(varName);

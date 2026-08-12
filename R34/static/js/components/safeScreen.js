@@ -332,7 +332,7 @@ export class SafeScreen {
             <div class="safe-screen-toast-icon">📁</div>
             <div class="safe-screen-toast-body">
                 <div class="safe-screen-toast-title">Папка safe_screen пуста</div>
-                <div class="safe-screen-toast-text">${msg || 'Добавьте фото или видео в папку <code>/safe_screen</code> проекта! Или через Базовые настройки'}</div>
+                <div class="safe-screen-toast-text">${msg || 'Добавьте фото или видео в папку <code>/safe_screen</code> проекта!'}</div>
             </div>
             <button class="safe-screen-toast-close">&times;</button>
         `;

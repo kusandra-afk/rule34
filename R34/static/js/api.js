@@ -66,6 +66,60 @@ export async function fetchTagCount(tag, skipCache = false) {
     return fetchPromise;
 }
 
+export async function fetchTagInfo(tag, noAi = false) {
+    if (!tag) return { name: tag, count: 0, imageUrl: null };
+    const trimmed = tag.trim();
+    if (!trimmed) return { name: trimmed, count: 0, imageUrl: null };
+
+    try {
+        let searchTags = trimmed;
+        if (noAi) {
+            searchTags += ' -ai_generated -artificial_images -stable_diffusion -midjourney -dall-e -novelai';
+        }
+        const resp = await fetch(proxyUrl(`https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&tags=${encodeURIComponent(searchTags)}&limit=5`));
+        if (resp.status === 429 || resp.status === 403) {
+            return { name: trimmed, count: 0, imageUrl: null };
+        }
+        const xmlStr = await resp.text();
+        
+        const countMatch = xmlStr.match(/<posts\s+count="(\d+)"/i);
+        const count = countMatch ? parseInt(countMatch[1], 10) : 0;
+
+        if (count === 0) {
+            return { name: trimmed, count: 0, imageUrl: null };
+        }
+
+        let imageUrl = null;
+        const postMatches = xmlStr.match(/<post\s+[^>]+>/gi) || [];
+        for (const postXml of postMatches) {
+            const sampleMatch = postXml.match(/sample_url="([^"]+)"/i);
+            const fileMatch = postXml.match(/file_url="([^"]+)"/i);
+            const previewMatch = postXml.match(/preview_url="([^"]+)"/i);
+
+            const candidates = [
+                sampleMatch ? sampleMatch[1] : null,
+                fileMatch ? fileMatch[1] : null,
+                previewMatch ? previewMatch[1] : null
+            ].filter(Boolean);
+
+            for (let raw of candidates) {
+                let clean = raw.replace(/&amp;/g, '&');
+                if (clean.startsWith('//')) clean = 'https:' + clean;
+                if (!clean.endsWith('.webm') && !clean.endsWith('.mp4')) {
+                    imageUrl = proxyUrl(clean);
+                    break;
+                }
+            }
+            if (imageUrl) break;
+        }
+
+        return { name: trimmed, count, imageUrl };
+    } catch (e) {
+        console.error(`Error fetching info for tag "${trimmed}":`, e);
+        return { name: trimmed, count: 0, imageUrl: null };
+    }
+}
+
 const autocompleteCache = new Map();
 
 function isRateLimitResponse(textOrStatus, text) {
