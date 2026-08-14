@@ -1,3 +1,5 @@
+import { resolveCanonicalTag } from './canonicalTags.js';
+
 export function proxyUrl(url) {
     return '/proxy?url=' + encodeURIComponent(url);
 }
@@ -66,19 +68,22 @@ export async function fetchTagCount(tag, skipCache = false) {
     return fetchPromise;
 }
 
+const BANNED_IMAGE_TAGS = ['gay', 'gay_sex', 'male/male', 'male_only', 'fart', 'pissing'];
+
 export async function fetchTagInfo(tag, noAi = false) {
     if (!tag) return { name: tag, count: 0, imageUrl: null };
-    const trimmed = tag.trim();
-    if (!trimmed) return { name: trimmed, count: 0, imageUrl: null };
+    const rawTrimmed = tag.trim();
+    if (!rawTrimmed) return { name: rawTrimmed, count: 0, imageUrl: null };
+    const trimmed = resolveCanonicalTag(rawTrimmed);
 
     try {
-        let searchTags = trimmed;
+        let searchTags = trimmed + ' sort:random -gay -gay_sex -male/male -male_only -fart -pissing';
         if (noAi) {
             searchTags += ' -ai_generated -artificial_images -stable_diffusion -midjourney -dall-e -novelai';
         }
-        const resp = await fetch(proxyUrl(`https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&tags=${encodeURIComponent(searchTags)}&limit=5`));
+        const resp = await fetch(proxyUrl(`https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&tags=${encodeURIComponent(searchTags)}&limit=10&fields=tag_info`));
         if (resp.status === 429 || resp.status === 403) {
-            return { name: trimmed, count: 0, imageUrl: null };
+            return { name: trimmed, count: 0, imageUrl: null, images: [], imageUrls: [] };
         }
         const xmlStr = await resp.text();
         
@@ -86,37 +91,190 @@ export async function fetchTagInfo(tag, noAi = false) {
         const count = countMatch ? parseInt(countMatch[1], 10) : 0;
 
         if (count === 0) {
-            return { name: trimmed, count: 0, imageUrl: null };
+            return { name: trimmed, count: 0, imageUrl: null, images: [], imageUrls: [] };
         }
 
-        let imageUrl = null;
-        const postMatches = xmlStr.match(/<post\s+[^>]+>/gi) || [];
-        for (const postXml of postMatches) {
-            const sampleMatch = postXml.match(/sample_url="([^"]+)"/i);
-            const fileMatch = postXml.match(/file_url="([^"]+)"/i);
-            const previewMatch = postXml.match(/preview_url="([^"]+)"/i);
+        const images = [];
+        let copyright = null;
+        let tagType = null;
+        const allPostTags = new Set();
 
-            const candidates = [
-                sampleMatch ? sampleMatch[1] : null,
-                fileMatch ? fileMatch[1] : null,
-                previewMatch ? previewMatch[1] : null
-            ].filter(Boolean);
+        // Try to fetch exact tag metadata (type and accurate count)
+        try {
+            const metaResp = await fetch(proxyUrl(`https://api.rule34.xxx/index.php?page=dapi&s=tag&q=index&name=${encodeURIComponent(trimmed)}`));
+            if (metaResp.ok) {
+                const metaXml = await metaResp.text();
+                const tagMatch = metaXml.match(/<tag\s+([^>]+)>/i);
+                if (tagMatch) {
+                    const typeMatch = tagMatch[1].match(/type="(\d+)"/i);
+                    if (typeMatch) {
+                        tagType = parseInt(typeMatch[1], 10);
+                    }
+                    const cntMatch = tagMatch[1].match(/count="(\d+)"/i);
+                    if (cntMatch) {
+                        const parsedCount = parseInt(cntMatch[1], 10);
+                        if (!isNaN(parsedCount) && parsedCount > 0) {
+                            count = parsedCount;
+                        }
+                    }
+                }
+            }
+        } catch (metaErr) {
+            // Non-blocking
+        }
 
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlStr, 'text/xml');
+        const postEls = xmlDoc.getElementsByTagName('post');
+
+        for (let i = 0; i < postEls.length; i++) {
+            const postEl = postEls[i];
+            
+            // Check post tags for banned tags
+            const postTagsAttr = (postEl.getAttribute('tags') || '').toLowerCase();
+            const tagNamesList = postTagsAttr.split(/\s+/).filter(Boolean);
+            tagNamesList.forEach(t => allPostTags.add(t));
+            let hasBannedTag = false;
+            for (const banned of BANNED_IMAGE_TAGS) {
+                if (tagNamesList.includes(banned) || (banned.includes('/') && postTagsAttr.includes(banned))) {
+                    hasBannedTag = true;
+                    break;
+                }
+            }
+            if (hasBannedTag) continue;
+
+            const childTags = postEl.getElementsByTagName('tag');
+            for (let j = 0; j < childTags.length; j++) {
+                const tagName = (childTags[j].getAttribute('name') || '').toLowerCase();
+                if (BANNED_IMAGE_TAGS.includes(tagName)) {
+                    hasBannedTag = true;
+                    break;
+                }
+            }
+            if (hasBannedTag) continue;
+
+            // Extract image url candidate
+            const sampleUrl = postEl.getAttribute('sample_url');
+            const fileUrl = postEl.getAttribute('file_url');
+            const previewUrl = postEl.getAttribute('preview_url');
+            const candidates = [sampleUrl, fileUrl, previewUrl].filter(Boolean);
+            
             for (let raw of candidates) {
                 let clean = raw.replace(/&amp;/g, '&');
                 if (clean.startsWith('//')) clean = 'https:' + clean;
                 if (!clean.endsWith('.webm') && !clean.endsWith('.mp4')) {
-                    imageUrl = proxyUrl(clean);
+                    const finalUrl = proxyUrl(clean);
+                    if (!images.includes(finalUrl)) {
+                        images.push(finalUrl);
+                    }
                     break;
                 }
             }
-            if (imageUrl) break;
+
+            // Extract copyright tag (type="3" or type="copyright")
+            if (!copyright) {
+                const tagEls = postEl.getElementsByTagName('tag');
+                for (let j = 0; j < tagEls.length; j++) {
+                    const tagEl = tagEls[j];
+                    const name = tagEl.getAttribute('name');
+                    const type = tagEl.getAttribute('type');
+                    if (name && (type === '3' || type === 'copyright')) {
+                        copyright = name;
+                        break;
+                    }
+                }
+            }
         }
 
-        return { name: trimmed, count, imageUrl };
+        // Fallback for image urls if XML parsing missed them
+        if (images.length === 0) {
+            const postMatches = xmlStr.match(/<post\s+[^>]+>/gi) || [];
+            for (const postXml of postMatches) {
+                // Check if postXml contains banned tags
+                const postXmlLower = postXml.toLowerCase();
+                let hasBanned = false;
+                for (const banned of BANNED_IMAGE_TAGS) {
+                    if (postXmlLower.includes(`"${banned}"`) || postXmlLower.includes(` ${banned} `) || postXmlLower.includes(banned)) {
+                        hasBanned = true;
+                        break;
+                    }
+                }
+                if (hasBanned) continue;
+
+                const sampleMatch = postXml.match(/sample_url="([^"]+)"/i);
+                const fileMatch = postXml.match(/file_url="([^"]+)"/i);
+                const previewMatch = postXml.match(/preview_url="([^"]+)"/i);
+
+                const candidates = [
+                    sampleMatch ? sampleMatch[1] : null,
+                    fileMatch ? fileMatch[1] : null,
+                    previewMatch ? previewMatch[1] : null
+                ].filter(Boolean);
+
+                for (let raw of candidates) {
+                    let clean = raw.replace(/&amp;/g, '&');
+                    if (clean.startsWith('//')) clean = 'https:' + clean;
+                    if (!clean.endsWith('.webm') && !clean.endsWith('.mp4')) {
+                        const finalUrl = proxyUrl(clean);
+                        if (!images.includes(finalUrl)) {
+                            images.push(finalUrl);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        const primaryImage = images.length > 0 ? images[0] : null;
+
+        return { 
+            name: trimmed, 
+            count, 
+            type: tagType, 
+            isCharacter: tagType === 4,
+            isCopyright: tagType === 3,
+            isGeneral: tagType === 0,
+            imageUrl: primaryImage,
+            images: images,
+            imageUrls: images,
+            currentImageIndex: 0,
+            postTags: Array.from(allPostTags),
+            copyright 
+        };
     } catch (e) {
         console.error(`Error fetching info for tag "${trimmed}":`, e);
-        return { name: trimmed, count: 0, imageUrl: null };
+        return { name: trimmed, count: 0, imageUrl: null, images: [], imageUrls: [] };
+    }
+}
+
+export async function fetchMoreTagImages(tagName, noAi = false, pid = 1) {
+    if (!tagName) return [];
+    try {
+        let searchTags = tagName.trim() + ' sort:random -gay -gay_sex -male/male -male_only -fart -pissing';
+        if (noAi) {
+            searchTags += ' -ai_generated -artificial_images -stable_diffusion -midjourney -dall-e -novelai';
+        }
+        const resp = await fetch(proxyUrl(`https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&tags=${encodeURIComponent(searchTags)}&limit=10&pid=${pid}`));
+        if (!resp.ok) return [];
+        const xmlStr = await resp.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlStr, 'text/xml');
+        const postEls = xmlDoc.getElementsByTagName('post');
+        const list = [];
+        for (let i = 0; i < postEls.length; i++) {
+            const postEl = postEls[i];
+            const sampleUrl = postEl.getAttribute('sample_url') || postEl.getAttribute('file_url') || postEl.getAttribute('preview_url');
+            if (sampleUrl) {
+                let clean = sampleUrl.replace(/&amp;/g, '&');
+                if (clean.startsWith('//')) clean = 'https:' + clean;
+                if (!clean.endsWith('.webm') && !clean.endsWith('.mp4')) {
+                    list.push(proxyUrl(clean));
+                }
+            }
+        }
+        return list;
+    } catch (e) {
+        return [];
     }
 }
 
@@ -319,14 +477,25 @@ export async function fetchPosts(tagsQuery, popularOnly, page = 0) {
     const apiTimeout = parseInt(localStorage.getItem('r34_api_timeout') || '15', 10) * 1000;
     const apiRetries = parseInt(localStorage.getItem('r34_api_retries') || '3', 10);
     const apiRetryDelay = parseInt(localStorage.getItem('r34_api_retry_delay') || '2', 10) * 1000;
-    const apiCacheEnabled = localStorage.getItem('r34_api_cache_enabled') !== 'false';
+    const apiCacheEnabled = false; // Полностью отключаем кэш постов для гарантированного получения свежего контента
     
     const limit = Math.min(Math.max(apiLimit, 1), 1000); // Ограничиваем от 1 до 1000
-    let tagPart = tagsQuery || '';
+    let tagPart = tagsQuery ? tagsQuery.trim() : '';
     if (popularOnly) {
-        tagPart = tagPart ? tagPart + '+score:>=100' : 'score:>=100';
+        tagPart = tagPart ? tagPart + ' score:>=100' : 'score:>=100';
     }
-    let url = `https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&tags=${encodeURIComponent(tagPart)}&limit=${limit}&json=1&fields=tag_info`;
+
+    // Добавляем исключения нежелательных тегов если они не запрошены явно
+    const bannedExclusions = BANNED_IMAGE_TAGS
+        .filter(b => !tagPart.toLowerCase().includes(b))
+        .map(b => `-${b}`)
+        .join(' ');
+    
+    if (bannedExclusions) {
+        tagPart = tagPart ? `${tagPart} ${bannedExclusions}` : bannedExclusions;
+    }
+
+    let url = `https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&tags=${encodeURIComponent(tagPart)}&limit=${limit}&json=1&fields=tag_info&cb=${Date.now()}`;
     if (page > 0) url += `&pid=${page}`;
     
     // Кэш для API ответов
@@ -404,7 +573,27 @@ export async function fetchPosts(tagsQuery, popularOnly, page = 0) {
             }
 
             try {
-                const data = parsePostsResponse(trimmed);
+                const rawData = parsePostsResponse(trimmed);
+                const data = Array.isArray(rawData) ? rawData.filter(post => {
+                    if (!post) return false;
+                    const postTags = (post.tags || '').toLowerCase();
+                    const tagList = postTags.split(/\s+/);
+                    for (const banned of BANNED_IMAGE_TAGS) {
+                        if (tagList.includes(banned)) return false;
+                        if (banned.includes('/') && postTags.includes(banned)) return false;
+                    }
+                    if (Array.isArray(post.tagsWithTypes)) {
+                        for (const t of post.tagsWithTypes) {
+                            const tName = (t.name || '').toLowerCase();
+                            if (BANNED_IMAGE_TAGS.includes(tName)) return false;
+                        }
+                    }
+                    return true;
+                }) : rawData;
+                
+                if (Array.isArray(data)) {
+                    data.rawCount = Array.isArray(rawData) ? rawData.length : data.length;
+                }
                 
                 // Сохраняем в кэш
                 if (apiCacheEnabled) {

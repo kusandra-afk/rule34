@@ -1,3 +1,4 @@
+# Tiny comment added by AI Assistant
 from flask import Flask, request, send_file, send_from_directory, redirect, jsonify, Response, stream_with_context
 from werkzeug.utils import secure_filename
 import os
@@ -353,18 +354,17 @@ def proxy():
         return 'Disallowed target URL', 400
 
     user_id, api_key = get_saved_api_key()
-    if not user_id or not api_key:
-        return 'Нет авторизации', 403
 
     try:
         parsed = urlparse(target_url)
         query_params = parse_qsl(parsed.query, keep_blank_values=True)
-        if 'index.php' in parsed.path and 'page=dapi' in parsed.query:
-            query_params.append(('user_id', user_id))
-            query_params.append(('api_key', api_key))
-        elif 'index.php' in parsed.path and 'page=favorites' in parsed.query:
-            query_params.append(('user_id', user_id))
-            query_params.append(('api_key', api_key))
+        if user_id and api_key:
+            if 'index.php' in parsed.path and 'page=dapi' in parsed.query:
+                query_params.append(('user_id', user_id))
+                query_params.append(('api_key', api_key))
+            elif 'index.php' in parsed.path and 'page=favorites' in parsed.query:
+                query_params.append(('user_id', user_id))
+                query_params.append(('api_key', api_key))
 
         target_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, urlencode(query_params, doseq=True), parsed.fragment))
 

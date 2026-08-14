@@ -759,23 +759,25 @@ export class Gallery {
         if (!Array.isArray(posts) || posts.length === 0) {
             if (this._pendingFullscreenNext) {
                 this._pendingFullscreenNext = false;
-                this._hideFullscreenLoadingSlide();
+                this._fullscreenLoadingSlide = null;
                 this._showFullscreenEndSlide('down');
             }
             return;
         }
         const oldCurrentPosts = this.currentPosts;
-        this.currentPosts = this.currentPosts.concat(posts.filter(p => p && !this.currentPosts.some(e => e.id === p.id)));
+        const oldLength = this.currentPosts.length;
+        const uniqueNewPosts = posts.filter(p => p && !this.currentPosts.some(e => e.id === p.id));
+        this.currentPosts = this.currentPosts.concat(uniqueNewPosts);
         if (this._activeFullscreenPosts === oldCurrentPosts) {
             this._activeFullscreenPosts = this.currentPosts;
         }
         this.realCount = realCount || this.currentPosts.length;
         this.updateCountDisplay();
-        this.renderGallery(true, this.currentPosts.length - posts.length);
+        this.renderGallery(true, oldLength);
 
         if (this._pendingFullscreenNext) {
             this._pendingFullscreenNext = false;
-            this._hideFullscreenLoadingSlide();
+            this._fullscreenLoadingSlide = null;
             this._fullscreenNext();
         }
     }
@@ -2103,11 +2105,18 @@ export class Gallery {
 
     _renderFullscreenMedia(direction = 'down') {
         if (!this.fullscreenContainer) return;
-        this._hideFullscreenLoadingSlide();
-        this._hideFullscreenEndSlide();
         const mediaWrapper = this.fullscreenContainer.querySelector('.fullscreen-media-wrapper');
         if (!mediaWrapper) return;
-        const oldSlide = mediaWrapper.querySelector('.media-slide');
+        const oldSlide = mediaWrapper.querySelector('.media-slide, .fullscreen-slide');
+        
+        // Nullify special slide references so that they slide out gracefully instead of being instantly deleted or faded
+        if (this._fullscreenLoadingSlide) {
+            this._fullscreenLoadingSlide = null;
+        }
+        if (this._fullscreenEndSlide) {
+            this._fullscreenEndSlide = null;
+        }
+
         const idx = this.fullscreenIdx;
         const postsList = this._activeFullscreenPosts || (this.isFavoritesActive ? this.favoritesPosts : this.currentPosts);
         const post = postsList ? postsList[idx] : null;
@@ -2728,7 +2737,7 @@ export class Gallery {
 
         if (this._fullscreenLoadingSlide) return;
 
-        const oldSlide = mediaWrapper.querySelector('.fullscreen-slide');
+        const oldSlide = mediaWrapper.querySelector('.fullscreen-slide, .media-slide');
         
         const loadingSlide = document.createElement('div');
         loadingSlide.className = 'fullscreen-slide fullscreen-loading-slide';
@@ -2765,6 +2774,18 @@ export class Gallery {
             loadingSlide.style.transform = startTransform;
             loadingSlide.offsetHeight;
 
+            // Pause any videos in old slide immediately to release audio/video streams
+            const oldVideos = oldSlide.querySelectorAll('video');
+            oldVideos.forEach(v => {
+                try {
+                    v.pause();
+                    v.src = "";
+                    v.load();
+                } catch (e) {
+                    console.log('Error cleaning up video before slide load transition:', e);
+                }
+            });
+
             requestAnimationFrame(() => {
                 loadingSlide.style.opacity = '1';
                 loadingSlide.style.transform = 'translateY(0)';
@@ -2784,13 +2805,7 @@ export class Gallery {
     _hideFullscreenLoadingSlide() {
         if (this._fullscreenLoadingSlide && this._fullscreenLoadingSlide.parentNode) {
             const slide = this._fullscreenLoadingSlide;
-            slide.style.opacity = '0';
-            slide.style.transform = 'scale(0.95)';
-            setTimeout(() => {
-                if (slide.parentNode) {
-                    slide.parentNode.removeChild(slide);
-                }
-            }, 300);
+            slide.parentNode.removeChild(slide);
         }
         this._fullscreenLoadingSlide = null;
     }
@@ -2860,13 +2875,7 @@ export class Gallery {
     _hideFullscreenEndSlide() {
         if (this._fullscreenEndSlide && this._fullscreenEndSlide.parentNode) {
             const slide = this._fullscreenEndSlide;
-            slide.style.opacity = '0';
-            slide.style.transform = 'scale(0.95)';
-            setTimeout(() => {
-                if (slide.parentNode) {
-                    slide.parentNode.removeChild(slide);
-                }
-            }, 300);
+            slide.parentNode.removeChild(slide);
         }
         this._fullscreenEndSlide = null;
     }
@@ -2973,7 +2982,15 @@ export class Gallery {
         
         const isDurationEnabled = localStorage.getItem('r34_min_duration_enabled') === 'true';
         const minDuration = isDurationEnabled ? (parseInt(localStorage.getItem('r34_min_duration'), 10) || 30) : 0;
-        let prevIdx = this.fullscreenIdx - 1;
+        
+        let prevIdx = this.fullscreenIdx;
+        const isSpecialSlideActive = !!(this._fullscreenLoadingSlide || this._fullscreenEndSlide);
+        if (isSpecialSlideActive) {
+            this._pendingFullscreenNext = false;
+        } else {
+            prevIdx = this.fullscreenIdx - 1;
+        }
+
         while (prevIdx >= 0) {
             const p = postsList[prevIdx];
             if (!this._isPostFiltered(p)) {

@@ -1,53 +1,259 @@
-import { fetchTagInfo } from '../api.js';
+import { fetchTagInfo, proxyUrl, fetchMoreTagImages } from '../api.js';
 import { icon } from '../icons.js';
+import { renderOriginBadgeHtml, FRANCHISE_DATABASE } from '../characterOrigins.js';
+import { formatDisplayTagName, resolveCanonicalTag } from '../canonicalTags.js';
 
-const CHARACTER_TAGS = [
-    'hatsune_miku', '2b_(nier:automata)', 'makima_(chainsaw_man)', 'yor_forger', 
-    'raiden_shogun', 'hu_tao', 'ganyu_(genshin_impact)', 'yelan_(genshin_impact)', 
-    'furina_(genshin_impact)', 'keqing_(genshin_impact)', 'mona_(genshin_impact)', 
-    'fischl_(genshin_impact)', 'clorinde_(genshin_impact)', 'navia_(genshin_impact)', 
-    'kafka_(honkai:_star_rail)', 'firefly_(honkai:_star_rail)', 'march_7th', 
-    'robin_(honkai:_star_rail)', 'rem_(re:zero)', 'ram_(re:zero)', 'emilia_(re:zero)', 
-    'd.va', 'mercy_(overwatch)', 'tracer_(overwatch)', 'widowmaker', 'kiriko_(overwatch)', 
-    'tifa_lockhart', 'aerith_gainsborough', 'ahri', 'jinx_(league_of_legends)', 
-    'kaisa_(league_of_legends)', 'evelynn_(league_of_legends)', 'boa_hancock', 
-    'nami_(one_piece)', 'nico_robin', 'tsuyu_asui', 'ochako_uraraka', 'mirko_(my_hero_academia)', 
-    'asuka_langley_soryu', 'rei_ayanami', 'zero_two_(darling_in_the_franxx)', 
-    'power_(chainsaw_man)', 'reze_(chainsaw_man)', 'marin_kitagawa', 'lucy_(cyberpunk)', 
-    'rebecca_(cyberpunk)', 'frieren', 'fern_(frieren)', 'uzaki_hana', 'nagatoro_hayase', 
-    'chika_fujiwara', 'kaguya_shinomiya', 'nezuko_kamado', 'mitsuri_kanroji', 
-    'shinobu_kocho', 'houshou_marine', 'gawr_gura', 'usada_pekora', 'mori_calliope', 
-    'shirakami_fubuki', 'hoshimachi_suisei', 'toki_(blue_archive)', 'hina_(blue_archive)', 
-    'arisu_(blue_archive)', 'shiroko_(blue_archive)', 'asuna_(blue_archive)', 
-    'karin_(blue_archive)', 'kurokami_fubuki', 'cammy', 'juri_han', 'chun-li', 
-    'a2_(nier:automata)', 'artoria_pendragon', 'jalter', 'scathach_(fate)', 'astolfo', 
-    'bb_(fate)', 'shuten_douji', 'tamamo_no_mae', 'rias_gremory', 'akeno_himejima', 
-    'megumin', 'aqua_(konosuba)', 'esdeath', 'pyra_(xenoblade)', 'mythra_(xenoblade)', 
-    'samus_aran', 'zelda', 'bayonetta'
+const POPULAR_CHARACTER_SEED = [
+    // Genshin Impact
+    'ganyu_(genshin_impact)', 'hu_tao_(genshin_impact)', 'raiden_shogun', 'yae_miko_(genshin_impact)',
+    'mona_(genshin_impact)', 'keqing_(genshin_impact)', 'eula_(genshin_impact)', 'shenhe_(genshin_impact)',
+    'lisa_(genshin_impact)', 'jean_(genshin_impact)', 'yelan_(genshin_impact)', 'beidou_(genshin_impact)',
+    'furina_(genshin_impact)', 'navia_(genshin_impact)', 'clorinde_(genshin_impact)', 'lumine_(genshin_impact)',
+    'amber_(genshin_impact)', 'rosaria_(genshin_impact)', 'yoimiya_(genshin_impact)', 'nilou_(genshin_impact)',
+    'dehya_(genshin_impact)', 'arlecchino_(genshin_impact)', 'kokomi_(genshin_impact)', 'layla_(genshin_impact)',
+    
+    // Honkai & ZZZ
+    'kafka_(honkai:_star_rail)', 'firefly_(honkai:_star_rail)', 'acheron_(honkai:_star_rail)',
+    'sparkle_(honkai:_star_rail)', 'silver_wolf_(honkai:_star_rail)', 'topaz_(honkai:_star_rail)',
+    'march_7th_(honkai:_star_rail)', 'himeko_(honkai:_star_rail)', 'tingyun_(honkai:_star_rail)',
+    'ruan_mei_(honkai:_star_rail)', 'black_swan_(honkai:_star_rail)', 'robin_(honkai:_star_rail)',
+    'ellen_joe', 'jane_doe_(zenless_zone_zero)', 'nicole_demara', 'anby_demara', 'zhu_yuan',
+    
+    // Overwatch
+    'd.va_(overwatch)', 'mercy_(overwatch)', 'widowmaker_(overwatch)', 'tracer_(overwatch)',
+    'brigitte_(overwatch)', 'kiriko_(overwatch)', 'ashe_(overwatch)', 'pharah_(overwatch)',
+    'mei_(overwatch)', 'sombra_(overwatch)',
+    
+    // Final Fantasy & Nier
+    'tifa_lockhart', 'aerith_gainsborough', 'yuffie_kisaragi', '2b_(nier:automata)',
+    'a2_(nier:automata)', 'rikku_(final_fantasy)', 'yuna_(final_fantasy)', 'cindy_aurum',
+    
+    // League of Legends
+    'ahri', 'jinx_(league_of_legends)', 'katarina_(league_of_legends)', 'akali', 'evelynn',
+    'kaisa_(league_of_legends)', 'miss_fortune_(league_of_legends)', 'lux_(league_of_legends)',
+    'vi_(league_of_legends)', 'caitlyn_(league_of_legends)', 'sona_(league_of_legends)', 'riven_(league_of_legends)',
+    
+    // Fate Series
+    'saber_(fate)', 'artoria_pendragon', 'astolfo_(fate)', 'rin_tohsaka', 'tamamo_no_mae_(fate)',
+    'nero_claudius_(fate)', 'jeanne_d\'arc_(fate)', 'jeanne_alter_(fate)', 'scathach_(fate)',
+    'mordred_(fate)', 'ishtar_(fate)', 'ereshkigal_(fate)', 'kama_(fate)', 'morgan_(fate)',
+    
+    // Anime & Manga & Gaming
+    'hatsune_miku', 'asuka_langley_soryu', 'rei_ayanami', 'misato_katsuragi',
+    'makima_(chainsaw_man)', 'power_(chainsaw_man)', 'yor_forger', 'frieren', 'fern_(sousou_no_frieren)',
+    'rem_(re:zero)', 'ram_(re:zero)', 'emilia_(re:zero)', 'aqua_(konosuba)', 'megumin', 'darkness_(konosuba)',
+    'lucy_(cyberpunk)', 'rebecca_(cyberpunk)', 'marin_kitagawa', 'ryuko_matoi', 'satsuki_kiryuin',
+    'chun-li', 'cammy_white', 'juri_han', 'morrigan_aensland', 'mai_shiranui',
+    'samus_aran', 'princess_zelda', 'princess_peach', 'princess_daisy', 'rosalina_(mario)', 'bowsette',
+    'pyra_(xenoblade)', 'mythra_(xenoblade)', 'bayonetta',
+    'nami_(one_piece)', 'nico_robin', 'boa_hancock', 'yamato_(one_piece)', 'uta_(one_piece)',
+    'hinata_hyuga', 'tsunade_(naruto)', 'sakura_haruno', 'ino_yamanaka',
+    'yoruichi_shihoin', 'rangiku_matsumoto', 'tier_harribel', 'orihime_inoue',
+    'android_18', 'bulma', 'videl', 'miku_nakano', 'nino_nakano'
 ];
 
-const GENERAL_TAGS = [
-    'hatsune_miku', 'genshin_impact', 'overwatch', 'blue_archive', 'fate/grand_order', 
-    'nekomimi', 'honkai:_star_rail', 'pokemon', 'naruto', 'one_piece', 'chainsaw_man', 
-    'spy_x_family', 'touhou', 'azur_lane', 'arknights', 'zenless_zone_zero', 'hololive', 
-    'vtuber', 'bikini', 'thighhighs', 'cleavage', 'panties', 'maid', 'cat_ears', 
-    'school_uniform', 'glasses', 'swimsuit', 'bunny_girl', 'stockings', 'long_hair', 
-    'short_hair', 'blonde_hair', 'blue_eyes', 'red_hair', 'tail', 'wings', 'tattoo', 
-    'large_breasts', 'medium_breasts', 'flat_chest', 'dress', 'kimono', 'demon', 'angel', 
-    'vampire', 'elf', 'solo', 'high_heels', 'skirt', 'ribbon', 'gloves', 'choker', 
-    'pigtails', 'navel', 'weapon', 'sword', 'barefoot', 'standing', 'sitting', 'lying', 
-    'looking_at_viewer', 'open_mouth', 'blush', 'smile', 'fated_series', 'nier:_automata', 
-    'dragon_ball', 'league_of_legends', 'honkai_impact_3rd', 'substitute', 'original',
-    ...CHARACTER_TAGS
+const POPULAR_COPYRIGHT_SEED = [
+    'pokemon', 'genshin_impact', 'league_of_legends', 'overwatch', 'overwatch_2',
+    'touhou', 'fate_(series)', 'fate/grand_order', 'fate/stay_night',
+    'honkai:_star_rail', 'honkai_impact_3rd', 'zenless_zone_zero', 'blue_archive',
+    'azur_lane', 'arknights', 'nikke', 'final_fantasy_vii', 'final_fantasy_xiv',
+    'nier:automata', 'chainsaw_man', 'naruto', 'naruto_shippuden',
+    'one_piece', 'bleach', 'dragon_ball', 'jojos_bizarre_adventure',
+    'my_hero_academia', 'demon_slayer', 'kimetsu_no_yaiba', 'jujutsu_kaisen',
+    'attack_on_titan', 'spy_x_family', 'neon_genesis_evangelion',
+    're:zero_kara_hajimeru_isekai_seikatsu', 'kono_subarashii_sekai_ni_shukufuku_wo!',
+    'dungeon_ni_deai_wo_motomeru_no_wa_machigatteiru_darou_ka', 'sword_art_online',
+    'fairy_tail', 'hunter_x_hunter', 'fullmetal_alchemist', 'code_geass', 'death_note',
+    'one-punch_man', 'sousou_no_frieren', 'oshi_no_ko', 'sono_bisque_doll_wa_koi_wo_suru',
+    'ijiranaide_nagatoro-san', 'komi-san_wa_komyushou_desu', 'gotoubun_no_hanayome',
+    'to_love-ru', 'high_school_dxd', 'bocchi_the_rock!', 'cyberpunk_2077', 'cyberpunk:_edgerunners',
+    'street_fighter', 'tekken', 'mortal_kombat', 'dead_or_alive', 'guilty_gear',
+    'resident_evil', 'the_witcher', 'metroid', 'super_mario', 'the_legend_of_zelda',
+    'sonic_the_hedgehog', 'persona_5', 'danganronpa', 'dark_souls',
+    'elden_ring', 'devil_may_cry', 'bayonetta', 'vocaloid', 'hololive', 'nijisanji',
+    'dc_comics', 'marvel', 'star_wars', 'hazbin_hotel', 'helluva_boss',
+    'sailor_moon', 'kill_la_kill', 'gurren_lagann', 'puella_magi_madoka_magica',
+    'monogatari_(series)', 'black_lagoon', 'overlord', 'mushoku_tensei',
+    'k-on!', 'azumanga_daioh', 'berserk', 'dungeon_meshi', 'splatoon', 'apex_legends',
+    'fortnite', 'skullgirls', 'undertale', 'hollow_knight', 'world_of_warcraft',
+    'kingdom_hearts', 'mass_effect', 'tomb_raider', 'fire_emblem', 'xenoblade_chronicles'
 ];
+
+// Титаны и самые узнаваемые флагманы франшиз (гарантированный шанс появления в игре)
+const FLAGSHIP_FRANCHISES = [
+    'pokemon', 'genshin_impact', 'league_of_legends', 'overwatch', 'touhou',
+    'fate/grand_order', 'honkai:_star_rail', 'zenless_zone_zero', 'blue_archive',
+    'azur_lane', 'final_fantasy_vii', 'nier:automata', 'chainsaw_man', 'naruto',
+    'one_piece', 'bleach', 'dragon_ball', 'jojos_bizarre_adventure', 'my_hero_academia',
+    'kimetsu_no_yaiba', 'jujutsu_kaisen', 'attack_on_titan', 'spy_x_family',
+    'neon_genesis_evangelion', 're:zero_kara_hajimeru_isekai_seikatsu',
+    'kono_subarashii_sekai_ni_shukufuku_wo!', 'sword_art_online', 'sousou_no_frieren',
+    'sono_bisque_doll_wa_koi_wo_suru', 'cyberpunk:_edgerunners', 'resident_evil',
+    'the_legend_of_zelda', 'super_mario', 'sonic_the_hedgehog', 'street_fighter',
+    'persona_5', 'vocaloid', 'hololive', 'hazbin_hotel'
+];
+
+const POPULAR_GENERAL_SEED = [
+    'solo', '1girl', 'female', 'breasts', 'large_breasts', 'nipples', 'pussy',
+    'ass', 'thighs', 'long_hair', 'blonde_hair', 'brown_hair', 'black_hair',
+    'blue_hair', 'pink_hair', 'looking_at_viewer', 'smile', 'blush', 'open_mouth',
+    'underwear', 'panties', 'bra', 'swimwear', 'bikini', 'nude', 'cleavage',
+    'spread_legs', 'lying', 'sitting', 'standing', 'navel', 'collarbone'
+];
+
+let CHARACTER_TAGS = [...POPULAR_CHARACTER_SEED];
+let GENERAL_TAGS = [...POPULAR_GENERAL_SEED];
+let COPYRIGHT_TAGS = [...POPULAR_COPYRIGHT_SEED];
+
+const MIN_CHARACTER_POSTS = 4000;
+const MIN_COPYRIGHT_POSTS = 2500;
+const BANNED_HL_TAGS = ['gay', 'gay_sex', 'male/male', 'male_only', 'fart', 'pissing'];
+
+function isTagBanned(tag) {
+    if (!tag) return true;
+    const lower = tag.toLowerCase().trim();
+    return BANNED_HL_TAGS.some(banned => lower === banned || lower.includes(`_${banned}`) || lower.includes(`${banned}_`) || lower.includes(banned));
+}
+
+let dynamicTagsLoaded = false;
+let isLoadingTags = false;
+
+async function loadDynamicPopularTags(force = false) {
+    if (isLoadingTags) return;
+    if (dynamicTagsLoaded && !force && CHARACTER_TAGS.length >= 50 && COPYRIGHT_TAGS.length >= 20 && GENERAL_TAGS.length >= 30) return;
+    
+    isLoadingTags = true;
+    try {
+        console.log('[HigherLower] Fetching dynamic tags from Rule34 API...');
+        
+        if (force) {
+            CHARACTER_TAGS = [...POPULAR_CHARACTER_SEED];
+            GENERAL_TAGS = [];
+            COPYRIGHT_TAGS = [];
+        }
+
+        // Fetch popular tags across multiple pages of the tag endpoint
+        const urls = [
+            proxyUrl('https://api.rule34.xxx/index.php?page=dapi&s=tag&q=index&order=count&limit=300&json=1'),
+            proxyUrl('https://api.rule34.xxx/index.php?page=dapi&s=tag&q=index&order=count&limit=300&pid=1&json=1'),
+            proxyUrl('https://api.rule34.xxx/index.php?page=dapi&s=tag&q=index&order=count&limit=300&pid=2&json=1'),
+            proxyUrl('https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&tags=sort:random+-gay+-gay_sex+-male/male+-male_only+-fart+-pissing&limit=100&json=1')
+        ];
+
+        const results = await Promise.allSettled(urls.map(u => fetch(u)));
+
+        for (const res of results) {
+            if (res.status !== 'fulfilled' || !res.value.ok) continue;
+            try {
+                const text = await res.value.text();
+                const trimmed = text.trim();
+                if (!trimmed) continue;
+
+                let data = null;
+                if (trimmed.startsWith('<') || trimmed.includes('<?xml')) {
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(trimmed, 'text/xml');
+                    
+                    // Check if it's tag response
+                    const xmlTags = xmlDoc.getElementsByTagName('tag');
+                    if (xmlTags.length > 0) {
+                        data = [];
+                        for (let i = 0; i < xmlTags.length; i++) {
+                            const tagEl = xmlTags[i];
+                            data.push({
+                                name: tagEl.getAttribute('name'),
+                                count: tagEl.getAttribute('count'),
+                                type: tagEl.getAttribute('type')
+                            });
+                        }
+                    } else {
+                        // Or post response
+                        const xmlPosts = xmlDoc.getElementsByTagName('post');
+                        if (xmlPosts.length > 0) {
+                            data = [];
+                            for (let i = 0; i < xmlPosts.length; i++) {
+                                const postEl = xmlPosts[i];
+                                data.push({
+                                    tags: postEl.getAttribute('tags') || ''
+                                });
+                            }
+                        }
+                    }
+                } else {
+                    try {
+                        data = JSON.parse(trimmed);
+                    } catch (e) {}
+                }
+
+                if (!Array.isArray(data)) continue;
+
+                for (const item of data) {
+                    if (!item) continue;
+
+                    // If it's a tag object with explicit type
+                    if (item.name) {
+                        const name = String(item.name).trim();
+                        if (!name || name.length <= 2 || !isNaN(name) || isTagBanned(name)) continue;
+                        if (['highres', 'commentary_request', 'tagme', 'check_tag', 'absurdres', 'translated', 'rule34', 'video', 'sound', 'webm', 'mp4'].includes(name)) continue;
+
+                        const type = parseInt(item.type, 10);
+                        const count = parseInt(item.count, 10);
+
+                        const canonicalName = resolveCanonicalTag(name);
+                        // STRICT TYPE 4 for characters only
+                        if (type === 4) {
+                            if (!isNaN(count) && count < MIN_CHARACTER_POSTS) {
+                                continue;
+                            }
+                            if (!CHARACTER_TAGS.includes(canonicalName)) CHARACTER_TAGS.push(canonicalName);
+                        } else if (type === 3) {
+                            if (!isNaN(count) && count < MIN_COPYRIGHT_POSTS) {
+                                continue;
+                            }
+                            if (!COPYRIGHT_TAGS.includes(canonicalName)) COPYRIGHT_TAGS.push(canonicalName);
+                        } else if (type === 0 || isNaN(type)) {
+                            if (!GENERAL_TAGS.includes(canonicalName)) GENERAL_TAGS.push(canonicalName);
+                        }
+                    }
+                    // If it's a post object with general tags, add ONLY to GENERAL_TAGS (never to CHARACTER_TAGS)
+                    else if (item.tags) {
+                        const postTags = String(item.tags).split(/\s+/);
+                        for (const rawTag of postTags) {
+                            const tag = rawTag.trim();
+                            if (!tag || tag.length <= 2 || !isNaN(tag) || isTagBanned(tag)) continue;
+                            if (['highres', 'commentary_request', 'tagme', 'check_tag', 'absurdres', 'translated', 'rule34', 'video', 'sound', 'webm', 'mp4'].includes(tag)) continue;
+
+                            if (!GENERAL_TAGS.includes(tag)) {
+                                GENERAL_TAGS.push(tag);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('[HigherLower] Error parsing API tag chunk:', e);
+            }
+        }
+
+        console.log(`[HigherLower] Loaded dynamic tags: ${CHARACTER_TAGS.length} characters, ${COPYRIGHT_TAGS.length} copyrights, ${GENERAL_TAGS.length} general`);
+        dynamicTagsLoaded = true;
+    } catch (err) {
+        console.error('[HigherLower] Error fetching dynamic tags from API:', err);
+    } finally {
+        isLoadingTags = false;
+    }
+}
 
 export class HigherLowerGame {
     constructor() {
+        // Load popular dynamic tags in background to expand game variety
+        loadDynamicPopularTags().catch(() => {});
+
         this.container = null;
         this.mode = 'menu'; // 'menu', 'solo', 'lobby', 'multiplayer'
         this.score = 0;
         this.highScore = parseInt(localStorage.getItem('r34_hl_highscore') || '0', 10);
-        this.selectedCategory = localStorage.getItem('r34_hl_category') || 'all'; // 'all' or 'characters'
+        const savedCat = localStorage.getItem('r34_hl_category');
+        this.selectedCategory = (savedCat === 'copyrights' || savedCat === 'general') ? savedCat : 'characters';
         this.isNoAiMode = localStorage.getItem('r34_hl_no_ai') === 'true';
         this.leftTag = null;
         this.rightTag = null;
@@ -73,10 +279,40 @@ export class HigherLowerGame {
         this.multiplayerLoadingTags = false;
         this.loadingLeftName = null;
         this.loadingRightName = null;
+        this.roomHeartbeatTimer = null;
 
         window.addEventListener('beforeunload', () => {
             if (this.roomId) {
                 this.leaveRoom();
+            }
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (!this.container || !this.container.classList.contains('open')) return;
+            // Ignore if typing in input or select
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === 'ц' || e.key === 'Ц') {
+                if (this.mode === 'solo' && !this.isTransitioning && this.leftTag && this.rightTag) {
+                    const higherBtn = document.getElementById('hlBtnHigher');
+                    if (higherBtn) higherBtn.click();
+                } else if (this.mode === 'multiplayer' && this.roomData?.currentRound?.phase === 'guessing') {
+                    const multiHigherBtn = document.getElementById('hlMultiHigherBtn');
+                    if (multiHigherBtn) multiHigherBtn.click();
+                }
+            } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S' || e.key === 'ы' || e.key === 'Ы') {
+                if (this.mode === 'solo' && !this.isTransitioning && this.leftTag && this.rightTag) {
+                    const lowerBtn = document.getElementById('hlBtnLower');
+                    if (lowerBtn) lowerBtn.click();
+                } else if (this.mode === 'multiplayer' && this.roomData?.currentRound?.phase === 'guessing') {
+                    const multiLowerBtn = document.getElementById('hlMultiLowerBtn');
+                    if (multiLowerBtn) multiLowerBtn.click();
+                }
+            } else if (e.key === 'Escape') {
+                const lightbox = document.querySelector('.hl-lightbox');
+                if (lightbox) {
+                    lightbox.remove();
+                }
             }
         });
 
@@ -298,20 +534,33 @@ export class HigherLowerGame {
     }
     async leaveRoom() {
         this.syncLogs = [];
+        if (this.roomHeartbeatTimer) {
+            clearInterval(this.roomHeartbeatTimer);
+            this.roomHeartbeatTimer = null;
+        }
         if (this.wsConnection) {
             this.wsConnection.close();
             this.wsConnection = null;
+        }
+        if (this.eventSource) {
+            try { this.eventSource.close(); } catch(err) {}
+            this.eventSource = null;
         }
 
         if (this.isHost) {
             this.connections.forEach(c => {
                 if (c.dc && c.dc.readyState === 'open') {
-                    c.dc.send(JSON.stringify({ type: 'ROOM_CLOSED' }));
+                    try {
+                        c.dc.send(JSON.stringify({ type: 'ROOM_CLOSED' }));
+                    } catch (e) {}
                     c.dc.close();
                 }
             });
             this.connections = [];
         } else if (this.hostConn && this.hostConn.readyState === 'open') {
+            try {
+                this.hostConn.send(JSON.stringify({ type: 'LEAVE', playerId: this.playerId }));
+            } catch (e) {}
             this.hostConn.close();
         }
 
@@ -343,9 +592,9 @@ export class HigherLowerGame {
                 <button class="hl-close-btn" id="hlCloseBtn">&times;</button>
             </div>
             <div class="hl-card">
-                <div class="hl-sync-container" style="max-width: 520px; margin: 0 auto; width: 100%;">
-                    <div class="hl-sync-icon hl-spin">
-                        ${icon('refresh', { size: 32 })}
+                <div class="hl-sync-container">
+                    <div class="hl-sync-icon">
+                        <div class="hl-spin">${icon('refresh', { size: 32 })}</div>
                     </div>
                     <h3 class="hl-sync-title">${this.escapeHtml(title)}</h3>
                     <p class="hl-sync-desc">${this.escapeHtml(desc)}</p>
@@ -380,10 +629,13 @@ export class HigherLowerGame {
     }
 
     getTagPool(category = this.selectedCategory) {
-        if (category === 'characters') {
-            return CHARACTER_TAGS;
+        if (category === 'copyrights') {
+            return (COPYRIGHT_TAGS && COPYRIGHT_TAGS.length > 0) ? COPYRIGHT_TAGS : [...POPULAR_COPYRIGHT_SEED];
+        } else if (category === 'general') {
+            return (GENERAL_TAGS && GENERAL_TAGS.length > 0) ? GENERAL_TAGS : [...POPULAR_GENERAL_SEED];
+        } else {
+            return (CHARACTER_TAGS && CHARACTER_TAGS.length > 0) ? CHARACTER_TAGS : [...POPULAR_CHARACTER_SEED];
         }
-        return GENERAL_TAGS;
     }
 
     // --- RENDER MENU ---
@@ -410,11 +662,11 @@ export class HigherLowerGame {
                             ${icon('tag', { size: 16 })} Выберите категорию тегов:
                         </div>
                         <div class="hl-category-pills">
-                            <button class="hl-cat-pill ${this.selectedCategory === 'all' ? 'active' : ''}" id="hlCatAllBtn">
-                                ${icon('sparkles', { size: 16 })} Все Теги (Общие)
-                            </button>
                             <button class="hl-cat-pill ${this.selectedCategory === 'characters' ? 'active' : ''}" id="hlCatCharactersBtn">
                                 ${icon('user', { size: 16 })} Только Персонажи
+                            </button>
+                            <button class="hl-cat-pill ${this.selectedCategory === 'copyrights' ? 'active' : ''}" id="hlCatCopyrightsBtn">
+                                ${icon('space', { size: 16 })} Битва Вселенных
                             </button>
                         </div>
                         <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
@@ -450,23 +702,6 @@ export class HigherLowerGame {
                             <span id="hlKeyWarningTag" style="display: none; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); background: #ef4444; color: #fff; font-size: 0.6rem; font-weight: 900; padding: 1px 6px; border-radius: 4px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.3); pointer-events: none;">ТРЕБУЕТСЯ API</span>
                             ${icon('space', { size: 18 })} Онлайн с Друзьями
                         </button>
-
-                        <!-- API KEY SECTION (Prominent) -->
-                        <div style="margin-top: 20px; background: rgba(245, 158, 11, 0.1); border: 2px solid #f59e0b; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 4px 20px rgba(245, 158, 11, 0.15);">
-                            <div id="hlKeyInstructionsBtn" style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; background: rgba(245, 158, 11, 0.25); border-radius: 12px; border: 1px dashed rgba(245, 158, 11, 0.5); transition: all 0.2s ease;" onmouseover="this.style.transform='scale(1.02)'; this.style.background='rgba(245, 158, 11, 0.35)'" onmouseout="this.style.transform='scale(1)'; this.style.background='rgba(245, 158, 11, 0.25)'">
-                                <div style="background: #f59e0b; color: #000; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.2rem; box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);">!</div>
-                                <div style="flex: 1;">
-                                    <div style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #f59e0b;">Обязательно</div>
-                                    <div style="font-size: 1.05rem; color: #fff; font-weight: 800; text-decoration: underline;">Как получить ключ API?</div>
-                                </div>
-                                ${icon('chevronRight', { size: 24, color: '#f59e0b' })}
-                            </div>
-                            
-                            <div style="display: flex; flex-direction: column; gap: 8px;">
-                                <input type="password" id="hlMeteredKeyInput" class="hl-input" placeholder="Вставьте ваш Secret Key..." style="width: 100%; text-align: center; font-size: 0.9rem; background: rgba(0,0,0,0.5); border-color: rgba(245, 158, 11, 0.4); color: #fff; font-family: monospace;">
-                                <button id="hlCheckMeteredKeyBtn" class="hl-btn-primary" style="width: 100%; font-size: 0.95rem; padding: 14px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; font-weight: 900; box-shadow: 0 4px 15px rgba(217, 119, 6, 0.3);">Проверить и сохранить ключ</button>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -476,21 +711,22 @@ export class HigherLowerGame {
         document.getElementById('hlStartSoloBtn').addEventListener('click', () => this.startSoloGame());
         
         const multiBtn = document.getElementById('hlMultiplayerMenuBtn');
-        const keyInput = document.getElementById('hlMeteredKeyInput');
         
         const updateMultiBtnState = () => {
             const key = (localStorage.getItem('hlMeteredKey') || '').trim();
             const warningTag = document.getElementById('hlKeyWarningTag');
             
             if (!key) {
+                multiBtn.disabled = true;
                 multiBtn.style.opacity = '0.6';
                 multiBtn.style.filter = 'grayscale(0.8)';
-                multiBtn.style.cursor = 'help';
+                multiBtn.style.cursor = 'not-allowed';
                 if (warningTag) {
                     warningTag.style.display = 'block';
                     warningTag.innerText = 'ТРЕБУЕТСЯ API КЛЮЧ';
                 }
             } else {
+                multiBtn.disabled = false;
                 multiBtn.style.opacity = '1';
                 multiBtn.style.filter = 'none';
                 multiBtn.style.cursor = 'pointer';
@@ -503,78 +739,35 @@ export class HigherLowerGame {
         multiBtn.addEventListener('mouseenter', () => {
             const key = (localStorage.getItem('hlMeteredKey') || '').trim();
             if (!key) {
-                this.showToast('⚠️ Сначала введите API ключ в блоке ниже', 'warning');
+                this.showToast('⚠️ Сначала введите API ключ Metered.ca в меню выбора игр', 'warning');
             }
         });
 
         multiBtn.addEventListener('click', () => {
             const key = (localStorage.getItem('hlMeteredKey') || '').trim();
             if (!key) {
-                this.showToast('❌ Доступ запрещен: введите API ключ для работы мультиплеера', 'danger');
+                this.showToast('❌ Доступ запрещен: введите API ключ Metered.ca для работы мультиплеера', 'danger');
                 return;
             }
             this.renderMultiplayerSetup();
         });
         
-        document.getElementById('hlKeyInstructionsBtn').addEventListener('click', () => this.renderKeyInstructionsModal());
-
-        keyInput.value = localStorage.getItem('hlMeteredKey') || '';
         updateMultiBtnState();
 
-        keyInput.addEventListener('input', () => {
-            localStorage.setItem('hlMeteredKey', keyInput.value.trim());
-            updateMultiBtnState();
-        });
-
-        document.getElementById('hlCheckMeteredKeyBtn').addEventListener('click', async () => {
-            const key = keyInput.value.trim();
-            if (!key) { 
-                this.showToast('⚠️ Сначала введите ключ', 'warning');
-                updateMultiBtnState();
-                return; 
-            }
-            
-            localStorage.setItem('hlMeteredKey', key);
-            updateMultiBtnState();
-
-            try {
-                // Test connection
-                const url = `wss://rms.metered.ca/v1?key=${key}`;
-                console.log(`>>> DEBUG: Testing connection to: ${url}`);
-                const ws = new WebSocket(url);
-                ws.onopen = () => { 
-                    ws.close(); 
-                    const btn = document.getElementById('hlCheckMeteredKeyBtn');
-                    btn.style.borderColor = '#10b981';
-                    btn.style.color = '#10b981';
-                    btn.textContent = 'Ключ верный!';
-                    setTimeout(() => {
-                        btn.style.borderColor = '';
-                        btn.style.color = '';
-                        btn.textContent = 'Проверить';
-                    }, 3000);
-                };
-                ws.onerror = (e) => { 
-                    console.error('>>> DEBUG: WebSocket error event:', e);
-                    alert('Ошибка подключения к Metered.ca. Проверьте консоль (F12).'); 
-                };
-            } catch(e) { console.error(e); alert('Ошибка: ' + e.message); }
-        });
-
-        const catAllBtn = document.getElementById('hlCatAllBtn');
         const catCharBtn = document.getElementById('hlCatCharactersBtn');
-        if (catAllBtn && catCharBtn) {
-            catAllBtn.addEventListener('click', () => {
-                this.selectedCategory = 'all';
-                localStorage.setItem('r34_hl_category', 'all');
-                catAllBtn.classList.add('active');
-                catCharBtn.classList.remove('active');
-            });
+        const catCopyBtn = document.getElementById('hlCatCopyrightsBtn');
+        if (catCharBtn && catCopyBtn) {
             catCharBtn.addEventListener('click', () => {
                 this.selectedCategory = 'characters';
                 localStorage.setItem('r34_hl_category', 'characters');
                 catCharBtn.classList.add('active');
-                catAllBtn.classList.remove('active');
+                catCopyBtn.classList.remove('active');
+            });
+            catCopyBtn.addEventListener('click', () => {
+                this.selectedCategory = 'copyrights';
+                localStorage.setItem('r34_hl_category', 'copyrights');
+                catCopyBtn.classList.add('active');
+                catCharBtn.classList.remove('active');
             });
         }
 
@@ -727,8 +920,8 @@ export class HigherLowerGame {
                             </div>
 
                             <select id="hlRoomCategorySelect" class="hl-input" style="width: 100%;">
-                                <option value="all" ${this.selectedCategory === 'all' ? 'selected' : ''}>Категория: Все теги (Общие + Персонажи)</option>
                                 <option value="characters" ${this.selectedCategory === 'characters' ? 'selected' : ''}>Категория: Только Персонажи</option>
+                                <option value="copyrights" ${this.selectedCategory === 'copyrights' ? 'selected' : ''}>Категория: Битва Вселенных (Франшизы)</option>
                             </select>
                             <button class="hl-btn-primary" id="hlCreateRoomBtn" style="width: 100%; margin-top: 6px;">
                                 ${icon('sparkles', { size: 16 })} Создать Комнату
@@ -809,10 +1002,19 @@ export class HigherLowerGame {
         });
     }
 
+    async ensureTagsLoaded(force = false) {
+        if (!dynamicTagsLoaded || force) {
+            this.renderSyncScreen('Загрузка игры...', 'Получаем случайные теги из базы Rule34...');
+            await loadDynamicPopularTags(force);
+        }
+    }
+
     // --- SOLO GAME LOGIC ---
     async startSoloGame() {
+        await this.ensureTagsLoaded(true);
         this.score = 0;
         this.mode = 'solo';
+        this.isTransitioning = false;
         this.renderSoloGame();
         
         // Load initial pair
@@ -822,20 +1024,45 @@ export class HigherLowerGame {
     }
 
     async getRandomTagData(excludeTagName = '', category = this.selectedCategory) {
-        const pool = this.getTagPool(category);
+        let pool = this.getTagPool(category);
+        if (!pool || pool.length === 0) {
+            await loadDynamicPopularTags(true);
+            pool = this.getTagPool(category);
+        }
+
         let attempts = 0;
         const isNoAi = (this.mode === 'multiplayer' || this.mode === 'lobby') ? !!(this.roomData && this.roomData.noAi) : !!this.isNoAiMode;
+        const isCharCategory = category === 'characters';
+        const isCopyrightCategory = category === 'copyrights';
 
-        while (attempts < 20) {
+        while (attempts < 40 && pool && pool.length > 0) {
             attempts++;
-            const idx = Math.floor(Math.random() * pool.length);
-            const candidateTag = pool[idx];
-            if (!candidateTag || candidateTag === excludeTagName) continue;
+            
+            // Умная ротация флагманов: в 35% случаев для франшиз подкидываем известнейших титанов
+            let candidateTag = '';
+            if (isCopyrightCategory && Math.random() < 0.35 && FLAGSHIP_FRANCHISES.length > 0) {
+                candidateTag = FLAGSHIP_FRANCHISES[Math.floor(Math.random() * FLAGSHIP_FRANCHISES.length)];
+            } else if (isCharCategory && Math.random() < 0.35 && POPULAR_CHARACTER_SEED.length > 0) {
+                candidateTag = POPULAR_CHARACTER_SEED[Math.floor(Math.random() * POPULAR_CHARACTER_SEED.length)];
+            } else {
+                const idx = Math.floor(Math.random() * pool.length);
+                candidateTag = pool[idx];
+            }
+
+            if (!candidateTag || candidateTag === excludeTagName || isTagBanned(candidateTag)) continue;
 
             const cacheKey = candidateTag + (isNoAi ? ':noai' : '');
             if (this.tagCache.has(cacheKey)) {
                 const cached = this.tagCache.get(cacheKey);
                 if (cached && cached.count > 0 && cached.imageUrl) {
+                    if (isCharCategory) {
+                        if (cached.count < MIN_CHARACTER_POSTS) continue;
+                        if (cached.type !== null && cached.type !== undefined && cached.type !== 4) continue;
+                    }
+                    if (isCopyrightCategory) {
+                        if (cached.count < MIN_COPYRIGHT_POSTS) continue;
+                        if (cached.type !== null && cached.type !== undefined && cached.type !== 3 && !FRANCHISE_DATABASE[candidateTag.toLowerCase()]) continue;
+                    }
                     return cached;
                 }
             }
@@ -843,6 +1070,26 @@ export class HigherLowerGame {
             try {
                 const data = await fetchTagInfo(candidateTag, isNoAi);
                 if (data && data.count > 0 && data.imageUrl) {
+                    if (isCharCategory) {
+                        if (data.count < MIN_CHARACTER_POSTS) {
+                            console.log(`[HigherLower] Filtered character "${candidateTag}" with ${data.count} < 4000 posts`);
+                            continue;
+                        }
+                        if (data.type !== null && data.type !== undefined && data.type !== 4) {
+                            console.log(`[HigherLower] Filtered non-character tag "${candidateTag}" (type=${data.type})`);
+                            continue;
+                        }
+                    }
+                    if (isCopyrightCategory) {
+                        if (data.count < MIN_COPYRIGHT_POSTS) {
+                            console.log(`[HigherLower] Filtered small copyright tag "${candidateTag}" with ${data.count} < ${MIN_COPYRIGHT_POSTS} posts`);
+                            continue;
+                        }
+                        if (data.type !== null && data.type !== undefined && data.type !== 3 && !FRANCHISE_DATABASE[candidateTag.toLowerCase()]) {
+                            console.log(`[HigherLower] Filtered non-copyright tag "${candidateTag}" (type=${data.type})`);
+                            continue;
+                        }
+                    }
                     this.tagCache.set(cacheKey, data);
                     return data;
                 }
@@ -851,21 +1098,75 @@ export class HigherLowerGame {
             }
         }
 
-        return { name: 'hatsune_miku', count: 120000, imageUrl: null };
+        // If not found in primary category, try safe category-specific fallback
+        if (isCharCategory) {
+            for (const charTag of POPULAR_CHARACTER_SEED) {
+                if (charTag !== excludeTagName && !isTagBanned(charTag)) {
+                    try {
+                        const data = await fetchTagInfo(charTag, isNoAi);
+                        if (data && data.count > 0 && data.imageUrl) {
+                            return data;
+                        }
+                    } catch (e) {}
+                }
+            }
+            return { name: excludeTagName || POPULAR_CHARACTER_SEED[0], count: 50000, imageUrl: null };
+        } else if (isCopyrightCategory) {
+            for (const cpTag of POPULAR_COPYRIGHT_SEED) {
+                if (cpTag !== excludeTagName && !isTagBanned(cpTag)) {
+                    try {
+                        const data = await fetchTagInfo(cpTag, isNoAi);
+                        if (data && data.count > 0 && data.imageUrl) {
+                            return data;
+                        }
+                    } catch (e) {}
+                }
+            }
+            return { name: excludeTagName || POPULAR_COPYRIGHT_SEED[0], count: 100000, imageUrl: null };
+        } else {
+            const allPool = [...CHARACTER_TAGS, ...COPYRIGHT_TAGS, ...GENERAL_TAGS];
+            for (let i = 0; i < Math.min(20, allPool.length); i++) {
+                const altTag = allPool[Math.floor(Math.random() * allPool.length)];
+                if (!altTag || altTag === excludeTagName || isTagBanned(altTag)) continue;
+                try {
+                    const data = await fetchTagInfo(altTag, isNoAi);
+                    if (data && data.count > 0 && data.imageUrl) {
+                        return data;
+                    }
+                } catch (e) {}
+            }
+            return { name: excludeTagName || '1girl', count: 50000, imageUrl: null };
+        }
     }
 
-    getRandomTagName(excludeTagName = '', category = 'all') {
-        const pool = this.getTagPool(category);
+    getRandomTagName(excludeTagName = '', category = 'characters') {
+        const isCharCategory = category === 'characters';
+        const isCopyrightCategory = category === 'copyrights';
+        let pool = this.getTagPool(category);
+
         let attempts = 0;
-        while (attempts < 100) {
+        while (attempts < 100 && pool && pool.length > 0) {
             attempts++;
-            const idx = Math.floor(Math.random() * pool.length);
-            const candidateTag = pool[idx];
-            if (candidateTag && candidateTag !== excludeTagName) {
+            let candidateTag = '';
+            if (isCopyrightCategory && Math.random() < 0.35 && FLAGSHIP_FRANCHISES.length > 0) {
+                candidateTag = FLAGSHIP_FRANCHISES[Math.floor(Math.random() * FLAGSHIP_FRANCHISES.length)];
+            } else if (isCharCategory && Math.random() < 0.35 && POPULAR_CHARACTER_SEED.length > 0) {
+                candidateTag = POPULAR_CHARACTER_SEED[Math.floor(Math.random() * POPULAR_CHARACTER_SEED.length)];
+            } else {
+                const idx = Math.floor(Math.random() * pool.length);
+                candidateTag = pool[idx];
+            }
+            if (candidateTag && candidateTag !== excludeTagName && !isTagBanned(candidateTag)) {
                 return candidateTag;
             }
         }
-        return 'hatsune_miku';
+        if (isCharCategory) {
+            return POPULAR_CHARACTER_SEED.find(t => t !== excludeTagName && !isTagBanned(t)) || POPULAR_CHARACTER_SEED[0];
+        }
+        if (isCopyrightCategory) {
+            return POPULAR_COPYRIGHT_SEED.find(t => t !== excludeTagName && !isTagBanned(t)) || POPULAR_COPYRIGHT_SEED[0];
+        }
+        return pool && pool.length > 0 ? pool.find(t => !isTagBanned(t)) || pool[0] : '1girl';
     }
 
     async getTagDataByName(tagName, isNoAi) {
@@ -925,9 +1226,13 @@ export class HigherLowerGame {
                     <div class="hl-title-group"><h2 class="hl-app-title">Загрузка...</h2></div>
                     <button class="hl-close-btn" id="hlCloseBtn">&times;</button>
                 </div>
-                <div class="hl-card" style="text-align: center; padding: 60px;">
-                    <div style="font-size: 1.2rem; color: #a78bfa; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                        ${icon('hourglass', { size: 22 })} Загрузка изображений и подсчет постов...
+                <div class="hl-card">
+                    <div class="hl-sync-container">
+                        <div class="hl-sync-icon">
+                            <div class="hl-spin">${icon('refresh', { size: 32 })}</div>
+                        </div>
+                        <h3 class="hl-sync-title">Подготовка раунда...</h3>
+                        <p class="hl-sync-desc">Загружаем изображения и подсчитываем посты в базе</p>
                     </div>
                 </div>
             `;
@@ -951,7 +1256,7 @@ export class HigherLowerGame {
                 <div class="hl-arena">
                     <div class="hl-arena-top">
                         <div class="hl-score-badge">Счёт: <span class="hl-score-num">${this.score}</span></div>
-                        <span class="hl-cat-badge">${this.selectedCategory === 'characters' ? `${icon('user', { size: 14 })} Только Персонажи` : `${icon('sparkles', { size: 14 })} Все Теги`}</span>
+                        <span class="hl-cat-badge">${this.selectedCategory === 'copyrights' ? `${icon('space', { size: 14 })} Битва Вселенных` : `${icon('user', { size: 14 })} Только Персонажи`}</span>
                         ${this.isNoAiMode ? `<span class="hl-cat-badge" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.35); color: #fbbf24; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">${icon('noAi', { size: 12 })} Без ИИ</span>` : ''}
                         <div class="hl-score-badge" style="font-size: 0.9rem; color: rgba(255,255,255,0.7);">Рекорд: ${this.highScore}</div>
                     </div>
@@ -959,17 +1264,13 @@ export class HigherLowerGame {
                     <div class="hl-versus-grid">
                         <!-- Левая карточка (Известная) -->
                         <div class="hl-tag-card">
-                            ${leftImg ? `<img src="${leftImg}" class="hl-card-bg" alt="" loading="lazy">` : ''}
+                            ${leftImg ? `<img src="${leftImg}" class="hl-card-bg" id="hlBg_left" alt="" loading="lazy">` : ''}
                             <div class="hl-card-overlay"></div>
                             <div class="hl-card-content">
                                 <span class="hl-tag-badge">Известный Тег</span>
-                                ${leftImg ? `
-                                    <div class="hl-tag-img-container" title="Нажмите, чтобы открыть на весь экран">
-                                        <img src="${leftImg}" class="hl-tag-thumb" alt="" loading="lazy">
-                                        <div class="hl-img-zoom-hint">${icon('search', { size: 12 })} На весь экран</div>
-                                    </div>
-                                ` : ''}
+                                ${this.renderCardImageContainer(this.leftTag, 'left')}
                                 <div class="hl-tag-name">${this.formatTagName(this.leftTag.name)}</div>
+                                ${renderOriginBadgeHtml(this.leftTag)}
                                 <div class="hl-tag-count">${this.leftTag.count.toLocaleString()}</div>
                                 <div class="hl-tag-sub">постов в галерее</div>
                             </div>
@@ -980,33 +1281,25 @@ export class HigherLowerGame {
 
                         <!-- Правая карточка (Скрытая/Открытая) -->
                         <div class="hl-tag-card ${answerResult === 'correct' ? 'correct' : answerResult === 'wrong' ? 'wrong' : ''}" id="hlRightCard">
-                            ${rightImg ? `<img src="${rightImg}" class="hl-card-bg" alt="" loading="lazy">` : ''}
+                            ${rightImg ? `<img src="${rightImg}" class="hl-card-bg" id="hlBg_right" alt="" loading="lazy">` : ''}
                             <div class="hl-card-overlay"></div>
                             <div class="hl-card-content">
                                 ${rightRevealed ? `
                                     <span class="hl-tag-badge" style="background: ${answerResult === 'correct' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}; color: #fff; display: inline-flex; align-items: center; gap: 4px;">
                                         ${answerResult === 'correct' ? `${icon('check', { size: 16 })} ПРАВИЛЬНО!` : `${icon('x', { size: 16 })} НЕВЕРНО!`}
                                     </span>
-                                    ${rightImg ? `
-                                        <div class="hl-tag-img-container" title="Нажмите, чтобы открыть на весь экран">
-                                            <img src="${rightImg}" class="hl-tag-thumb" alt="" loading="lazy">
-                                            <div class="hl-img-zoom-hint">${icon('search', { size: 12 })} На весь экран</div>
-                                        </div>
-                                    ` : ''}
+                                    ${this.renderCardImageContainer(this.rightTag, 'right')}
                                     <div class="hl-tag-name">${this.formatTagName(this.rightTag.name)}</div>
+                                    ${renderOriginBadgeHtml(this.rightTag)}
                                     <div class="hl-tag-count" style="color: ${answerResult === 'correct' ? '#10b981' : '#ef4444'};">
                                         ${this.rightTag.count.toLocaleString()}
                                     </div>
                                     <div class="hl-tag-sub">постов в галерее</div>
                                 ` : `
                                     <span class="hl-tag-badge" style="background: rgba(244, 63, 94, 0.2); border-color: rgba(244, 63, 94, 0.4); color: #fca5a5;">Целевой Тег</span>
-                                    ${rightImg ? `
-                                        <div class="hl-tag-img-container" title="Нажмите, чтобы открыть на весь экран">
-                                            <img src="${rightImg}" class="hl-tag-thumb" alt="" loading="lazy">
-                                            <div class="hl-img-zoom-hint">${icon('search', { size: 12 })} На весь экран</div>
-                                        </div>
-                                    ` : ''}
+                                    ${this.renderCardImageContainer(this.rightTag, 'right')}
                                     <div class="hl-tag-name">${this.formatTagName(this.rightTag.name)}</div>
+                                    ${renderOriginBadgeHtml(this.rightTag)}
                                     <div style="color: rgba(255,255,255,0.9); font-size: 0.95rem; font-weight: 600;">
                                         В галерее постов:
                                     </div>
@@ -1031,7 +1324,7 @@ export class HigherLowerGame {
         `;
 
         document.getElementById('hlCloseBtn').addEventListener('click', () => this.close());
-        this.attachLightboxListeners();
+        this.attachImageControls();
 
         if (!rightRevealed) {
             document.getElementById('hlBtnHigher').addEventListener('click', () => this.handleSoloChoice('higher'));
@@ -1040,6 +1333,9 @@ export class HigherLowerGame {
     }
 
     async handleSoloChoice(choice) {
+        if (this.isTransitioning) return;
+        this.isTransitioning = true;
+
         const isHigher = this.rightTag.count >= this.leftTag.count;
         const isCorrect = (choice === 'higher' && isHigher) || (choice === 'lower' && !isHigher);
 
@@ -1055,10 +1351,12 @@ export class HigherLowerGame {
             setTimeout(async () => {
                 this.leftTag = this.rightTag;
                 this.rightTag = await this.getRandomTagData(this.leftTag.name, this.selectedCategory);
+                this.isTransitioning = false;
                 this.renderSoloGame();
             }, 2800);
         } else {
             setTimeout(() => {
+                this.isTransitioning = false;
                 this.renderGameOverSolo();
             }, 2800);
         }
@@ -1113,65 +1411,66 @@ export class HigherLowerGame {
         return localStorage.getItem('hlMeteredKey') || '';
     }
     async sendSignal(code, data) {
-        if (!this.wsConnection || this.wsConnection.readyState !== WebSocket.OPEN) {
-            console.log('>>> DEBUG: [Signaling] WebSocket not connected, queuing signal:', data);
+        const topic = `r34_sig_${code}`;
+        console.log(`>>> DEBUG: [Signaling] Publishing to ntfy topic ${topic}:`, data);
+        try {
+            await fetch(`https://ntfy.sh/${topic}`, {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+        } catch (e) {
+            console.error('>>> DEBUG: [Signaling] Send error:', e);
             this.signalQueue.push({ code, data });
-            return;
         }
-        const channelName = `r34_v1_${code}`;
-        console.log(`>>> DEBUG: [Signaling] Publishing to channel ${channelName}:`, data);
-        this.wsConnection.send(JSON.stringify({ type: 'publish', channel: channelName, data: data }));
     }
 
     listenSignal(code, onMessage) {
-        const key = this.getMeteredKey();
-        if (!key) {
-            console.error('>>> DEBUG: [Signaling] No Metered.ca API key set!');
-            return;
-        }
+        const topic = `r34_sig_${code}`;
+        console.log(`>>> DEBUG: [Signaling] Connecting SSE for ntfy topic ${topic}`);
         
-        const channelName = `r34_v1_${code}`;
-        console.log(`>>> DEBUG: [Signaling] Connecting for channel ${channelName}`);
-        
-        if (this.wsConnection) {
-            this.wsConnection.onclose = null;
-            this.wsConnection.close();
+        if (this.eventSource) {
+            try { this.eventSource.close(); } catch(err) {}
+            this.eventSource = null;
         }
 
-        const connect = () => {
-            this.wsConnection = new WebSocket(`wss://rms.metered.ca/v1?key=${key}`);
-            this.wsConnection.onopen = () => {
-                console.log(`>>> DEBUG: [Signaling] WebSocket Socket Open. Waiting for "welcome" message...`);
-            };
-            this.wsConnection.onmessage = (event) => {
-                console.log('>>> DEBUG: [Signaling] RAW MESSAGE:', event.data);
-                try {
-                    const msg = JSON.parse(event.data);
-                    
-                    if (msg.type === 'welcome') {
-                        console.log(`>>> DEBUG: [Signaling] Received "welcome". Now subscribing to ${channelName}...`);
-                        this.wsConnection.send(JSON.stringify({ type: 'subscribe', channel: channelName }));
-                        
-                        // Process queued signals
-                        while (this.signalQueue.length > 0) {
-                            const queued = this.signalQueue.shift();
-                            const qChannel = `r34_v1_${queued.code}`;
-                            console.log(`>>> DEBUG: [Signaling] Sending queued signal to ${qChannel}:`, queued.data);
-                            this.wsConnection.send(JSON.stringify({ type: 'publish', channel: qChannel, data: queued.data }));
-                        }
-                    } else if (msg.type === 'message' && msg.channel === channelName) {
-                        onMessage(msg.data);
-                    }
-                } catch (e) { console.error(e); }
-            };
-            this.wsConnection.onclose = () => {
-                if (this.roomId === code) setTimeout(connect, 3000);
-            };
+        // Default free public STUN servers for WebRTC
+        this.iceServers = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' }
+        ];
+
+        if (typeof this.onSignalingWelcome === 'function') {
+            this.onSignalingWelcome();
+        }
+
+        // Process queued signals
+        while (this.signalQueue.length > 0) {
+            const queued = this.signalQueue.shift();
+            this.sendSignal(queued.code, queued.data);
+        }
+
+        const esUrl = `https://ntfy.sh/${topic}/sse`;
+        this.eventSource = new EventSource(esUrl);
+        this.eventSource.onmessage = (event) => {
+            try {
+                const packet = JSON.parse(event.data);
+                if (packet.message) {
+                    const msg = JSON.parse(packet.message);
+                    console.log('>>> DEBUG: [Signaling] Received message via ntfy:', msg);
+                    onMessage(msg);
+                }
+            } catch (e) {
+                // Ignore keepalive / non-JSON packets
+            }
         };
-        connect();
+        this.eventSource.onerror = (e) => {
+            console.error('>>> DEBUG: [Signaling] SSE error:', e);
+        };
     }
 
-    async createRoom(maxPlayers, targetScore, category = 'all', noAi = false) {
+    async createRoom(maxPlayers, targetScore, category = 'characters', noAi = false) {
+        await this.ensureTagsLoaded(true);
         console.log('>>> DEBUG: createRoom called with:', { maxPlayers, targetScore, category, noAi });
         this.syncLogs = [];
         this.renderSyncScreen('Создание комнаты...', 'Ожидание подключения игроков...');
@@ -1232,9 +1531,12 @@ export class HigherLowerGame {
                     return;
                 }
 
-                const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+                const iceConfig = {
+                    iceServers: this.iceServers || [{ urls: 'stun:stun.l.google.com:19302' }]
+                };
+                const pc = new RTCPeerConnection(iceConfig);
                 this.clientPeerConnections[clientPlayerId] = pc;
-                this.addSyncLog('Создан RTCPeerConnection для клиента, инициализация STUN...');
+                this.addSyncLog('Создан RTCPeerConnection для клиента с ICE-серверами Metered...');
 
                 pc.ondatachannel = (event) => {
                     const dc = event.channel;
@@ -1263,6 +1565,18 @@ export class HigherLowerGame {
                                     this.handleRoomStateUpdate();
                                     this.checkAndEvaluateRound();
                                 }
+                            } else if (data.type === 'LEAVE') {
+                                const leftPlayerId = data.playerId || clientPlayerId;
+                                if (this.roomData?.players[leftPlayerId]) {
+                                    const leftName = this.roomData.players[leftPlayerId].name || 'Игрок';
+                                    delete this.roomData.players[leftPlayerId];
+                                    this.showToast(`🚪 Игрок "${this.escapeHtml(leftName)}" покинул комнату`, 'danger');
+                                    this.broadcastRoomData();
+                                    this.handleRoomStateUpdate();
+                                    this.checkAndEvaluateRound();
+                                }
+                            } else if (data.type === 'PONG') {
+                                // Received heartbeat response from client
                             }
                         } catch (err) {}
                     };
@@ -1316,6 +1630,19 @@ export class HigherLowerGame {
 
         this.addSyncLog('Ожидание подключения игроков в лобби...');
         this.mode = 'lobby';
+
+        if (this.roomHeartbeatTimer) clearInterval(this.roomHeartbeatTimer);
+        this.roomHeartbeatTimer = setInterval(() => {
+            if (this.isHost && this.connections) {
+                const pingMsg = JSON.stringify({ type: 'PING' });
+                this.connections.forEach(c => {
+                    if (c.dc && c.dc.readyState === 'open') {
+                        try { c.dc.send(pingMsg); } catch(e) {}
+                    }
+                });
+            }
+        }, 4000);
+
         this.renderLobby();
     }
 
@@ -1338,119 +1665,150 @@ export class HigherLowerGame {
         this.isHost = false;
         this.roomId = cleanCode;
 
-        const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-        this.pc = pc;
-        this.addSyncLog('Создан RTCPeerConnection (клиент)');
+        let answered = false;
 
-        const dc = pc.createDataChannel('game');
-        this.hostConn = dc;
-        this.addSyncLog('Создан DataChannel для отправки сообщений хосту');
+        this.onSignalingWelcome = async () => {
+            this.onSignalingWelcome = null; // trigger once
+            this.addSyncLog('Подключение к сигналингу установлено, настройка WebRTC...');
 
-        dc.onopen = () => {
-            this.addSyncLog('DataChannel с хостом открыт, отправка JOIN...');
-            dc.send(JSON.stringify({
-                type: 'JOIN',
-                player: {
-                    id: this.playerId,
-                    name: this.playerName,
-                    score: 0,
-                    status: 'joined',
-                    isHost: false,
-                    lastAnswer: null,
-                    lastResult: null
-                }
-            }));
-        };
+            const iceConfig = {
+                iceServers: this.iceServers || [{ urls: 'stun:stun.l.google.com:19302' }]
+            };
+            console.log('>>> DEBUG: [WebRTC] Creating RTCPeerConnection with config:', iceConfig);
 
-        dc.onmessage = (e) => {
-            try {
-                const data = JSON.parse(e.data);
-                if (data.type === 'ROOM_STATE') {
-                    const newRoomData = data.data;
-                    
-                    // Smart Merge: If we have already answered locally in the current round, 
-                    // preserve that status even if the host's state is slightly behind
-                    const currentRoundNum = this.roomData?.round || 0;
-                    const newRoundNum = newRoomData.round || 0;
-                    
-                    if (currentRoundNum === newRoundNum && this.roomData?.players[this.playerId]) {
-                        const localPlayer = this.roomData.players[this.playerId];
-                        if (localPlayer.status === 'answered' && newRoomData.players[this.playerId]?.status === 'answering') {
-                            console.log('>>> DEBUG: [Sync] Preserving local "answered" status (host is slightly behind)');
-                            newRoomData.players[this.playerId].status = 'answered';
-                            newRoomData.players[this.playerId].lastAnswer = localPlayer.lastAnswer;
+            const pc = new RTCPeerConnection(iceConfig);
+            this.pc = pc;
+            this.addSyncLog('Создан RTCPeerConnection (клиент) c ICE-серверами Metered...');
+
+            const dc = pc.createDataChannel('game');
+            this.hostConn = dc;
+            this.addSyncLog('Создан DataChannel для отправки сообщений хосту');
+
+            dc.onopen = () => {
+                this.addSyncLog('DataChannel с хостом открыт, отправка JOIN...');
+                this.lastHostPingTime = Date.now();
+
+                if (this.roomHeartbeatTimer) clearInterval(this.roomHeartbeatTimer);
+                this.roomHeartbeatTimer = setInterval(() => {
+                    if (!this.isHost && this.roomId && this.hostConn) {
+                        if (Date.now() - this.lastHostPingTime > 15000) {
+                            clearInterval(this.roomHeartbeatTimer);
+                            this.roomHeartbeatTimer = null;
+                            this.showModalAlert('Разрыв соединения', '🛑 Потеряна связь с создателем комнаты.', async () => {
+                                await this.leaveRoom();
+                                this.renderMenu();
+                            });
                         }
                     }
+                }, 4000);
 
-                    this.roomData = newRoomData;
-                    
-                    if (this.mode !== 'lobby' && this.roomData.status === 'waiting') {
-                        this.addSyncLog('Получено состояние комнаты, открытие лобби...');
-                        this.mode = 'lobby';
-                        this.renderLobby();
-                    } else {
-                        this.handleRoomStateUpdate();
+                dc.send(JSON.stringify({
+                    type: 'JOIN',
+                    player: {
+                        id: this.playerId,
+                        name: this.playerName,
+                        score: 0,
+                        status: 'joined',
+                        isHost: false,
+                        lastAnswer: null,
+                        lastResult: null
                     }
-                } else if (data.type === 'ERROR') {
-                    this.addSyncLog(`Ошибка от хоста: ${data.message}`);
-                    this.showModalAlert('Ошибка', data.message, async () => {
-                        await this.leaveRoom();
-                        this.renderMenu();
-                    });
-                } else if (data.type === 'ROOM_CLOSED') {
-                    this.addSyncLog('Комната была закрыта создателем');
-                    this.showModalAlert('Комната закрыта', '🛑 Комната была закрыта создателем', async () => {
-                        await this.leaveRoom();
-                        this.renderMenu();
-                    });
+                }));
+            };
+
+            dc.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.type === 'ROOM_STATE') {
+                        const newRoomData = data.data;
+                        
+                        const currentRoundNum = this.roomData?.round || 0;
+                        const newRoundNum = newRoomData.round || 0;
+                        
+                        if (currentRoundNum === newRoundNum && this.roomData?.players[this.playerId]) {
+                            const localPlayer = this.roomData.players[this.playerId];
+                            if (localPlayer.status === 'answered' && newRoomData.players[this.playerId]?.status === 'answering') {
+                                console.log('>>> DEBUG: [Sync] Preserving local "answered" status (host is slightly behind)');
+                                newRoomData.players[this.playerId].status = 'answered';
+                                newRoomData.players[this.playerId].lastAnswer = localPlayer.lastAnswer;
+                            }
+                        }
+
+                        this.roomData = newRoomData;
+                        
+                        if (this.mode !== 'lobby' && this.roomData.status === 'waiting') {
+                            this.addSyncLog('Получено состояние комнаты, открытие лобби...');
+                            this.mode = 'lobby';
+                            this.renderLobby();
+                        } else {
+                            this.handleRoomStateUpdate();
+                        }
+                    } else if (data.type === 'ERROR') {
+                        this.addSyncLog(`Ошибка от хоста: ${data.message}`);
+                        this.showModalAlert('Ошибка', data.message, async () => {
+                            await this.leaveRoom();
+                            this.renderMenu();
+                        });
+                    } else if (data.type === 'ROOM_CLOSED') {
+                        this.addSyncLog('Комната была закрыта создателем');
+                        this.showModalAlert('Создатель покинул игру', '🛑 Комната была закрыта создателем. Сессия завершена.', async () => {
+                            await this.leaveRoom();
+                            this.renderMenu();
+                        });
+                    } else if (data.type === 'PING') {
+                        this.lastHostPingTime = Date.now();
+                        if (dc && dc.readyState === 'open') {
+                            dc.send(JSON.stringify({ type: 'PONG', playerId: this.playerId }));
+                        }
+                    }
+                } catch (err) {}
+            };
+
+            dc.onclose = () => {
+                this.addSyncLog('DataChannel закрыт (потеря связи с хостом)');
+                this.showModalAlert('Разрыв связи', '🛑 Соединение с хостом потеряно', async () => {
+                    await this.leaveRoom();
+                    this.renderMenu();
+                });
+            };
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            await new Promise(resolve => {
+                if (pc.iceGatheringState === 'complete') resolve();
+                else {
+                    const checkState = () => { if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', checkState); resolve(); } };
+                    pc.addEventListener('icegatheringstatechange', checkState);
+                    setTimeout(() => { pc.removeEventListener('icegatheringstatechange', checkState); resolve(); }, 1500);
                 }
-            } catch (err) {}
-        };
-
-        dc.onclose = () => {
-            this.addSyncLog('DataChannel закрыт (потеря связи с хостом)');
-            this.showModalAlert('Разрыв связи', '🛑 Соединение с хостом потеряно', async () => {
-                await this.leaveRoom();
-                this.renderMenu();
             });
+
+            this.addSyncLog('Создан WebRTC Offer, отправка через сигналинг...');
+            await this.sendSignal(cleanCode, { type: 'OFFER', playerId: this.playerId, offer: pc.localDescription });
         };
 
-        let answered = false;
         this.listenSignal(cleanCode, async (msg) => {
             if (msg.type === 'ANSWER' && msg.playerId === this.playerId) {
-                if (pc.signalingState === 'have-local-offer') {
+                if (this.pc && this.pc.signalingState === 'have-local-offer') {
                     answered = true;
                     this.addSyncLog('Получен ANSWER от хоста, применяем RemoteDescription...');
-                    await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
+                    await this.pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
                 }
             } else if (msg.type === 'ERROR' && msg.playerId === this.playerId) {
                 answered = true;
                 this.addSyncLog(`Ошибка соединения: ${msg.message}`);
-                alert(msg.message);
-                this.leaveRoom();
-                this.renderMenu();
+                this.showModalAlert('Ошибка', msg.message, async () => {
+                    await this.leaveRoom();
+                    this.renderMenu();
+                });
             }
         });
-
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
-        await new Promise(resolve => {
-            if (pc.iceGatheringState === 'complete') resolve();
-            else {
-                const checkState = () => { if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', checkState); resolve(); } };
-                pc.addEventListener('icegatheringstatechange', checkState);
-                setTimeout(() => { pc.removeEventListener('icegatheringstatechange', checkState); resolve(); }, 1500);
-            }
-        });
-
-        this.addSyncLog('Создан WebRTC Offer, отправка через сигналинг...');
-        await this.sendSignal(cleanCode, { type: 'OFFER', playerId: this.playerId, offer: pc.localDescription });
 
         setTimeout(() => {
             if (!answered && !this.isHost && this.roomId === cleanCode) {
                 this.addSyncLog('Таймаут: хост не ответил на подключение');
-                this.showModalAlert('Ошибка подключения', 'Комната не найдена или хост не в сети!', async () => {
+                this.showModalAlert('Ошибка подключения', 'Комната не найдена или хост не в сети! Убедитесь, что у вас и у хоста открыты порты/разрешен WebRTC.', async () => {
                     await this.leaveRoom();
                     this.renderMenu();
                 });
@@ -1556,7 +1914,7 @@ export class HigherLowerGame {
                             Код комнаты: <strong style="color: #fff; font-size: 1.2rem; letter-spacing: 2px;">${this.roomId}</strong>
                         </span>
                         <span class="hl-cat-badge">
-                            ${this.roomData.category === 'characters' ? `${icon('user', { size: 14 })} Только Персонажи` : `${icon('sparkles', { size: 14 })} Все Теги`}
+                            ${this.roomData.category === 'copyrights' ? `${icon('space', { size: 14 })} Битва Вселенных` : `${icon('user', { size: 14 })} Только Персонажи`}
                         </span>
                         ${this.roomData.noAi ? `<span class="hl-cat-badge" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.35); color: #fbbf24; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">${icon('noAi', { size: 12 })} Без ИИ</span>` : ''}
                         <button class="hl-btn-secondary" id="hlCopyCodeBtn" style="padding: 6px 14px; font-size: 0.85rem; min-width: auto; gap: 6px;">
@@ -1668,22 +2026,20 @@ export class HigherLowerGame {
                             ${this.multiplayerLoadingTags ? `
                                 <div class="hl-card-overlay"></div>
                                 <div class="hl-card-content" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 250px;">
-                                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500 mb-4"></div>
+                                    <div class="hl-sync-icon" style="width: 48px; height: 48px; margin-bottom: 12px;">
+                                        <div class="hl-spin">${icon('refresh', { size: 24 })}</div>
+                                    </div>
                                     <div style="font-size: 0.95rem; color: rgba(255,255,255,0.7); font-weight: 500;">Загрузка тега...</div>
                                     <div style="font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-top: 4px;">подсчет постов и поиск арта</div>
                                 </div>
                             ` : `
-                                ${leftImg ? `<img src="${leftImg}" class="hl-card-bg" alt="" loading="lazy">` : ''}
+                                ${leftImg ? `<img src="${leftImg}" class="hl-card-bg" id="hlBg_left" alt="" loading="lazy">` : ''}
                                 <div class="hl-card-overlay"></div>
                                 <div class="hl-card-content">
                                     <span class="hl-tag-badge">Известный Тег</span>
-                                    ${leftImg ? `
-                                        <div class="hl-tag-img-container" title="Нажмите, чтобы открыть на весь экран">
-                                            <img src="${leftImg}" class="hl-tag-thumb" alt="" loading="lazy">
-                                            <div class="hl-img-zoom-hint">${icon('search', { size: 12 })} На весь экран</div>
-                                        </div>
-                                    ` : ''}
+                                    ${this.renderCardImageContainer(leftTag, 'left')}
                                     <div class="hl-tag-name">${this.formatTagName(leftTag.name)}</div>
+                                    ${renderOriginBadgeHtml(leftTag)}
                                     <div class="hl-tag-count">${leftTag.count.toLocaleString()}</div>
                                     <div class="hl-tag-sub">постов в базе</div>
                                 </div>
@@ -1697,25 +2053,23 @@ export class HigherLowerGame {
                             ${this.multiplayerLoadingTags ? `
                                 <div class="hl-card-overlay"></div>
                                 <div class="hl-card-content" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 250px;">
-                                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-rose-500 mb-4"></div>
+                                    <div class="hl-sync-icon" style="width: 48px; height: 48px; margin-bottom: 12px;">
+                                        <div class="hl-spin">${icon('refresh', { size: 24 })}</div>
+                                    </div>
                                     <div style="font-size: 0.95rem; color: rgba(255,255,255,0.7); font-weight: 500;">Загрузка тега...</div>
                                     <div style="font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-top: 4px;">подсчет постов и поиск арта</div>
                                 </div>
                             ` : `
-                                ${rightImg ? `<img src="${rightImg}" class="hl-card-bg" alt="" loading="lazy">` : ''}
+                                ${rightImg ? `<img src="${rightImg}" class="hl-card-bg" id="hlBg_right" alt="" loading="lazy">` : ''}
                                 <div class="hl-card-overlay"></div>
                                 <div class="hl-card-content">
                                     ${isRevealed ? `
                                         <span class="hl-tag-badge" style="background: ${myResult === 'correct' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}; color: #fff; display: inline-flex; align-items: center; gap: 4px;">
                                             ${myResult === 'correct' ? `${icon('check', { size: 16 })} ВЫ УГАДАЛИ! (+1)` : `${icon('x', { size: 16 })} ВЫ НЕ УГАДАЛИ`}
                                         </span>
-                                        ${rightImg ? `
-                                            <div class="hl-tag-img-container" title="Нажмите, чтобы открыть на весь экран">
-                                                <img src="${rightImg}" class="hl-tag-thumb" alt="" loading="lazy">
-                                                <div class="hl-img-zoom-hint">${icon('search', { size: 12 })} На весь экран</div>
-                                            </div>
-                                        ` : ''}
+                                        ${this.renderCardImageContainer(rightTag, 'right')}
                                         <div class="hl-tag-name">${this.formatTagName(rightTag.name)}</div>
+                                        ${renderOriginBadgeHtml(rightTag)}
                                         <div class="hl-tag-count" style="color: ${myResult === 'correct' ? '#10b981' : '#ef4444'};">
                                             ${rightTag.count.toLocaleString()}
                                         </div>
@@ -1727,26 +2081,18 @@ export class HigherLowerGame {
                                         ` : ''}
                                     ` : hasAnswered ? `
                                         <span class="hl-tag-badge" style="background: rgba(167, 139, 250, 0.2); border-color: rgba(167, 139, 250, 0.4); color: #c4b5fd;">Целевой Тег</span>
-                                        ${rightImg ? `
-                                            <div class="hl-tag-img-container" title="Нажмите, чтобы открыть на весь экран">
-                                                <img src="${rightImg}" class="hl-tag-thumb" alt="" loading="lazy">
-                                                <div class="hl-img-zoom-hint">${icon('search', { size: 12 })} На весь экран</div>
-                                            </div>
-                                        ` : ''}
+                                        ${this.renderCardImageContainer(rightTag, 'right')}
                                         <div class="hl-tag-name">${this.formatTagName(rightTag.name)}</div>
+                                        ${renderOriginBadgeHtml(rightTag)}
                                         <div style="color: #6ee7b7; font-weight: 800; font-size: 1.05rem; margin: 16px 0; background: rgba(16, 185, 129, 0.2); padding: 8px 16px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.3); display: inline-flex; align-items: center; gap: 6px;">
                                             ${icon('check', { size: 18 })} Выбор принят: ${myChoice === 'higher' ? 'БОЛЬШЕ' : 'МЕНЬШЕ'}
                                         </div>
                                         <div class="hl-tag-sub">Ожидаем ответы остальных участников...</div>
                                     ` : `
                                         <span class="hl-tag-badge" style="background: rgba(244, 63, 94, 0.2); border-color: rgba(244, 63, 94, 0.4); color: #fca5a5;">Целевой Тег</span>
-                                        ${rightImg ? `
-                                            <div class="hl-tag-img-container" title="Нажмите, чтобы открыть на весь экран">
-                                                <img src="${rightImg}" class="hl-tag-thumb" alt="" loading="lazy">
-                                                <div class="hl-img-zoom-hint">${icon('search', { size: 12 })} На весь экран</div>
-                                            </div>
-                                        ` : ''}
+                                        ${this.renderCardImageContainer(rightTag, 'right')}
                                         <div class="hl-tag-name">${this.formatTagName(rightTag.name)}</div>
+                                        ${renderOriginBadgeHtml(rightTag)}
                                         <div style="color: rgba(255,255,255,0.9); font-size: 0.95rem; font-weight: 600;">
                                             В галерее постов:
                                         </div>
@@ -1798,7 +2144,7 @@ export class HigherLowerGame {
         `;
 
         document.getElementById('hlCloseBtn').addEventListener('click', () => this.close());
-        this.attachLightboxListeners();
+        this.attachImageControls();
 
         if (!hasAnswered && !isRevealed && !this.multiplayerLoadingTags) {
             document.getElementById('hlMultiHigherBtn').addEventListener('click', () => this.submitMultiplayerAnswer('higher'));
@@ -1817,6 +2163,8 @@ export class HigherLowerGame {
 
     async submitMultiplayerAnswer(choice) {
         if (!this.roomId || !this.roomData) return;
+        const me = this.roomData.players?.[this.playerId];
+        if (me && me.status === 'answered') return; // Если уже ответил, игнорируем повторные клики!
 
         // Instantly update local state so player sees their selection right away
         if (this.roomData.players[this.playerId]) {
@@ -1914,7 +2262,7 @@ export class HigherLowerGame {
                 this.handleRoomStateUpdate();
 
                 // Prepare next round tags
-                const roomCat = this.roomData.category || 'all';
+                const roomCat = this.roomData.category || 'characters';
                 const nextLeftTagName = round.rightTag.name;
                 const nextRightTagName = this.getRandomTagName(nextLeftTagName, roomCat);
 
@@ -1997,30 +2345,253 @@ export class HigherLowerGame {
     }
 
     // --- HELPERS ---
-    attachLightboxListeners() {
+    renderCardImageContainer(tagData, side) {
+        if (!tagData) return '';
+        const images = (tagData.images && tagData.images.length > 0) ? tagData.images : (tagData.imageUrl ? [tagData.imageUrl] : []);
+        let currentIdx = typeof tagData.currentImageIndex === 'number' ? tagData.currentImageIndex : 0;
+        if (currentIdx >= images.length) currentIdx = 0;
+        const currentImg = images[currentIdx] || tagData.imageUrl;
+        const count = images.length;
+
+        if (!currentImg) return '';
+
+        return `
+            <div class="hl-tag-img-container" data-side="${side}" title="Нажмите, чтобы открыть на весь экран">
+                <img src="${currentImg}" class="hl-tag-thumb" id="hlThumb_${side}" alt="" loading="lazy">
+                
+                ${count > 1 ? `
+                    <div class="hl-img-counter">
+                        ${icon('image', { size: 12 })}
+                        <span id="hlImgIdx_${side}">${currentIdx + 1}</span>/<span id="hlImgTotal_${side}">${count}</span>
+                    </div>
+                    <button class="hl-img-nav-btn hl-img-prev" data-side="${side}" data-dir="-1" title="Предыдущая картинка">
+                        ${icon('chevronLeft', { size: 20 })}
+                    </button>
+                    <button class="hl-img-nav-btn hl-img-next" data-side="${side}" data-dir="1" title="Следующая картинка">
+                        ${icon('chevronRight', { size: 20 })}
+                    </button>
+                ` : ''}
+
+                <div class="hl-img-bottom-bar">
+                    <button class="hl-img-cycle-btn" data-side="${side}" data-dir="1" title="Показать следующий арт">
+                        ${icon('refresh', { size: 12 })} Сменить арт
+                    </button>
+                    <div class="hl-img-zoom-hint">
+                        ${icon('search', { size: 12 })} На весь экран
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async switchCardImage(side, direction = 1) {
+        let tagData = null;
+        if (this.mode === 'multiplayer' || this.mode === 'lobby') {
+            tagData = side === 'left' ? this.currentLeftTagData : this.currentRightTagData;
+        } else {
+            tagData = side === 'left' ? this.leftTag : this.rightTag;
+        }
+        if (!tagData) return;
+
+        if (!tagData.images || tagData.images.length <= 1) {
+            const isNoAi = (this.mode === 'multiplayer' || this.mode === 'lobby') ? !!(this.roomData && this.roomData.noAi) : !!this.isNoAiMode;
+            const randomPage = Math.floor(Math.random() * 8) + 1;
+            const more = await fetchMoreTagImages(tagData.name, isNoAi, randomPage);
+            if (more && more.length > 0) {
+                const existing = new Set(tagData.images || [tagData.imageUrl].filter(Boolean));
+                more.forEach(url => existing.add(url));
+                tagData.images = Array.from(existing);
+            }
+        }
+
+        const images = (tagData.images && tagData.images.length > 0) ? tagData.images : (tagData.imageUrl ? [tagData.imageUrl] : []);
+        if (images.length === 0) return;
+
+        let currentIdx = typeof tagData.currentImageIndex === 'number' ? tagData.currentImageIndex : 0;
+        currentIdx = (currentIdx + direction + images.length) % images.length;
+        tagData.currentImageIndex = currentIdx;
+        tagData.imageUrl = images[currentIdx];
+
+        const thumbImg = document.getElementById(`hlThumb_${side}`);
+        const bgImg = document.getElementById(`hlBg_${side}`);
+        const idxSpan = document.getElementById(`hlImgIdx_${side}`);
+        const totalSpan = document.getElementById(`hlImgTotal_${side}`);
+
+        if (thumbImg) thumbImg.src = images[currentIdx];
+        if (bgImg) bgImg.src = images[currentIdx];
+        if (idxSpan) idxSpan.textContent = (currentIdx + 1).toString();
+        if (totalSpan) totalSpan.textContent = images.length.toString();
+
+        const container = this.container.querySelector(`.hl-tag-img-container[data-side="${side}"]`);
+        if (container && images.length > 1 && !container.querySelector('.hl-img-nav-btn')) {
+            container.outerHTML = this.renderCardImageContainer(tagData, side);
+            this.attachImageControls();
+        }
+    }
+
+    attachImageControls() {
         const containers = this.container.querySelectorAll('.hl-tag-img-container');
-        containers.forEach(box => {
-            const img = box.querySelector('img');
-            if (img && img.src) {
-                box.addEventListener('click', (e) => {
+        containers.forEach(container => {
+            const side = container.getAttribute('data-side');
+            let tagData = null;
+            if (this.mode === 'multiplayer' || this.mode === 'lobby') {
+                tagData = side === 'left' ? this.currentLeftTagData : this.currentRightTagData;
+            } else {
+                tagData = side === 'left' ? this.leftTag : this.rightTag;
+            }
+
+            const navBtns = container.querySelectorAll('.hl-img-nav-btn');
+            navBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    this.openImageLightbox(img.src);
+                    const dir = parseInt(btn.getAttribute('data-dir') || '1', 10);
+                    this.switchCardImage(side, dir);
+                });
+            });
+
+            const cycleBtn = container.querySelector('.hl-img-cycle-btn');
+            if (cycleBtn) {
+                cycleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const dir = parseInt(cycleBtn.getAttribute('data-dir') || '1', 10);
+                    this.switchCardImage(side, dir);
                 });
             }
+
+            container.addEventListener('click', (e) => {
+                if (e.target.closest('.hl-img-nav-btn') || e.target.closest('.hl-img-cycle-btn')) {
+                    return;
+                }
+                this.openImageLightbox(tagData, side);
+            });
         });
     }
 
-    openImageLightbox(src) {
-        if (!src) return;
+    attachLightboxListeners() {
+        this.attachImageControls();
+    }
+
+    openImageLightbox(tagData, side = null) {
+        if (!tagData) return;
+        if (typeof tagData === 'string') {
+            tagData = { name: '', count: 0, imageUrl: tagData, images: [tagData], currentImageIndex: 0 };
+        }
+
+        const images = (tagData.images && tagData.images.length > 0) ? tagData.images : (tagData.imageUrl ? [tagData.imageUrl] : []);
+        if (images.length === 0) return;
+
+        let currentIdx = typeof tagData.currentImageIndex === 'number' ? tagData.currentImageIndex : 0;
+        if (currentIdx >= images.length) currentIdx = 0;
+
         const lightbox = document.createElement('div');
         lightbox.className = 'hl-lightbox';
-        lightbox.innerHTML = `<img src="${src}" class="hl-lightbox-img" alt="Превью арта">`;
-        lightbox.addEventListener('click', () => lightbox.remove());
+
+        const updateLightboxView = () => {
+            const curImg = images[currentIdx] || tagData.imageUrl;
+            lightbox.innerHTML = `
+                <div class="hl-lightbox-header">
+                    <div class="hl-lightbox-title">
+                        <span>${this.formatTagName(tagData.name || 'Арт')}</span>
+                        ${images.length > 1 ? `<span style="font-size: 0.85rem; color: #a78bfa; font-weight: 700;">(${currentIdx + 1} / ${images.length})</span>` : ''}
+                    </div>
+                    <button class="hl-lightbox-close" id="hlLightboxCloseBtn">&times;</button>
+                </div>
+
+                ${images.length > 1 ? `
+                    <button class="hl-lightbox-arrow prev" id="hlLightboxPrevBtn" title="Предыдущая картинка (←)">
+                        ${icon('chevronLeft', { size: 32 })}
+                    </button>
+                    <button class="hl-lightbox-arrow next" id="hlLightboxNextBtn" title="Следующая картинка (→)">
+                        ${icon('chevronRight', { size: 32 })}
+                    </button>
+                ` : ''}
+
+                <div class="hl-lightbox-img-wrapper">
+                    <img src="${curImg}" class="hl-lightbox-img" id="hlLightboxImg" alt="Превью арта">
+                </div>
+
+                <div class="hl-lightbox-footer">
+                    <button class="hl-lightbox-btn" id="hlLightboxCycleBtn">
+                        ${icon('refresh', { size: 14 })} ${images.length > 1 ? 'Следующая картинка' : 'Сменить картинку'}
+                    </button>
+                    <button class="hl-lightbox-btn" id="hlLightboxDoneBtn">
+                        ${icon('check', { size: 14 })} Закрыть
+                    </button>
+                </div>
+            `;
+
+            const prevBtn = lightbox.querySelector('#hlLightboxPrevBtn');
+            const nextBtn = lightbox.querySelector('#hlLightboxNextBtn');
+            const cycleBtn = lightbox.querySelector('#hlLightboxCycleBtn');
+            const closeBtn = lightbox.querySelector('#hlLightboxCloseBtn');
+            const doneBtn = lightbox.querySelector('#hlLightboxDoneBtn');
+
+            if (prevBtn) prevBtn.onclick = (e) => { e.stopPropagation(); navigate(-1); };
+            if (nextBtn) nextBtn.onclick = (e) => { e.stopPropagation(); navigate(1); };
+            if (cycleBtn) cycleBtn.onclick = (e) => { e.stopPropagation(); navigate(1); };
+            if (closeBtn) closeBtn.onclick = (e) => { e.stopPropagation(); closeLightbox(); };
+            if (doneBtn) doneBtn.onclick = (e) => { e.stopPropagation(); closeLightbox(); };
+        };
+
+        const navigate = async (dir) => {
+            if (images.length <= 1) {
+                const isNoAi = (this.mode === 'multiplayer' || this.mode === 'lobby') ? !!(this.roomData && this.roomData.noAi) : !!this.isNoAiMode;
+                const randomPage = Math.floor(Math.random() * 8) + 1;
+                const more = await fetchMoreTagImages(tagData.name, isNoAi, randomPage);
+                if (more && more.length > 0) {
+                    const existing = new Set(tagData.images || [tagData.imageUrl].filter(Boolean));
+                    more.forEach(url => existing.add(url));
+                    tagData.images = Array.from(existing);
+                    images.splice(0, images.length, ...tagData.images);
+                }
+            }
+
+            currentIdx = (currentIdx + dir + images.length) % images.length;
+            tagData.currentImageIndex = currentIdx;
+            tagData.imageUrl = images[currentIdx];
+
+            if (side) {
+                const thumbImg = document.getElementById(`hlThumb_${side}`);
+                const bgImg = document.getElementById(`hlBg_${side}`);
+                const idxSpan = document.getElementById(`hlImgIdx_${side}`);
+                const totalSpan = document.getElementById(`hlImgTotal_${side}`);
+                if (thumbImg) thumbImg.src = images[currentIdx];
+                if (bgImg) bgImg.src = images[currentIdx];
+                if (idxSpan) idxSpan.textContent = (currentIdx + 1).toString();
+                if (totalSpan) totalSpan.textContent = images.length.toString();
+            }
+
+            updateLightboxView();
+        };
+
+        const keyHandler = (e) => {
+            if (e.key === 'ArrowLeft') {
+                navigate(-1);
+            } else if (e.key === 'ArrowRight' || e.key === ' ') {
+                navigate(1);
+            } else if (e.key === 'Escape') {
+                closeLightbox();
+            }
+        };
+
+        const closeLightbox = () => {
+            window.removeEventListener('keydown', keyHandler);
+            lightbox.remove();
+        };
+
+        window.addEventListener('keydown', keyHandler);
+        lightbox.onclick = (e) => {
+            if (e.target === lightbox || e.target.classList.contains('hl-lightbox-img-wrapper')) {
+                closeLightbox();
+            }
+        };
+
+        updateLightboxView();
         document.body.appendChild(lightbox);
     }
 
     formatTagName(tag) {
-        return tag.replace(/_/g, ' ');
+        return formatDisplayTagName(tag);
     }
 
     escapeHtml(str) {

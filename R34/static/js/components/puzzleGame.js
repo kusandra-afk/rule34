@@ -1,5 +1,6 @@
 import { fetchPuzzleCompleted, savePuzzleCompleted, fetchPostById } from '../api.js';
 import { icon } from '../icons.js';
+import { PuzzleOnlineManager } from './puzzleOnline.js';
 
 // ============================================================
 // Web Audio API Retro Sound Effects (БЕЗ ИЗМЕНЕНИЙ)
@@ -418,6 +419,8 @@ export class PuzzleGame {
         this.moves = 0;
         this.timerInterval = null;
         this.seconds = 0;
+        this._remoteDrags = new Map();
+        this._lastDragEmitTime = 0;
         this.isPlaying = false;
         this.hasWon = false;
         this.showHintActive = false;
@@ -2164,18 +2167,24 @@ export class PuzzleGame {
         const updateButtonState = () => {
             const isFolding = this.tiles && this.tiles.some(t => { const el = this.tileElements.get(t.id); return el && el.classList.contains('folding-to-tray'); });
             const isCutting = this.board && this.board.classList.contains('cutting');
-            if (isFolding || isCutting) {
+            if (this.isOnline || isFolding || isCutting) {
                 completedBtn.style.background = 'linear-gradient(135deg,rgba(100,100,100,0.5) 0%,rgba(80,80,80,0.5) 100%)';
                 completedBtn.style.borderColor = 'rgba(150,150,150,0.3)';
                 completedBtn.style.boxShadow = 'none';
                 completedBtn.style.cursor = 'not-allowed';
                 completedBtn.style.opacity = '0.5';
+                completedBtn.style.filter = 'grayscale(1)';
+                completedBtn.style.pointerEvents = 'none';
+                completedBtn.disabled = true;
             } else {
                 completedBtn.style.background = 'linear-gradient(135deg,#10b981 0%,#059669 100%)';
                 completedBtn.style.borderColor = 'rgba(16,185,129,0.5)';
                 completedBtn.style.boxShadow = '0 4px 12px rgba(16,185,129,0.4)';
                 completedBtn.style.cursor = 'pointer';
                 completedBtn.style.opacity = '1';
+                completedBtn.style.filter = 'none';
+                completedBtn.style.pointerEvents = 'auto';
+                completedBtn.disabled = false;
             }
         };
         const buttonCheckInterval = setInterval(updateButtonState, 200);
@@ -2184,7 +2193,16 @@ export class PuzzleGame {
         statsRow.appendChild(timerBadge);
         statsRow.appendChild(movesBadge);
         statsRow.appendChild(recordBadge);
+        if (this.isOnline) {
+            completedBtn.disabled = true;
+            completedBtn.style.opacity = '0.5';
+            completedBtn.style.filter = 'grayscale(1)';
+            completedBtn.style.cursor = 'not-allowed';
+            completedBtn.style.pointerEvents = 'none';
+            completedBtn.title = 'Библиотека недоступна в онлайн-режиме';
+        }
         statsRow.appendChild(completedBtn);
+
         leftPanel.appendChild(statsRow);
 
         const diffSelector = document.createElement('div');
@@ -2209,6 +2227,13 @@ export class PuzzleGame {
             btn.onclick = () => this.changeDifficulty(d.target);
             diffSelector.appendChild(btn);
         });
+        if (this.isOnline) {
+            diffSelector.style.opacity = '0.5';
+            diffSelector.style.filter = 'grayscale(1)';
+            diffSelector.style.pointerEvents = 'none';
+            diffSelector.style.cursor = 'not-allowed';
+            diffSelector.title = 'Сложность нельзя менять в онлайн-режиме';
+        }
         leftPanel.appendChild(diffSelector);
 
         // Tray Columns Selector
@@ -2350,6 +2375,13 @@ export class PuzzleGame {
         idSelector.appendChild(idLabel);
         idSelector.appendChild(idInput);
         idSelector.appendChild(idLoadBtn);
+        if (this.isOnline) {
+            idSelector.style.opacity = '0.5';
+            idSelector.style.filter = 'grayscale(1)';
+            idSelector.style.pointerEvents = 'none';
+            idSelector.style.cursor = 'not-allowed';
+            idSelector.title = 'Поиск по ID недоступен в онлайн-режиме';
+        }
         leftPanel.appendChild(idSelector);
 
         // Allow Long Images Toggle
@@ -2357,6 +2389,14 @@ export class PuzzleGame {
         allowLongContainer.className = 'puzzle-allow-long-container';
         allowLongContainer.style.cssText = `display:flex;align-items:center;justify-content:space-between;width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:6px 12px;border-radius:14px;margin-top:8px;margin-bottom:2px;`;
         
+        if (this.isOnline) {
+            allowLongContainer.style.opacity = '0.5';
+            allowLongContainer.style.filter = 'grayscale(1)';
+            allowLongContainer.style.pointerEvents = 'none';
+            allowLongContainer.style.cursor = 'not-allowed';
+            allowLongContainer.title = 'Опция недоступна в онлайн-режиме';
+        }
+
         const allowLongLeft = document.createElement('div');
         allowLongLeft.style.cssText = `display:flex;align-items:center;gap:6px;font-size:0.8rem;font-weight:bold;color:var(--adaptive-text-main, #ffffff);`;
         allowLongLeft.innerHTML = `${icon('image', { size: 16 })} <span>Разрешить длинные изображения</span>`;
@@ -2365,7 +2405,12 @@ export class PuzzleGame {
         allowLongToggle.className = 'r34-toggle-switch';
         const allowLongInput = document.createElement('input');
         allowLongInput.type = 'checkbox';
-        allowLongInput.checked = localStorage.getItem('r34_puzzle_allow_long_images') === 'true';
+        if (this.isOnline) {
+            allowLongInput.checked = false;
+            allowLongInput.disabled = true;
+        } else {
+            allowLongInput.checked = localStorage.getItem('r34_puzzle_allow_long_images') === 'true';
+        }
         allowLongInput.onchange = () => {
             localStorage.setItem('r34_puzzle_allow_long_images', allowLongInput.checked ? 'true' : 'false');
             playSound('click');
@@ -2541,6 +2586,10 @@ export class PuzzleGame {
         resetBtn.className = 'puzzle-btn';
         resetBtn.innerHTML = `<span style="display:flex;align-items:center;justify-content:center;">${icon('refresh', { size: 16 })}</span><span>Заново</span>`;
         resetBtn.onclick = async () => {
+            if (this.isOnline && this.onlineManager) {
+                this.onlineManager.requestAction('RESTART');
+                return;
+            }
             let confirmed = true;
             if (typeof window.showConfirmModal === 'function') {
                 confirmed = await window.showConfirmModal('Начать заново?', 'Вы уверены, что хотите начать заново? Текущий прогресс будет потерян.');
@@ -2561,6 +2610,10 @@ export class PuzzleGame {
         solveBtn.id = 'puzzle-solve-btn';
         solveBtn.innerHTML = `<span style="display:flex;align-items:center;justify-content:center;">${icon('bot', { size: 16 })}</span><span>Собрать</span>`;
         solveBtn.onclick = async () => {
+            if (this.isOnline && this.onlineManager) {
+                this.onlineManager.requestAction('SOLVE');
+                return;
+            }
             let confirmed = true;
             if (typeof window.showConfirmModal === 'function') {
                 confirmed = await window.showConfirmModal('Автоматически собрать?', 'Вы уверены, что хотите автоматически собрать пазл?');
@@ -2573,6 +2626,14 @@ export class PuzzleGame {
         skipBtn.className = 'puzzle-btn';
         skipBtn.id = 'puzzle-skip-btn';
         skipBtn.innerHTML = `<span style="display:flex;align-items:center;justify-content:center;">${icon('skipForward', { size: 16 })}</span><span>Пропустить</span>`;
+        if (this.isOnline) {
+            skipBtn.disabled = true;
+            skipBtn.style.opacity = '0.5';
+            skipBtn.style.filter = 'grayscale(1)';
+            skipBtn.style.cursor = 'not-allowed';
+            skipBtn.style.pointerEvents = 'none';
+            skipBtn.title = 'Нельзя пропустить в онлайн-режиме';
+        }
         skipBtn.onclick = async () => {
             let confirmed = true;
             if (typeof window.showConfirmModal === 'function') {
@@ -2624,7 +2685,23 @@ export class PuzzleGame {
         if (this.recordLabel) this.recordLabel.textContent = '--';
     }
 
+    getRandom() {
+        if (this.seamsSeed) {
+            if (!this._prng) {
+                let s = (this.seamsSeed ^ 0xDEADBEEF) >>> 0;
+                this._prng = () => {
+                    s = Math.imul(s ^ (s >>> 15), 1 | s);
+                    s = (s + Math.imul(s ^ (s >>> 7), 61 | s)) ^ s;
+                    return ((s ^ (s >>> 14)) >>> 0) / 4294967296;
+                };
+            }
+            return this._prng();
+        }
+        return Math.random();
+    }
+
     generateJigsawSeams() {
+        this._prng = null;
         this.tileShapeCache.clear();
         this.correctTilePositionCache.clear();
         this.horizSeams = [];
@@ -2643,16 +2720,16 @@ export class PuzzleGame {
         for (let r = 0; r < this.rows - 1; r++) {
             this.horizSeams[r] = [];
             for (let c = 0; c < this.cols; c++) {
-                const isWavy = Math.random() < 0.5;
+                const isWavy = this.getRandom() < 0.5;
                 this.horizSeams[r][c] = {
-                    dir: Math.random() < 0.5 ? 1 : -1,
-                    shape: Math.random() < 0.5 ? 'classic' : 'wavy',
-                    tabPos: 0.36 + Math.random() * 0.28,
-                    tabSize: (0.16 + Math.random() * 0.06) * scale,
-                    tabWidth: (0.16 + Math.random() * 0.06) * scale,
-                    neckWidth: (0.07 + Math.random() * 0.03) * scale,
-                    skew: (Math.random() - 0.5) * 0.18,
-                    baseCurve: isWavy ? (Math.random() < 0.5 ? 1 : -1) * (0.12 + Math.random() * 0.08) : 0,
+                    dir: this.getRandom() < 0.5 ? 1 : -1,
+                    shape: this.getRandom() < 0.5 ? 'classic' : 'wavy',
+                    tabPos: 0.36 + this.getRandom() * 0.28,
+                    tabSize: (0.16 + this.getRandom() * 0.06) * scale,
+                    tabWidth: (0.16 + this.getRandom() * 0.06) * scale,
+                    neckWidth: (0.07 + this.getRandom() * 0.03) * scale,
+                    skew: (this.getRandom() - 0.5) * 0.18,
+                    baseCurve: isWavy ? (this.getRandom() < 0.5 ? 1 : -1) * (0.12 + this.getRandom() * 0.08) : 0,
                     waveCurve: 0
                 };
             }
@@ -2660,16 +2737,16 @@ export class PuzzleGame {
         for (let r = 0; r < this.rows; r++) {
             this.vertSeams[r] = [];
             for (let c = 0; c < this.cols - 1; c++) {
-                const isWavy = Math.random() < 0.5;
+                const isWavy = this.getRandom() < 0.5;
                 this.vertSeams[r][c] = {
-                    dir: Math.random() < 0.5 ? 1 : -1,
-                    shape: Math.random() < 0.5 ? 'classic' : 'wavy',
-                    tabPos: 0.36 + Math.random() * 0.28,
-                    tabSize: (0.16 + Math.random() * 0.06) * scale,
-                    tabWidth: (0.16 + Math.random() * 0.06) * scale,
-                    neckWidth: (0.07 + Math.random() * 0.03) * scale,
-                    skew: (Math.random() - 0.5) * 0.18,
-                    baseCurve: isWavy ? (Math.random() < 0.5 ? 1 : -1) * (0.12 + Math.random() * 0.08) : 0,
+                    dir: this.getRandom() < 0.5 ? 1 : -1,
+                    shape: this.getRandom() < 0.5 ? 'classic' : 'wavy',
+                    tabPos: 0.36 + this.getRandom() * 0.28,
+                    tabSize: (0.16 + this.getRandom() * 0.06) * scale,
+                    tabWidth: (0.16 + this.getRandom() * 0.06) * scale,
+                    neckWidth: (0.07 + this.getRandom() * 0.03) * scale,
+                    skew: (this.getRandom() - 0.5) * 0.18,
+                    baseCurve: isWavy ? (this.getRandom() < 0.5 ? 1 : -1) * (0.12 + this.getRandom() * 0.08) : 0,
                     waveCurve: 0
                 };
             }
@@ -2917,10 +2994,17 @@ export class PuzzleGame {
                 if (!this.isPlaying) return;
                 this._suppressLayoutReads = false;
                 this.compactTray();
+                this.updateGroups();
                 this.updateBoardSize();
                 this.startTimer();
                 this.setControlsEnabled(true);
                 this.updatePuzzleStatus('playing');
+                
+                if (this.isOnline && this.onlineManager) {
+                    const progress = this.getConnectionProgress();
+                    this.onlineManager.sendRaceProgress(progress.connected, progress.total, this.moves, this.seconds);
+                    this.onlineManager.updateOnlineHUD();
+                }
                 
                 if (window.innerWidth >= 900 && this.trayDiv) {
                     this.trayDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2996,8 +3080,8 @@ export class PuzzleGame {
     shuffle() {
         const total = this.tiles.length;
         for (let step = 0; step < 200; step++) {
-            const idx1 = Math.floor(Math.random() * total);
-            const idx2 = Math.floor(Math.random() * total);
+            const idx1 = Math.floor(this.getRandom() * total);
+            const idx2 = Math.floor(this.getRandom() * total);
             if (idx1 !== idx2) {
                 const temp = this.tiles[idx1].currentPos;
                 this.tiles[idx1].currentPos = this.tiles[idx2].currentPos;
@@ -3296,6 +3380,23 @@ export class PuzzleGame {
                         const targetPos = this.getPosFromCoords(moveEvent.clientX, moveEvent.clientY);
                         this.updateDragTargetHighlight(targetPos);
                         this._dragRAFId = null;
+
+                        if (this.isOnline && this.onlineMode === 'coop' && this.onlineManager) {
+                            const now = Date.now();
+                            if (now - this._lastDragEmitTime > 40) {
+                                const rect = this._cachedBoardRect;
+                                if (rect) {
+                                    const offsetX = parseFloat(clone.dataset.offsetX || '0');
+                                    const offsetY = parseFloat(clone.dataset.offsetY || '0');
+                                    const clampedPoint = this.clampDragPointToBoard(moveEvent.clientX, moveEvent.clientY);
+                                    const leftPct = ((clampedPoint.x - offsetX - rect.left) / rect.width) * 100;
+                                    const topPct = ((clampedPoint.y - offsetY - rect.top) / rect.height) * 100;
+                                    const groupTileIds = this.tiles.filter(t => t.groupId === tile.groupId).map(t => t.id);
+                                    this.onlineManager.sendCoopDrag(tile.id, leftPct, topPct, groupTileIds);
+                                    this._lastDragEmitTime = now;
+                                }
+                            }
+                        }
                     });
                 };
 
@@ -3444,6 +3545,23 @@ export class PuzzleGame {
                             clone.style.transform = `translate3d(${(clampedPoint.x - offsetX).toFixed(1)}px, ${(clampedPoint.y - offsetY).toFixed(1)}px, 0)`;
                             const targetPos = this.getPosFromCoords(touch.clientX, touch.clientY);
                             this.updateDragTargetHighlight(targetPos);
+
+                            if (this.isOnline && this.onlineMode === 'coop' && this.onlineManager) {
+                                const now = Date.now();
+                                if (now - this._lastDragEmitTime > 40) {
+                                    const rect = this._cachedBoardRect;
+                                    if (rect) {
+                                        const offsetX = parseFloat(clone.dataset.offsetX || '0');
+                                        const offsetY = parseFloat(clone.dataset.offsetY || '0');
+                                        const clampedPoint = this.clampDragPointToBoard(touch.clientX, touch.clientY);
+                                        const leftPct = ((clampedPoint.x - offsetX - rect.left) / rect.width) * 100;
+                                        const topPct = ((clampedPoint.y - offsetY - rect.top) / rect.height) * 100;
+                                        const groupTileIds = this.tiles.filter(t => t.groupId === tile.groupId).map(t => t.id);
+                                        this.onlineManager.sendCoopDrag(tile.id, leftPct, topPct, groupTileIds);
+                                        this._lastDragEmitTime = now;
+                                    }
+                                }
+                            }
                         }
                         this._dragRAFId = null;
                     });
@@ -3733,6 +3851,16 @@ export class PuzzleGame {
         return dist < tolerancePct;
     }
 
+    getConnectionProgress() {
+        if (!this.tiles || this.tiles.length === 0) return { connected: 0, total: 0, pct: 0 };
+        const totalTiles = this.cols * this.rows;
+        const groupCount = this.groupTiles ? this.groupTiles.size : totalTiles;
+        const connections = totalTiles - groupCount;
+        const maxConnections = totalTiles - 1;
+        const pct = maxConnections > 0 ? Math.round((connections / maxConnections) * 100) : 0;
+        return { connected: connections, total: maxConnections, pct };
+    }
+
     placeGroupComplex(srcTileId, targetLeftPct, targetTopPct, isTrayTarget, targetTrayPos) {
         const srcTile = this.tileById.get(srcTileId) || null;
         if (!srcTile || !this.isPlaying || this.isSolving || this.hasWon) return;
@@ -3763,6 +3891,14 @@ export class PuzzleGame {
             this.checkWin();
             this.updateOverlaps();
             this.updateGroups();
+            
+            if (this.isOnline && this.onlineManager && !this._isApplyingRemoteMove) {
+                if (this.onlineMode === 'coop') {
+                    this.onlineManager.sendCoopMove(srcTileId, boundedLeftPct, boundedTopPct, isTrayTarget, targetTrayPos, groupTiles.map(t => t.id));
+                }
+                const progress = this.getConnectionProgress();
+                this.onlineManager.sendRaceProgress(progress.connected, progress.total, this.moves, this.seconds);
+            }
             return;
         }
 
@@ -3877,6 +4013,98 @@ export class PuzzleGame {
         if (this._trayGridDirty) this.updateBoardSize();
         this.checkWin();
         this.updateOverlaps();
+
+        if (this.isOnline && this.onlineManager && !this._isApplyingRemoteMove) {
+            if (this.onlineMode === 'coop') {
+                this.onlineManager.sendCoopMove(srcTileId, boundedLeftPct, boundedTopPct, isTrayTarget, targetTrayPos, groupTiles.map(t => t.id));
+            }
+            const progress = this.getConnectionProgress();
+            this.onlineManager.sendRaceProgress(progress.connected, progress.total, this.moves, this.seconds);
+        }
+    }
+
+    handleRemoteCoopMove(packet) {
+        if (!this.isPlaying || this.isSolving) return;
+        const { srcTileId, leftPct, topPct, isTrayTarget, targetPos, playerName, playerId } = packet;
+        
+        // Clear any real-time drag visual for this player
+        if (playerId) this.clearRemoteDrag(playerId);
+
+        this._isApplyingRemoteMove = true;
+        this.placeGroupComplex(srcTileId, leftPct, topPct, isTrayTarget, targetPos);
+        this._isApplyingRemoteMove = false;
+        
+        const tile = this.tileById.get(srcTileId);
+        if (tile) {
+            const groupTiles = this.getGroupTiles(tile.groupId);
+            this.flashGroupTiles(groupTiles, 1200);
+        }
+        if (this.onlineManager) {
+            this.onlineManager.updateOnlineHUD();
+        }
+    }
+
+    handleRemoteCoopDrag(packet) {
+        const { playerId, srcTileId, leftPct, topPct, groupTileIds } = packet;
+        if (!this.isPlaying || !this.board) return;
+
+        let remoteDrag = this._remoteDrags.get(playerId);
+        if (remoteDrag && remoteDrag.srcTileId !== srcTileId) {
+            this.clearRemoteDrag(playerId);
+            remoteDrag = null;
+        }
+
+        if (!remoteDrag) {
+            const srcTile = this.tileById.get(srcTileId);
+            if (!srcTile) return;
+
+            const groupContainer = document.createElement('div');
+            groupContainer.id = `remote-drag-${playerId}`;
+            groupContainer.className = 'remote-puzzle-drag-clone';
+            groupContainer.style.cssText = `position:absolute;pointer-events:none;z-index:99999;transition:none;margin:0;padding:0;will-change:transform;`;
+            
+            const boardRect = this.board.getBoundingClientRect();
+            groupContainer.style.width = `${boardRect.width}px`;
+            groupContainer.style.height = `${boardRect.height}px`;
+            
+            const F = 1.80; 
+            groupTileIds.forEach(id => {
+                const gt = this.tileById.get(id);
+                const el = this.tileElements.get(id);
+                if (gt && el) {
+                    const clone = el.cloneNode(true);
+                    clone.style.cssText = `position:absolute;pointer-events:none;opacity:0.6;transition:none;margin:0;transform:scale(1);transform-origin:0 0;filter: brightness(1.2);`;
+                    const gtData = this.getTileJigsawShape(gt.correctRow, gt.correctCol);
+                    clone.style.width = `${gtData.tileW * F * 100}%`;
+                    clone.style.height = `${gtData.tileH * F * 100}%`;
+                    clone.style.left = `${gt.boardX - srcTile.boardX}%`;
+                    clone.style.top = `${gt.boardY - srcTile.boardY}%`;
+                    groupContainer.appendChild(clone);
+                    el.style.opacity = '0.2';
+                }
+            });
+            
+            this.board.appendChild(groupContainer);
+            remoteDrag = { srcTileId, groupTileIds, clone: groupContainer };
+            this._remoteDrags.set(playerId, remoteDrag);
+        }
+
+        if (remoteDrag.clone) {
+            remoteDrag.clone.style.left = `${leftPct}%`;
+            remoteDrag.clone.style.top = `${topPct}%`;
+        }
+    }
+
+    clearRemoteDrag(playerId) {
+        const remoteDrag = this._remoteDrags.get(playerId);
+        if (remoteDrag) {
+            if (remoteDrag.clone) remoteDrag.clone.remove();
+            remoteDrag.groupTileIds.forEach(id => {
+                const el = this.tileElements.get(id);
+                if (el) el.style.opacity = '1';
+            });
+            this._remoteDrags.delete(playerId);
+        }
     }
 
     getTrayGrid() {
@@ -4452,6 +4680,10 @@ export class PuzzleGame {
     onWin() {
         this.isPlaying = false;
         this.hasWon = true;
+
+        if (this.isOnline && this.onlineManager) {
+            this.onlineManager.sendWinEvent(this.seconds, this.moves);
+        }
         if (this.board) {
             this.board.classList.add('won');
         }
@@ -4514,6 +4746,18 @@ export class PuzzleGame {
     }
 
     destroy() {
+        if (this._remoteDrags) {
+            this._remoteDrags.forEach((_, playerId) => this.clearRemoteDrag(playerId));
+            this._remoteDrags.clear();
+        }
+        if (this.onlineManager) {
+            this.onlineManager.leaveRoom();
+            this.onlineManager = null;
+        }
+        if (this.card) {
+            this.card.remove();
+            this.card = null;
+        }
         const resultsDiv = document.getElementById('results');
         if (resultsDiv) resultsDiv.style.display = 'grid';
         document.body.style.overflow = '';

@@ -1372,26 +1372,220 @@ document.addEventListener('DOMContentLoaded', () => {
             game.start();
         };
 
-        const initialEligible = getEligiblePosts();
-        if (initialEligible.length === 0) {
-            showPuzzleToast("В галерее пусто, автоматически подгружаем картинки для пазла...", 4000);
-            (async () => {
-                try {
-                    const currentQuery = window.tagSearch ? window.tagSearch.getTagsQuery() : lastTagsQuery;
-                    await loadPosts(currentQuery, false);
-                    const loadedEligible = getEligiblePosts();
-                    if (loadedEligible.length > 0) {
-                        startGame(getUnsolvedPost(null));
-                    } else {
-                        showPuzzleToast("Не удалось найти подходящие картинки для пазла (видео и вертикальные пропускаются)!", 5000);
-                    }
-                } catch (e) {
-                    showPuzzleToast("Ошибка при загрузке картинок для пазла!", 4000);
+        const showModeMenu = () => {
+            const menuModal = document.createElement('div');
+            menuModal.id = 'puzzle-mode-menu-modal';
+            menuModal.className = 'hl-overlay open';
+
+            const solvedIds = JSON.parse(localStorage.getItem('r34_solved_puzzles') || '[]');
+            const solvedCount = solvedIds.length;
+
+            const card = document.createElement('div');
+            card.className = 'hl-card';
+            card.style.maxWidth = '520px';
+
+            card.innerHTML = `
+                <div class="hl-header">
+                    <div class="hl-title-group">
+                        <div class="hl-logo-icon">${icon('puzzle', { size: 20 })}</div>
+                        <h2 class="hl-app-title">Пазлы</h2>
+                    </div>
+                    <button class="hl-close-btn" id="pzMenuCloseBtn">&times;</button>
+                </div>
+
+                <div class="hl-menu-container" style="gap: 20px; padding: 10px 0 0 0;">
+                    <span class="hl-hero-badge">Интерактивная Мини-Игра</span>
+                    <h1 class="hl-menu-title" style="font-size: 1.85rem; margin-bottom: -4px;">Соберите картинку из элементов!</h1>
+                    <p class="hl-menu-desc" style="font-size: 0.9rem; margin-bottom: 4px;">
+                        Вы можете собирать пазлы в одиночку, используя любимые арты из галереи, устраивать состязания на скорость в режиме «Гонка» или объединять силы с друзьями в режиме «Совместный сбор»!
+                    </p>
+
+                    <div class="hl-howto-box" style="text-align: left; width: 100%; box-sizing: border-box;">
+                        <div class="hl-howto-title" style="display: flex; align-items: center; gap: 6px;">${icon('lightbulb', { size: 16 })} Правила игры:</div>
+                        <div class="hl-howto-text" style="line-height: 1.4; font-size: 0.82rem;">
+                            • <b>Одиночный режим:</b> Выбирайте любимые картинки из текущего поиска галереи и собирайте их в своём темпе.<br>
+                            • <b>Онлайн-режим:</b> Создайте комнату, поделитесь кодом с друзьями и играйте вместе в реальном времени!
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 16px; margin-bottom: 6px; justify-content: center; width: 100%;">
+                        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); padding: 12px 24px; border-radius: 14px; text-align: center; min-width: 140px;">
+                            <div style="font-size: 0.8rem; color: rgba(255,255,255,0.5); font-weight: 600;">Решено пазлов</div>
+                            <div style="font-size: 1.6rem; font-weight: 900; color: #a78bfa; margin-top: 2px;">${solvedCount}</div>
+                        </div>
+                    </div>
+
+                    <div class="hl-menu-actions" style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                        <button class="hl-btn-primary" id="pzStartSoloBtn" style="width: 100%;">
+                            ${icon('gamepad', { size: 18 })} Одиночный Режим
+                        </button>
+                        <button class="hl-btn-secondary" id="pzStartMultiplayerBtn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; position: relative;">
+                            <span style="position: absolute; top: -10px; right: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.5); pointer-events: none;">Бета</span>
+                            ${icon('users', { size: 18 })} Онлайн с Друзьями
+                        </button>
+                        <div id="pzKeyWarningTag" style="display:none; text-align:center; color:#f59e0b; font-size:0.7rem; font-weight:800; margin-top:-4px; text-transform:uppercase; letter-spacing:0.5px;">ТРЕБУЕТСЯ API КЛЮЧ</div>
+                    </div>
+                </div>
+            `;
+
+            menuModal.appendChild(card);
+            document.body.appendChild(menuModal);
+
+            const closeMenu = () => {
+                menuModal.style.animation = 'fadeOut 0.2s ease-out';
+                card.style.animation = 'slideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+                setTimeout(() => menuModal.remove(), 200);
+            };
+
+            menuModal.querySelector('#pzMenuCloseBtn').onclick = closeMenu;
+            menuModal.onclick = (e) => {
+                if (e.target === menuModal) closeMenu();
+            };
+
+            // Solo Mode Start
+            menuModal.querySelector('#pzStartSoloBtn').onclick = (e) => {
+                const btn = e.currentTarget;
+                const originalHtml = btn.innerHTML;
+                
+                const launch = (post) => {
+                    closeMenu();
+                    startGame(post);
+                };
+
+                const initialEligible = getEligiblePosts();
+                if (initialEligible.length === 0) {
+                    btn.innerHTML = `<div class="puzzle-loader-spinner" style="width:16px;height:16px;border-width:2px;border-top-color:#fff;border-right-color:transparent;border-radius:50%;animation:pzSpin 1s linear infinite;display:inline-block;vertical-align:middle;"></div> <span style="vertical-align:middle;margin-left:8px;">Загрузка галереи...</span>`;
+                    btn.disabled = true;
+                    showPuzzleToast("В галерее пусто, автоматически подгружаем картинки для пазла...", 4000);
+                    (async () => {
+                        try {
+                            const currentQuery = window.tagSearch ? window.tagSearch.getTagsQuery() : lastTagsQuery;
+                            await loadPosts(currentQuery, false);
+                            const loadedEligible = getEligiblePosts();
+                            if (loadedEligible.length > 0) {
+                                launch(getUnsolvedPost(null));
+                            } else {
+                                showPuzzleToast("Не удалось найти подходящие картинки для пазла (видео и вертикальные пропускаются)!", 5000);
+                                btn.innerHTML = originalHtml;
+                                btn.disabled = false;
+                            }
+                        } catch (err) {
+                            showPuzzleToast("Ошибка при загрузке картинок для пазла!", 4000);
+                            btn.innerHTML = originalHtml;
+                            btn.disabled = false;
+                        }
+                    })();
+                } else {
+                    launch(getUnsolvedPost(null));
                 }
-            })();
-        } else {
-            startGame(getUnsolvedPost(null));
-        }
+            };
+
+            // Multiplayer Mode Start
+            const multiBtn = menuModal.querySelector('#pzStartMultiplayerBtn');
+            const warningTag = menuModal.querySelector('#pzKeyWarningTag');
+            const updateMultiBtnState = () => {
+                const key = localStorage.getItem('hlMeteredKey');
+                if (!key) {
+                    multiBtn.disabled = true;
+                    multiBtn.style.opacity = '0.5';
+                    multiBtn.style.filter = 'grayscale(1)';
+                    multiBtn.style.cursor = 'not-allowed';
+                    multiBtn.title = 'Требуется API Ключ (введите в главном меню выбора игры)';
+                    if (warningTag) warningTag.style.display = 'block';
+                } else {
+                    multiBtn.disabled = false;
+                    multiBtn.style.opacity = '1';
+                    multiBtn.style.filter = 'none';
+                    multiBtn.style.cursor = 'pointer';
+                    multiBtn.title = '';
+                    if (warningTag) warningTag.style.display = 'none';
+                }
+            };
+            updateMultiBtnState();
+            const multiCheckInterval = setInterval(updateMultiBtnState, 500);
+            menuModal.addEventListener('DOMNodeRemoved', (e) => {
+                if (e.target === menuModal) clearInterval(multiCheckInterval);
+            });
+
+            multiBtn.onclick = (e) => {
+                const btn = e.currentTarget;
+                const originalHtml = btn.innerHTML;
+                
+                const launch = (post) => {
+                    closeMenu();
+                    const startMultiplayerGameFlow = (post) => {
+                        window.puzzleGameActive = true;
+                        if (getEligiblePosts().length < 15) {
+                            loadMorePostsForPuzzle();
+                        }
+
+                        const game = new PuzzleGame(post, null, async () => {
+                            window.activePuzzleGame = null;
+                            loadMorePostsForPuzzle();
+                            
+                            const nextPost = getUnsolvedPost(post ? post.id : null);
+                            if (nextPost) {
+                                startGame(nextPost);
+                            } else {
+                                showPuzzleToast("Загружаем новые картинки...", 2500);
+                                const loadedMore = await loadMorePostsForPuzzle(true);
+                                const retryPost = getUnsolvedPost(post ? post.id : null);
+                                if (retryPost) {
+                                    startGame(retryPost);
+                                } else {
+                                    showPuzzleToast("В галерее больше нет подходящих картинок!", 4000);
+                                }
+                            }
+                        });
+                        window.activePuzzleGame = game;
+                        // DO NOT call game.start() here yet, so the gallery stays visible in the background
+                        // while the user is setting up the lobby.
+                        
+                        // Directly trigger Online mode setup
+                        import('./components/puzzleOnline.js').then(({ PuzzleOnlineManager }) => {
+                            // Set basic aspect ratio from post so lobby previews look correct
+                            if (post.width && post.height) {
+                                game.aspectRatio = post.width / post.height;
+                            }
+                            game.onlineManager = new PuzzleOnlineManager(game);
+                            game.onlineManager.renderLobbySetupUI();
+                        }).catch(err => {
+                            console.error("Failed to load PuzzleOnlineManager:", err);
+                        });
+                    };
+                    startMultiplayerGameFlow(post);
+                };
+
+                const initialEligible = getEligiblePosts();
+                if (initialEligible.length === 0) {
+                    btn.innerHTML = `<div class="puzzle-loader-spinner" style="width:16px;height:16px;border-width:2px;border-top-color:#000;border-right-color:transparent;border-radius:50%;animation:pzSpin 1s linear infinite;display:inline-block;vertical-align:middle;"></div> <span style="vertical-align:middle;margin-left:8px;color:#000;">Загрузка галереи...</span>`;
+                    btn.disabled = true;
+                    showPuzzleToast("В галерее пусто, автоматически подгружаем картинки для пазла...", 4000);
+                    (async () => {
+                        try {
+                            const currentQuery = window.tagSearch ? window.tagSearch.getTagsQuery() : lastTagsQuery;
+                            await loadPosts(currentQuery, false);
+                            const loadedEligible = getEligiblePosts();
+                            if (loadedEligible.length > 0) {
+                                launch(getUnsolvedPost(null));
+                            } else {
+                                showPuzzleToast("Не удалось найти подходящие картинки для пазла (видео и вертикальные пропускаются)!", 5000);
+                                btn.innerHTML = originalHtml;
+                                btn.disabled = false;
+                            }
+                        } catch (err) {
+                            showPuzzleToast("Ошибка при загрузке картинок для пазла!", 4000);
+                            btn.innerHTML = originalHtml;
+                            btn.disabled = false;
+                        }
+                    })();
+                } else {
+                    launch(getUnsolvedPost(null));
+                }
+            };
+        };
+
+        showModeMenu();
     };
 
     const openGameChoiceModal = () => {
@@ -1458,6 +1652,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 <!-- Доступно сейчас -->
                 <div style="font-size: 0.7rem; font-weight: 800; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Доступно сейчас</div>
 
+                <!-- API KEY SECTION (Metered.ca) -->
+                <div style="margin: 4px 0 16px 0; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    <div id="hlKeyInstructionsBtn" style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px; background: rgba(245, 158, 11, 0.15); border-radius: 12px; border: 1px dashed rgba(245, 158, 11, 0.4); transition: all 0.2s ease;">
+                        <div style="background: #f59e0b; color: #000; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);">!</div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 0.65rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #f59e0b;">Обязательно для онлайн-игр</div>
+                            <div style="font-size: 0.95rem; color: #fff; font-weight: 800; text-decoration: underline;">Как получить ключ Metered.ca?</div>
+                        </div>
+                        ${icon('chevronRight', { size: 20, color: '#f59e0b' })}
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <input type="text" id="hlMeteredKeyInput" style="width: 100%; text-align: center; font-size: 0.85rem; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #fff; font-family: monospace; padding: 10px;" placeholder="Вставьте ваш API Key (pk_live_...)" autocomplete="off" spellcheck="false">
+                        <button id="hlCheckMeteredKeyBtn" style="width: 100%; font-size: 0.85rem; padding: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; border-radius: 10px; font-weight: 900; cursor: pointer; transition: all 0.2s ease;">Проверить и сохранить ключ</button>
+                    </div>
+                </div>
+
                 <button id="selectPuzzleBtn" style="
                     padding: 14px 16px;
                     background: linear-gradient(135deg, rgba(255, 59, 107, 0.15) 0%, rgba(255, 59, 107, 0.05) 100%);
@@ -1499,31 +1710,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div style="text-align: left;">
                         <div style="font-size: 1rem; font-weight: 700;">Больше / Меньше</div>
                         <div style="font-size: 0.75rem; opacity: 0.75; font-weight: 400; margin-top: 1px;">Угадайте популярность тегов</div>
-                    </div>
-                </button>
-
-                <!-- Онлайн скоро -->
-                <div style="font-size: 0.7rem; font-weight: 800; color: #fbbf24; text-transform: uppercase; letter-spacing: 0.5px; margin: 8px 0 2px 0;">Онлайн скоро</div>
-
-                <button disabled style="
-                    padding: 14px 16px;
-                    background: rgba(255,255,255,0.02);
-                    border: 1px dashed rgba(245, 158, 11, 0.25);
-                    border-radius: 16px;
-                    color: #71717a;
-                    cursor: not-allowed;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    position: relative;
-                    opacity: 0.6;
-                    width: 100%;
-                ">
-                    <span style="position: absolute; top: -8px; right: 12px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); color: #fbbf24; font-size: 0.6rem; font-weight: 800; padding: 1px 6px; border-radius: 8px;">СКОРО</span>
-                    <span style="font-size: 1.6rem; filter: grayscale(1);">⚔️🧩</span>
-                    <div style="text-align: left;">
-                        <div style="font-size: 1rem; font-weight: 700; color: #a1a1aa;">Пазл-дуэль</div>
-                        <div style="font-size: 0.75rem; opacity: 0.7; font-weight: 400; margin-top: 1px;">Сборка пазла на скорость онлайн</div>
                     </div>
                 </button>
 
@@ -1622,6 +1808,130 @@ document.addEventListener('DOMContentLoaded', () => {
             closeModal();
             if (window.higherLowerGame) {
                 window.higherLowerGame.open();
+            }
+        };
+
+        // --- Metered.ca Key Logic ---
+        const keyInput = modal.querySelector('#hlMeteredKeyInput');
+        const checkBtn = modal.querySelector('#hlCheckMeteredKeyBtn');
+        const instrBtn = modal.querySelector('#hlKeyInstructionsBtn');
+
+        keyInput.value = localStorage.getItem('hlMeteredKey') || '';
+
+        instrBtn.onclick = () => {
+            const overlay = document.createElement('div');
+            overlay.style = "position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 100000; opacity: 0; transition: opacity 0.3s ease; backdrop-filter: blur(8px);";
+            overlay.innerHTML = `
+                <div style="max-width: 500px; width: 90%; background: #18181b; border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+                    <div style="padding: 24px; background: rgba(245, 158, 11, 0.1); border-bottom: 1px solid rgba(245, 158, 11, 0.2); display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="background: #f59e0b; color: #000; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900;">!</div>
+                            <h2 style="margin: 0; font-size: 1.2rem; color: #fff;">Инструкция (API Ключ)</h2>
+                        </div>
+                        <button id="closeInstrBtn" style="background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; line-height: 1;">&times;</button>
+                    </div>
+                    
+                    <div style="padding: 24px; color: rgba(255,255,255,0.9); font-size: 0.9rem; line-height: 1.6; max-height: 60vh; overflow-y: auto;">
+                        <p style="margin-bottom: 20px; font-weight: 500;">Для работы мультиплеера необходимо выполнить следующие шаги:</p>
+                        
+                        <div style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 14px; padding: 20px; margin-bottom: 24px;">
+                            <ol style="margin: 0; padding-left: 20px;">
+                                <li style="margin-bottom: 14px;">
+                                    <b>Регистрация:</b> Перейдите на сайт в окно регистрации по ссылке <a href="https://dashboard.metered.ca/signup" target="_blank" style="color: #f59e0b; font-weight: 800; text-decoration: underline;">dashboard.metered.ca/signup</a>. Введите ник, почту и пароль, остальное заполнять <b>не обязательно</b>.
+                                </li>
+                                <li style="margin-bottom: 14px;">
+                                    <b>Создание приложения:</b> Далее вас попросит создать новое приложение. В поле ввода домена (Domain) вводите <b>что угодно</b> (любое слово на английском) и нажимайте <b>Create App</b>.
+                                </li>
+                                <li style="margin-bottom: 14px;">
+                                    <b>Активация чата:</b> После этого на левой панели найдите вкладку <b>Realtime Messaging</b> и перейдите в неё. Там выберите пункт <b>Real-time chat</b> и нажмите кнопку <b>Enable Realtime Messaging</b>.
+                                </li>
+                                <li style="margin-bottom: 14px;">
+                                    <b>Генерация ключа:</b> После этого нажмите на правую кнопку <b>Create key</b>. В открывшемся окне в поле <b>Key type</b> обязательно выберите <b>Publishable key</b>, затем промотайте в самый низ и нажмите кнопку <b>Create key</b>.
+                                </li>
+                                <li style="margin-bottom: 14px;">
+                                    <b>Копирование:</b> После этого копируйте полученный <b>API Key</b> (он выглядит как <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.85rem;">pk_live_..........</code>).
+                                </li>
+                                <li style="margin-bottom: 6px;">
+                                    <b>Запуск игры:</b> Вставляйте этот ключ в поле ввода на главном экране игры, нажимайте <b>Проверить</b>, и если пишет, что ключ верный — можете начинать играть!
+                                </li>
+                            </ol>
+                        </div>
+
+                        <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #f59e0b;">
+                            <p style="margin: 0; font-size: 0.85rem; color: #fff; line-height: 1.5;">💡 <b>Важное упоминание:</b> У каждого игрока в идеале должен быть зарегистрирован свой ключ, но можно сделать и так, что кто-то один создаст его и просто даст код ключа остальным игрокам — он будет работать у всех!</p>
+                        </div>
+
+                        <div style="font-size: 0.8rem; color: rgba(255,255,255,0.4); font-style: italic; display: flex; gap: 8px; align-items: flex-start; margin-top: 10px;">
+                            ${icon('lightbulb', { size: 14 })}
+                            <span>Ключ сохраняется в памяти вашего браузера, поэтому вводить его повторно при следующем заходе не потребуется.</span>
+                        </div>
+                    </div>
+
+                    <div style="padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; background: rgba(0,0,0,0.2);">
+                        <button id="confirmInstrBtn" style="min-width: 120px; padding: 12px 24px; background: #f59e0b; color: #000; border: none; border-radius: 12px; font-weight: 800; cursor: pointer;">Понятно!</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            setTimeout(() => overlay.style.opacity = '1', 10);
+            
+            const closeOverlay = () => {
+                overlay.style.opacity = '0';
+                setTimeout(() => overlay.remove(), 300);
+            };
+            overlay.querySelector('#closeInstrBtn').onclick = closeOverlay;
+            overlay.querySelector('#confirmInstrBtn').onclick = closeOverlay;
+            overlay.onclick = (e) => { if (e.target === overlay) closeOverlay(); };
+        };
+
+        checkBtn.onclick = async () => {
+            const key = keyInput.value.trim();
+            if (!key) return;
+
+            if (/^[0-9a-fA-F]{32,120}$/.test(key)) {
+                alert('⚠️ Вы вставили API-ключ от Rule34! Требуется ключ Metered.ca (нач. на "pk_live_").');
+                return;
+            }
+
+            if (!key.startsWith('pk_') && !key.startsWith('sk_')) {
+                alert('⚠️ Введённый ключ не похож на ключ Metered.ca.');
+                return;
+            }
+
+            const originalText = checkBtn.textContent;
+            checkBtn.textContent = 'Проверка...';
+            checkBtn.disabled = true;
+
+            try {
+                const ws = new WebSocket(`wss://rms.metered.ca/v1?key=${key}`);
+                let success = false;
+                ws.onopen = () => {
+                    success = true;
+                    ws.close();
+                    localStorage.setItem('hlMeteredKey', key);
+                    checkBtn.textContent = '✅ Сохранено!';
+                    checkBtn.style.background = '#10b981';
+                    setTimeout(() => {
+                        checkBtn.textContent = originalText;
+                        checkBtn.style.background = '';
+                        checkBtn.disabled = false;
+                    }, 3000);
+                };
+                ws.onerror = () => {
+                    if (success) return;
+                    checkBtn.disabled = false;
+                    checkBtn.textContent = originalText;
+                    alert('❌ Ошибка: Не удалось подключиться. Проверьте правильность ключа.');
+                };
+                setTimeout(() => {
+                    if (!success && checkBtn.disabled) {
+                        checkBtn.disabled = false;
+                        checkBtn.textContent = originalText;
+                    }
+                }, 7000);
+            } catch (e) {
+                checkBtn.disabled = false;
+                checkBtn.textContent = originalText;
             }
         };
     };
@@ -5069,7 +5379,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 posts = [];
             }
 
-            const originalLength = posts.length;
+            const originalLength = (data && typeof data.rawCount === 'number') ? data.rawCount : posts.length;
 
             // Client-side filtering of excluded tags
             const inactiveTags = window.tagSearch ? window.tagSearch.activeTags.filter(t => !t.active).map(t => t.value) : [];
@@ -5296,7 +5606,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 errorEl.textContent = 'Ошибка загрузки. Попробуйте позже.';
                 errorEl.classList.add('active');
             }
-            if (!append) {
+            if (append) {
+                gallery.appendResults([], gallery.realCount);
+            } else {
                 gallery.displayResults([], 0);
                 reachedEnd = true;
                 const endOfResults = document.getElementById('end-of-results');
