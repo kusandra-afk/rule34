@@ -52,7 +52,8 @@
 ---
 
 ## 💻 УСТАНОВКА И ЗАПУСК НА ПК
-   - Windows: https://www.python.org/downloads/windows/    
+   - Windows: https://www.python.org/downloads/windows/
+   - Или с Microsoft Store   
 
 2. 📂 Откройте папку проекта  
 
