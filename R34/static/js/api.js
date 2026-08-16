@@ -4,18 +4,10 @@ export function proxyUrl(url) {
     return '/proxy?url=' + encodeURIComponent(url);
 }
 
-// Tag count request deduplication only. Do not persist tag counts in localStorage.
+// Tag count request deduplication
 const inFlightTagCountRequests = new Map();
 
-function getCachedTagCount(tag) {
-    return null;
-}
-
-function setCachedTagCount(tag, count) {
-    return;
-}
-
-export async function fetchTagCount(tag, skipCache = false) {
+export async function fetchTagCount(tag) {
     if (!tag) return 0;
     let trimmed = tag.trim();
     if (!trimmed) return 0;
@@ -23,15 +15,7 @@ export async function fetchTagCount(tag, skipCache = false) {
     // Preserve creator: prefix so author-based searches use the same API syntax.
     const tagForApi = trimmed;
 
-    // 1. Check cache first (unless skipCache is true)
-    if (!skipCache) {
-        const cached = getCachedTagCount(tagForApi);
-        if (cached !== null) {
-            return cached;
-        }
-    }
-
-    // 2. Deduplicate concurrent requests for the same tag
+    // Deduplicate concurrent requests for the same tag
     const reqKey = tagForApi.toLowerCase();
     if (inFlightTagCountRequests.has(reqKey)) {
         return inFlightTagCountRequests.get(reqKey);
@@ -51,10 +35,6 @@ export async function fetchTagCount(tag, skipCache = false) {
             }
             const match = xmlStr.match(/<posts\s+count="(\d+)"/i);
             const count = match ? parseInt(match[1], 10) : 0;
-            // Only cache if not skipped
-            if (!skipCache) {
-                setCachedTagCount(tagForApi, count);
-            }
             return count;
         } catch (e) {
             console.error(`[Rule34 API] Error fetching count for tag "${tagForApi}":`, e);
@@ -88,7 +68,7 @@ export async function fetchTagInfo(tag, noAi = false) {
         const xmlStr = await resp.text();
         
         const countMatch = xmlStr.match(/<posts\s+count="(\d+)"/i);
-        const count = countMatch ? parseInt(countMatch[1], 10) : 0;
+        let count = countMatch ? parseInt(countMatch[1], 10) : 0;
 
         if (count === 0) {
             return { name: trimmed, count: 0, imageUrl: null, images: [], imageUrls: [] };
@@ -222,6 +202,32 @@ export async function fetchTagInfo(tag, noAi = false) {
                         break;
                     }
                 }
+            }
+        }
+
+        // If it's a character and we don't have a copyright yet, fetch from postTags
+        if (tagType === 4 && !copyright && allPostTags.size > 0) {
+            const tagsToCheck = Array.from(allPostTags).filter(t => 
+                t.length > 3 && !t.includes('hair') && !t.includes('eyes') && !t.includes('background') &&
+                !['1girl','2girls','3girls','4girls','5girls','6girls','multiple_girls','solo','female','male','boy','girl','comic','video_games','crossover','breasts','nude','cleavage'].includes(t)
+            ).slice(0, 15);
+            
+            if (tagsToCheck.length > 0) {
+                try {
+                    const promises = tagsToCheck.map(async (t) => {
+                        try {
+                            const res = await fetch(proxyUrl(`https://api.rule34.xxx/index.php?page=dapi&s=tag&q=index&name=${encodeURIComponent(t)}`));
+                            const xml = await res.text();
+                            if (xml.includes('type="3"')) return t;
+                        } catch(e) {}
+                        return null;
+                    });
+                    const results = await Promise.all(promises);
+                    const found = results.find(r => r !== null);
+                    if (found) {
+                        copyright = found;
+                    }
+                } catch(e) { console.error('Dynamic copyright fetch failed', e); }
             }
         }
 
@@ -363,11 +369,22 @@ function normalizePostFromApi(post) {
 
     const normalized = { ...post };
 
-    const rawTags = Array.isArray(post.tags) ? post.tags : null;
+    const rawTagInfo = Array.isArray(post.tag_info) ? post.tag_info : null;
     const rawTagsWithTypes = Array.isArray(post.tags_with_types) ? post.tags_with_types : null;
+    const rawTags = Array.isArray(post.tags) ? post.tags : (typeof post.tags === 'string' ? post.tags.split(' ').filter(Boolean) : null);
 
-    if (!normalized.tagsWithTypes) {
-        if (rawTagsWithTypes) {
+    if (!normalized.tagsWithTypes || normalized.tagsWithTypes.length === 0) {
+        if (rawTagInfo) {
+            normalized.tagsWithTypes = rawTagInfo.map(tag => {
+                if (tag && typeof tag === 'object') {
+                    return {
+                        name: tag.tag || tag.name || tag.value || '',
+                        type: tag.type || tag.category || null
+                    };
+                }
+                return { name: '', type: null };
+            }).filter(tag => tag.name);
+        } else if (rawTagsWithTypes) {
             normalized.tagsWithTypes = rawTagsWithTypes.map(tag => {
                 if (typeof tag === 'string') {
                     return { name: tag, type: null };
@@ -463,7 +480,9 @@ function parsePostsResponse(text) {
         }
 
         post.tagsWithTypes = tagsWithTypes;
-        post.tags = tagsWithTypes.map(t => t.name).join(' ');
+        if (tagsWithTypes.length > 0) {
+            post.tags = tagsWithTypes.map(t => t.name).join(' ');
+        }
         posts.push(post);
     }
 
@@ -546,7 +565,7 @@ export async function fetchPosts(tagsQuery, popularOnly, page = 0) {
             
             const trimmed = text.trim();
             if (isRateLimitResponse(trimmed)) {
-                console.warn('[Rule34 API] Posts fetch blocked by Cloudflare or rate limit body (attempt ${attempt + 1}/${apiRetries})');
+                console.warn(`[Rule34 API] Posts fetch blocked by Cloudflare or rate limit body (attempt ${attempt + 1}/${apiRetries})`);
                 if (attempt < apiRetries - 1) {
                     console.log(`[Rule34 API] Retrying in ${apiRetryDelay / 1000}s...`);
                     await new Promise(resolve => setTimeout(resolve, apiRetryDelay));
@@ -560,7 +579,7 @@ export async function fetchPosts(tagsQuery, popularOnly, page = 0) {
 
             const lowerTrimmed = trimmed.toLowerCase();
             if (lowerTrimmed.startsWith("<!doctype") || lowerTrimmed.startsWith("<html") || lowerTrimmed.startsWith("<script")) {
-                console.warn('[Rule34 API] Posts fetch returned HTML instead of data (likely Cloudflare challenge or Rate Limit) (attempt ${attempt + 1}/${apiRetries})');
+                console.warn(`[Rule34 API] Posts fetch returned HTML instead of data (likely Cloudflare challenge or Rate Limit) (attempt ${attempt + 1}/${apiRetries})`);
                 if (attempt < apiRetries - 1) {
                     console.log(`[Rule34 API] Retrying in ${apiRetryDelay / 1000}s...`);
                     await new Promise(resolve => setTimeout(resolve, apiRetryDelay));
@@ -636,7 +655,7 @@ export async function fetchPosts(tagsQuery, popularOnly, page = 0) {
             const rateLimitError = new Error("RATE_LIMIT");
             rateLimitError.isRateLimit = true;
             rateLimitError.originalError = err;
-            console.error('[Rule34 API] Network error during fetchPosts (attempt ${attempt + 1}/${apiRetries}):', err);
+            console.error(`[Rule34 API] Network error during fetchPosts (attempt ${attempt + 1}/${apiRetries}):`, err);
             
             if (attempt < apiRetries - 1) {
                 console.log(`[Rule34 API] Retrying in ${apiRetryDelay / 1000}s...`);
@@ -670,13 +689,8 @@ export async function fetchPostById(id) {
             console.warn('[Rule34 API] fetchPostById returned HTML (rate limited)');
             return null;
         }
-        try {
-            const arr = JSON.parse(text);
-            return arr && arr.length > 0 ? arr[0] : null;
-        } catch (e) {
-            console.error('[Rule34 API] Error parsing post JSON:', e);
-            return null;
-        }
+        const posts = parsePostsResponse(trimmed);
+        return posts && posts.length > 0 ? posts[0] : null;
     } catch (err) {
         console.error('[Rule34 API] Network error during fetchPostById:', err);
         return null;

@@ -25,7 +25,6 @@ export class Gallery {
         this._playingGridVideos = new Set();
         this._savedVideoPositions = {};
         this._playbackObserver = null;
-        this._playbackObserver = null;
         this.favoritesPosts = [];
         this.profileResultsDiv = document.getElementById('profile-results');
         this._lowPowerMode = this.isLowPowerMode();
@@ -48,7 +47,7 @@ export class Gallery {
         if (this.resultsDiv) {
             this.resultsDiv.innerHTML = `
                 <div class="gallery-welcome-message" style="grid-column: 1 / -1; text-align: center; padding: 100px 24px; color: var(--text-muted, rgba(255,255,255,0.5)); font-size: 1.25rem; font-weight: 500; font-family: inherit;">
-                    Нажмите на поиск ${icon('search', { size: 22, className: 'inline-icon' })} для загрузки меди
+                    Нажмите на поиск ${icon('search', { size: 22, className: 'inline-icon' })} для загрузки медиа
                 </div>
             `;
         }
@@ -581,7 +580,7 @@ export class Gallery {
                         if (this.favoritesPosts.length === 0) {
                             container.innerHTML = `
                                 <div style="color: rgba(255,255,255,0.4); padding: 40px; font-size: 1.1rem;">
-                                    У вас пока нет сохраненных медиа в избранном. Нажмите <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="display:inline-block; vertical-align:middle;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> на любом посте в галерее, чтобы добавить его сюда!
+                                    У вас пока нет сохраненных медиа в избранном. Нажмите <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--accent, #a78bfa)" stroke="none" style="display:inline-block; vertical-align:middle; filter: drop-shadow(0 0 4px var(--accent-glow));"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> на любом посте в галерее, чтобы добавить его сюда!
                                 </div>
                             `;
                             if (countText) {
@@ -1201,8 +1200,9 @@ export class Gallery {
                 </div>
             ` : `
                 <div class="r34-source-plain-text-wrapper">
-                    <div class="r34-source-plain-label">Текстовый источник</div>
-                    <div class="r34-source-plain-text">${escapeHtml(sourceText)}</div>
+                    <div class="r34-source-plain-text-container">
+                        <div class="r34-source-plain-text">${escapeHtml(sourceText)}</div>
+                    </div>
                 </div>
             `}
         `;
@@ -1222,6 +1222,116 @@ export class Gallery {
         return sourceBlock;
     }
 
+    parseRule34Date(raw) {
+        if (raw == null || raw === '') return null;
+
+        let d = null;
+
+        if (typeof raw === 'number') {
+            if (isNaN(raw) || raw <= 0) return null;
+            d = new Date(raw > 1e11 ? raw : raw * 1000);
+        } else if (typeof raw === 'string') {
+            const str = raw.trim();
+            if (!str) return null;
+
+            if (/^\d+$/.test(str)) {
+                const num = parseInt(str, 10);
+                if (isNaN(num) || num <= 0) return null;
+                d = new Date(num > 1e11 ? num : num * 1000);
+            } else {
+                // Rule34 / Gelbooru format: "Mon Jul 10 18:32:01 +0000 2023" or "Sun Aug 11 14:02:11 2024"
+                const gelbooruMatch = str.match(/^[A-Za-z]{3}\s+([A-Za-z]{3})\s+(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})\s+([+-]\d{4}|[A-Za-z]+)?\s*(\d{4})$/);
+                if (gelbooruMatch) {
+                    const monthMap = {
+                        jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+                        jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+                    };
+                    const monthStr = gelbooruMatch[1].toLowerCase();
+                    const month = monthMap[monthStr];
+                    const day = parseInt(gelbooruMatch[2], 10);
+                    const hour = parseInt(gelbooruMatch[3], 10);
+                    const min = parseInt(gelbooruMatch[4], 10);
+                    const sec = parseInt(gelbooruMatch[5], 10);
+                    const tzStr = gelbooruMatch[6];
+                    const year = parseInt(gelbooruMatch[7], 10);
+
+                    if (month !== undefined && !isNaN(day) && !isNaN(year)) {
+                        let utcMs = Date.UTC(year, month, day, hour, min, sec);
+                        if (tzStr && /^[+-]\d{4}$/.test(tzStr)) {
+                            const sign = tzStr[0] === '-' ? -1 : 1;
+                            const tzHours = parseInt(tzStr.slice(1, 3), 10) || 0;
+                            const tzMins = parseInt(tzStr.slice(3, 5), 10) || 0;
+                            const offsetMs = (tzHours * 60 + tzMins) * 60 * 1000 * sign;
+                            utcMs -= offsetMs;
+                        }
+                        d = new Date(utcMs);
+                    }
+                }
+
+                if (!d || isNaN(d.getTime())) {
+                    let isoStr = str;
+                    if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}/.test(str)) {
+                        isoStr = str.replace(' ', 'T') + 'Z';
+                    }
+                    d = new Date(isoStr);
+                }
+            }
+        }
+
+        if (!d || isNaN(d.getTime())) return null;
+
+        const year = d.getFullYear();
+        const currentYear = new Date().getFullYear();
+        if (year < 2006 || year > currentYear + 1) return null;
+
+        return d;
+    }
+
+    estimateDateFromId(id) {
+        const idNum = parseInt(id, 10);
+        if (!idNum || isNaN(idNum) || idNum <= 0) return null;
+
+        const idMilestones = [
+            { id: 100000, time: new Date('2009-01-01').getTime() },
+            { id: 500000, time: new Date('2010-11-14').getTime() },
+            { id: 750000, time: new Date('2011-06-11').getTime() },
+            { id: 1000000, time: new Date('2012-05-05').getTime() },
+            { id: 1500000, time: new Date('2014-02-15').getTime() },
+            { id: 2000000, time: new Date('2016-03-22').getTime() },
+            { id: 2500000, time: new Date('2017-09-10').getTime() },
+            { id: 3000000, time: new Date('2018-12-03').getTime() },
+            { id: 4000000, time: new Date('2020-08-12').getTime() },
+            { id: 5000000, time: new Date('2021-08-17').getTime() },
+            { id: 6000000, time: new Date('2022-04-26').getTime() },
+            { id: 7000000, time: new Date('2022-11-18').getTime() },
+            { id: 8000000, time: new Date('2023-05-30').getTime() },
+            { id: 9000000, time: new Date('2023-11-17').getTime() },
+            { id: 10000000, time: new Date('2024-04-21').getTime() },
+            { id: 14000000, time: new Date('2025-07-03').getTime() },
+            { id: 16000000, time: new Date('2025-12-30').getTime() },
+            { id: 18000000, time: new Date('2026-07-04').getTime() }
+        ];
+
+        if (idNum <= idMilestones[0].id) return new Date(idMilestones[0].time);
+        if (idNum >= idMilestones[idMilestones.length - 1].id) {
+            const last = idMilestones[idMilestones.length - 1];
+            const prev = idMilestones[idMilestones.length - 2];
+            const rate = (last.time - prev.time) / (last.id - prev.id);
+            const estTime = last.time + (idNum - last.id) * rate;
+            return new Date(Math.min(estTime, Date.now()));
+        }
+        for (let i = 0; i < idMilestones.length - 1; i++) {
+            const m1 = idMilestones[i];
+            const m2 = idMilestones[i + 1];
+            if (idNum >= m1.id && idNum <= m2.id) {
+                const ratio = (idNum - m1.id) / (m2.id - m1.id);
+                const estTime = m1.time + ratio * (m2.time - m1.time);
+                return new Date(estTime);
+            }
+        }
+        return null;
+    }
+
     createExtraInfo(post, index) {
         const tagsArr = (post.tags || '').split(' ').filter(Boolean);
         const activeTags = window.tagSearch ? window.tagSearch.activeTags.map(t => t.value) : [];
@@ -1234,6 +1344,24 @@ export class Gallery {
         const score = Number(post.score) || 0;
         const likedKey = `liked_${String(post.id)}`;
         const isLiked = localStorage.getItem(likedKey) === 'true';
+
+        const dateObj = this.parseRule34Date(post.created_at) || 
+                         this.parseRule34Date(post.created_at_date) || 
+                         this.parseRule34Date(post.date) || 
+                         this.parseRule34Date(post.created) || 
+                         this.parseRule34Date(post.timestamp) ||
+                         this.estimateDateFromId(post.id);
+
+        const dateInfo = dateObj ? (() => {
+            try {
+                return {
+                    short: dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }),
+                    full: dateObj.toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                };
+            } catch (e) {
+                return null;
+            }
+        })() : null;
         
         const extraInfo = document.createElement('div');
         extraInfo.className = 'media-extra-info';
@@ -1243,15 +1371,19 @@ export class Gallery {
         const postId = post.id != null ? String(post.id) : '?';
         extraInfo.innerHTML = `
             <div class="media-meta">
-                <div class="media-dimensions">
-                    ${escapeHtml(width)}×${escapeHtml(height)}
-                    <span class="media-id-badge" data-id="${escapeHtml(postId)}" style="opacity: 0.8; margin-left: 8px; font-weight: normal; font-size: 0.85em; color: #a78bfa; background: rgba(167, 139, 250, 0.12); padding: 2px 6px; border-radius: var(--radius-xs); border: 1px solid rgba(167, 139, 250, 0.2); white-space: nowrap; cursor: pointer; transition: all 0.2s ease;" title="Нажмите, чтобы скопировать ID">ID: ${escapeHtml(postId)}</span>
+                <div class="media-dimensions" style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
+                    <span>${escapeHtml(width)}×${escapeHtml(height)}</span>
+                    <span class="media-id-badge" data-id="${escapeHtml(postId)}" style="opacity: 0.8; font-weight: normal; font-size: 0.85em; color: var(--accent, #a78bfa); background: rgba(var(--accent-rgb, 167, 139, 250), 0.12); padding: 2px 6px; border-radius: var(--radius-xs); border: 1px solid rgba(var(--accent-rgb, 167, 139, 250), 0.2); white-space: nowrap; cursor: pointer; transition: all 0.2s ease;" title="Нажмите, чтобы скопировать ID">ID: ${escapeHtml(postId)}</span>
+                    ${dateInfo ? `<span class="media-date-badge" style="opacity: 0.8; font-weight: normal; font-size: 0.85em; color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 2px 6px; border-radius: var(--radius-xs); border: 1px solid rgba(56, 189, 248, 0.2); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;" title="Опубликовано: ${escapeHtml(dateInfo.full)}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.8; flex-shrink: 0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                        ${escapeHtml(dateInfo.short)}
+                    </span>` : ''}
                 </div>
                 <div class="media-likes" data-post-id="${escapeHtml(postId)}">
                     <button class="like-btn ${isLiked ? 'liked' : ''}" 
                             data-post-id="${escapeHtml(postId)}" 
                             title="${escapeHtml(isLiked ? 'Удалить лайк' : 'Поставить лайк')}">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                     </button>
                     <span class="like-count">${escapeHtml(String(score))}</span>
                 </div>
@@ -1265,7 +1397,7 @@ export class Gallery {
             </div>
 
             <div class="media-characters-group" style="display: none; margin-top: 10px; border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">
-                <div style="font-size: 0.8em; color: #a78bfa; margin-bottom: 6px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px;">
+                <div style="font-size: 0.8em; color: var(--accent, #a78bfa); margin-bottom: 6px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px;">
                     <span style="display:inline-flex; align-items:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span> Персонаж:
                 </div>
                 <div class="media-characters-list" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
@@ -1322,9 +1454,9 @@ export class Gallery {
                         idBadge.style.borderColor = 'rgba(52, 227, 154, 0.25)';
                         setTimeout(() => {
                             idBadge.textContent = originalText;
-                            idBadge.style.background = 'rgba(167, 139, 250, 0.12)';
-                            idBadge.style.color = '#a78bfa';
-                            idBadge.style.borderColor = 'rgba(167, 139, 250, 0.2)';
+                            idBadge.style.background = 'rgba(var(--accent-rgb, 167, 139, 250), 0.12)';
+                            idBadge.style.color = 'var(--accent, #a78bfa)';
+                            idBadge.style.borderColor = 'rgba(var(--accent-rgb, 167, 139, 250), 0.2)';
                         }, 1500);
                     }).catch(err => {
                         console.error('Failed to copy ID:', err);
@@ -2083,6 +2215,47 @@ export class Gallery {
         };
         fsContainer.appendChild(closeBtn);
 
+        const infoBtn = document.createElement('button');
+        infoBtn.className = 'fullscreen-info-toggle-btn';
+        infoBtn.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+        infoBtn.title = 'Теги и источник (Свайп влево)';
+        infoBtn.onclick = (e) => {
+            e.stopPropagation();
+            this._toggleFullscreenInfoDrawer();
+        };
+        fsContainer.appendChild(infoBtn);
+
+        const backdrop = document.createElement('div');
+        backdrop.className = 'fullscreen-info-backdrop';
+        backdrop.onclick = (e) => {
+            e.stopPropagation();
+            this._closeFullscreenInfoDrawer();
+        };
+        fsContainer.appendChild(backdrop);
+
+        const drawer = document.createElement('div');
+        drawer.className = 'fullscreen-info-drawer';
+        drawer.innerHTML = `
+            <div class="fullscreen-info-header">
+                <div class="fullscreen-info-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    Информация о медиа
+                </div>
+                <button class="fullscreen-info-close" title="Закрыть панель">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="fullscreen-info-body"></div>
+        `;
+        const drawerCloseBtn = drawer.querySelector('.fullscreen-info-close');
+        if (drawerCloseBtn) {
+            drawerCloseBtn.onclick = (e) => {
+                e.stopPropagation();
+                this._closeFullscreenInfoDrawer();
+            };
+        }
+        fsContainer.appendChild(drawer);
+
         const mediaWrapper = document.createElement('div');
         mediaWrapper.className = 'fullscreen-media-wrapper';
         fsContainer.appendChild(mediaWrapper);
@@ -2172,8 +2345,10 @@ export class Gallery {
             video.volume = volumeVal;
             
             video.muted = false;
-            // In fullscreen slideshow mode, do not loop the video so that onended fires and advances to the next post
-            video.loop = false;
+            // In fullscreen slideshow mode, do not loop the video if auto video slide is enabled so that onended fires and advances to the next post
+            const autoVideoSlide = localStorage.getItem('r34_auto_video_slide') !== 'false';
+            const loopEnabled = localStorage.getItem('r34_video_loop') !== 'false';
+            video.loop = autoVideoSlide ? false : loopEnabled;
             video.playsInline = true;
             video.preload = 'metadata';
             video.style.width = '100vw';
@@ -2269,10 +2444,12 @@ export class Gallery {
 
             new VideoPlayer(video, newSlide, { showFullscreenBtn: false, fullscreenMode: true, post: post });
             video.onended = () => {
-                if (direction === 'up') {
-                    this._fullscreenPrev("up");
-                } else {
-                    this._fullscreenNext("down");
+                if (autoVideoSlide) {
+                    if (direction === 'up') {
+                        this._fullscreenPrev("up");
+                    } else {
+                        this._fullscreenNext("down");
+                    }
                 }
             };
         } else {
@@ -2534,6 +2711,86 @@ export class Gallery {
                 }, 600); // Matches the 0.6s transition duration in CSS
             });
         }
+
+        // Update info drawer content for current post
+        this._updateFullscreenInfoDrawer(post);
+    }
+
+    _updateFullscreenInfoDrawer(post) {
+        if (!this.fullscreenContainer || !post) return;
+        const drawerBody = this.fullscreenContainer.querySelector('.fullscreen-info-body');
+        if (!drawerBody) return;
+
+        drawerBody.innerHTML = '';
+
+        // 1. Extra info (tags, dimensions, score, like button, author, character)
+        const extraInfo = this.createExtraInfo(post, this.fullscreenIdx);
+        extraInfo.hidden = false;
+        drawerBody.appendChild(extraInfo);
+
+        // Categorize tags asynchronously if needed
+        if (extraInfo.dataset.categorized !== "1") {
+            this.categorizeTagsForCard(extraInfo, this.fullscreenIdx).catch(() => {});
+        }
+
+        // 2. Source block (link or text source)
+        const sourceBlock = this.createSourceBlock(post);
+        sourceBlock.hidden = false;
+        drawerBody.appendChild(sourceBlock);
+    }
+
+    _toggleFullscreenInfoDrawer() {
+        if (!this.fullscreenContainer) return;
+        const drawer = this.fullscreenContainer.querySelector('.fullscreen-info-drawer');
+        if (!drawer) return;
+        const isOpen = drawer.classList.contains('open');
+        if (isOpen) {
+            this._closeFullscreenInfoDrawer();
+        } else {
+            this._openFullscreenInfoDrawer();
+        }
+    }
+
+    _openFullscreenInfoDrawer() {
+        if (!this.fullscreenContainer) return;
+        const drawer = this.fullscreenContainer.querySelector('.fullscreen-info-drawer');
+        const backdrop = this.fullscreenContainer.querySelector('.fullscreen-info-backdrop');
+        const infoBtn = this.fullscreenContainer.querySelector('.fullscreen-info-toggle-btn');
+        if (!drawer) return;
+
+        drawer.classList.add('open');
+        drawer.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)';
+        drawer.style.transform = 'translate3d(0, 0, 0)';
+
+        if (backdrop) {
+            backdrop.classList.add('visible');
+            backdrop.style.opacity = '';
+            backdrop.style.pointerEvents = '';
+        }
+        if (infoBtn) {
+            infoBtn.classList.add('active');
+        }
+    }
+
+    _closeFullscreenInfoDrawer() {
+        if (!this.fullscreenContainer) return;
+        const drawer = this.fullscreenContainer.querySelector('.fullscreen-info-drawer');
+        const backdrop = this.fullscreenContainer.querySelector('.fullscreen-info-backdrop');
+        const infoBtn = this.fullscreenContainer.querySelector('.fullscreen-info-toggle-btn');
+        if (!drawer) return;
+
+        drawer.classList.remove('open');
+        drawer.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)';
+        drawer.style.transform = 'translate3d(100%, 0, 0)';
+
+        if (backdrop) {
+            backdrop.classList.remove('visible');
+            backdrop.style.opacity = '';
+            backdrop.style.pointerEvents = '';
+        }
+        if (infoBtn) {
+            infoBtn.classList.remove('active');
+        }
     }
 
     _stopPhotoTimer() {
@@ -2541,40 +2798,354 @@ export class Gallery {
         this._photoViewer = null;
     }
 
+    _createDragPreviewSlide(post, position = 'next') {
+        if (!post) return null;
+        const slide = document.createElement('div');
+        slide.className = `media-slide drag-preview-slide drag-preview-${position}`;
+        slide.style.cssText = `
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            z-index: 1;
+            pointer-events: none;
+            will-change: transform, opacity;
+        `;
+
+        const isVideo = ['mp4','webm','mov'].includes((post.file_url?.split('.').pop() || '').toLowerCase());
+        const previewUrl = post.preview_url || post.sample_url || post.file_url;
+
+        const img = document.createElement('img');
+        img.className = 'media-content';
+        img.src = previewUrl;
+        img.style.cssText = `
+            width: 100vw;
+            height: 100vh;
+            max-width: 100vw;
+            max-height: 100vh;
+            object-fit: contain;
+            display: block;
+            margin: 0 auto;
+        `;
+        slide.appendChild(img);
+
+        if (isVideo) {
+            const playBadge = document.createElement('div');
+            playBadge.style.cssText = `
+                position: absolute;
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                background: rgba(0, 0, 0, 0.5);
+                backdrop-filter: blur(8px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #fff;
+            `;
+            playBadge.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+            slide.appendChild(playBadge);
+        }
+
+        return slide;
+    }
+
     _bindFullscreenHandlers() {
         let touchStartY = null;
-        let swipeDirection = null;
+        let touchStartX = null;
+        let currentDragY = 0;
+        let currentDragX = 0;
+        let isDragging = false;
+        let isHorizontalDrag = false;
+        let isDrawerOpenAtStart = false;
+        let drawerEl = null;
+        let backdropEl = null;
+        let drawerWidth = 400;
+        let activeSlideEl = null;
+        let previewNextSlide = null;
+        let previewPrevSlide = null;
+
+        const getActiveSlide = () => {
+            if (!this.fullscreenContainer) return null;
+            const mediaWrapper = this.fullscreenContainer.querySelector('.fullscreen-media-wrapper');
+            if (!mediaWrapper) return null;
+            return mediaWrapper.querySelector('.media-slide:not(.drag-preview-slide), .fullscreen-slide:not(.drag-preview-slide)');
+        };
+
+        const cleanupDragPreviews = () => {
+            if (previewNextSlide && previewNextSlide.parentNode) {
+                previewNextSlide.parentNode.removeChild(previewNextSlide);
+            }
+            if (previewPrevSlide && previewPrevSlide.parentNode) {
+                previewPrevSlide.parentNode.removeChild(previewPrevSlide);
+            }
+            previewNextSlide = null;
+            previewPrevSlide = null;
+        };
 
         const touchStart = (e) => {
+            if (this._fullscreenTransitioning) return;
             if (e.touches && e.touches[0]) {
+                // Ignore touches on sliders/range inputs or specific buttons inside fullscreen
+                if (e.target.closest('input[type="range"]') || e.target.closest('.fullscreen-close-btn') || e.target.closest('.fullscreen-info-toggle-btn') || e.target.closest('.fullscreen-info-close') || e.target.closest('.video-bottom-volume') || e.target.closest('.video-speed-menu-btn')) {
+                    return;
+                }
+
+                // If touch inside drawer and scrolling vertically, let it scroll naturally
+                const isInsideDrawer = Boolean(e.target.closest('.fullscreen-info-drawer'));
+
                 touchStartY = e.touches[0].clientY;
+                touchStartX = e.touches[0].clientX;
+                currentDragY = 0;
+                currentDragX = 0;
+                isDragging = false;
+                isHorizontalDrag = false;
+                activeSlideEl = getActiveSlide();
+                cleanupDragPreviews();
+
+                drawerEl = this.fullscreenContainer ? this.fullscreenContainer.querySelector('.fullscreen-info-drawer') : null;
+                backdropEl = this.fullscreenContainer ? this.fullscreenContainer.querySelector('.fullscreen-info-backdrop') : null;
+                isDrawerOpenAtStart = drawerEl ? drawerEl.classList.contains('open') : false;
+                drawerWidth = drawerEl ? (drawerEl.offsetWidth || 380) : 380;
             }
         };
+
         const touchMove = (e) => {
-            if (touchStartY === null) return;
+            if (touchStartY === null || this._fullscreenTransitioning) return;
             if (!e.touches || !e.touches[0]) return;
-            let touchY = e.touches[0].clientY;
-            let diffY = touchY - touchStartY;
-            if (Math.abs(diffY) > 30) {
-                swipeDirection = diffY > 0 ? "down" : "up";
+
+            const touchY = e.touches[0].clientY;
+            const touchX = e.touches[0].clientX;
+            const diffY = touchY - touchStartY;
+            const diffX = touchX - touchStartX;
+
+            const isInsideDrawer = Boolean(e.target.closest('.fullscreen-info-drawer'));
+
+            // If start gesture is horizontal or drawer is already open and pulling horizontally
+            if (!isDragging && !isHorizontalDrag) {
+                if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
+                    // Swipe left (diffX < 0) to open from right edge OR swipe right (diffX > 0) to close open drawer
+                    if ((!isDrawerOpenAtStart && diffX < 0) || (isDrawerOpenAtStart && diffX > 0)) {
+                        isHorizontalDrag = true;
+                    }
+                }
             }
-        };
-        const touchEnd = () => {
-            if (!swipeDirection) {
-                touchStartY = null;
+
+            // Handle horizontal interactive dragging for drawer (opening from right to left)
+            if (isHorizontalDrag && drawerEl) {
+                currentDragX = diffX;
+                if (e.cancelable) {
+                    e.preventDefault();
+                }
+
+                drawerEl.style.transition = 'none';
+                if (backdropEl) backdropEl.style.transition = 'none';
+
+                if (!isDrawerOpenAtStart) {
+                    // Opening drawer from right edge (diffX is negative, pull from drawerWidth to 0)
+                    const clampedPull = Math.max(0, Math.min(drawerWidth, -diffX));
+                    const translateX = drawerWidth - clampedPull;
+                    const progress = clampedPull / drawerWidth;
+
+                    drawerEl.style.transform = `translate3d(${translateX}px, 0, 0)`;
+                    if (backdropEl) {
+                        backdropEl.style.opacity = `${progress}`;
+                        backdropEl.style.pointerEvents = progress > 0.1 ? 'auto' : 'none';
+                    }
+                } else {
+                    // Closing drawer back to right (diffX is positive, push from 0 to drawerWidth)
+                    const clampedPush = Math.min(drawerWidth, Math.max(0, diffX));
+                    const progress = 1 - (clampedPush / drawerWidth);
+
+                    drawerEl.style.transform = `translate3d(${clampedPush}px, 0, 0)`;
+                    if (backdropEl) {
+                        backdropEl.style.opacity = `${Math.max(0, progress)}`;
+                    }
+                }
                 return;
             }
-            this._autoSlidePausedByUser = false;
-            if (swipeDirection === "up") {
-                this._fullscreenNext("down");
-            } else if (swipeDirection === "down") {
-                this._fullscreenPrev("up");
+
+            // If inside open drawer and scrolling vertically, do not trigger vertical post navigation
+            if (isDrawerOpenAtStart && isInsideDrawer) {
+                return;
             }
+
+            // Vertical swipe for post switching
+            if (!isHorizontalDrag && (Math.abs(diffY) > 6 || isDragging)) {
+                isDragging = true;
+                currentDragY = diffY;
+                if (e.cancelable) {
+                    e.preventDefault();
+                }
+
+                const screenHeight = window.innerHeight || 800;
+                const mediaWrapper = this.fullscreenContainer ? this.fullscreenContainer.querySelector('.fullscreen-media-wrapper') : null;
+                const postsList = this._activeFullscreenPosts || (this.isFavoritesActive ? this.favoritesPosts : this.currentPosts);
+
+                // Dynamically spawn adjacent preview slides if not spawned yet
+                if (mediaWrapper && postsList && !previewNextSlide && !previewPrevSlide) {
+                    // Next post
+                    let nextIdx = this.fullscreenIdx + 1;
+                    while (nextIdx < postsList.length && this._isPostFiltered(postsList[nextIdx])) {
+                        nextIdx++;
+                    }
+                    if (nextIdx < postsList.length) {
+                        previewNextSlide = this._createDragPreviewSlide(postsList[nextIdx], 'next');
+                        if (previewNextSlide) {
+                            previewNextSlide.style.transform = `translate3d(0, ${screenHeight}px, 0)`;
+                            mediaWrapper.appendChild(previewNextSlide);
+                        }
+                    }
+
+                    // Prev post
+                    let prevIdx = this.fullscreenIdx - 1;
+                    while (prevIdx >= 0 && this._isPostFiltered(postsList[prevIdx])) {
+                        prevIdx--;
+                    }
+                    if (prevIdx >= 0) {
+                        previewPrevSlide = this._createDragPreviewSlide(postsList[prevIdx], 'prev');
+                        if (previewPrevSlide) {
+                            previewPrevSlide.style.transform = `translate3d(0, ${-screenHeight}px, 0)`;
+                            mediaWrapper.appendChild(previewPrevSlide);
+                        }
+                    }
+                }
+
+                if (activeSlideEl) {
+                    activeSlideEl.style.transition = 'none';
+                    let translateY = diffY;
+                    const isAtTop = this.fullscreenIdx <= 0;
+                    const isAtBottom = postsList && this.fullscreenIdx >= postsList.length - 1 && window.reachedEnd;
+                    if ((isAtTop && diffY > 0) || (isAtBottom && diffY < 0)) {
+                        translateY = diffY * 0.35; // rubber band resistance
+                    }
+                    
+                    const dragProgress = Math.min(Math.abs(translateY) / screenHeight, 0.6);
+                    const scale = 1 - dragProgress * 0.08;
+                    const opacity = 1 - dragProgress * 0.2;
+
+                    activeSlideEl.style.transform = `translate3d(0, ${translateY}px, 0) scale(${scale})`;
+                    activeSlideEl.style.opacity = `${opacity}`;
+
+                    // Simultaneously move next preview slide from bottom
+                    if (previewNextSlide) {
+                        previewNextSlide.style.transition = 'none';
+                        const nextY = screenHeight + translateY;
+                        const nextProgress = Math.max(0, -translateY / screenHeight);
+                        const nextScale = 0.92 + nextProgress * 0.08;
+                        const nextOpacity = 0.4 + nextProgress * 0.6;
+                        previewNextSlide.style.transform = `translate3d(0, ${nextY}px, 0) scale(${Math.min(1, nextScale)})`;
+                        previewNextSlide.style.opacity = `${Math.min(1, nextOpacity)}`;
+                    }
+
+                    // Simultaneously move previous preview slide from top
+                    if (previewPrevSlide) {
+                        previewPrevSlide.style.transition = 'none';
+                        const prevY = -screenHeight + translateY;
+                        const prevProgress = Math.max(0, translateY / screenHeight);
+                        const prevScale = 0.92 + prevProgress * 0.08;
+                        const prevOpacity = 0.4 + prevProgress * 0.6;
+                        previewPrevSlide.style.transform = `translate3d(0, ${prevY}px, 0) scale(${Math.min(1, prevScale)})`;
+                        previewPrevSlide.style.opacity = `${Math.min(1, prevOpacity)}`;
+                    }
+                }
+            }
+        };
+
+        const touchEnd = () => {
+            if (touchStartY === null) return;
+
+            // 1. Handle horizontal drawer release (drawer on right)
+            if (isHorizontalDrag && drawerEl) {
+                const diffX = currentDragX;
+                const threshold = Math.min(60, drawerWidth * 0.2);
+
+                if (!isDrawerOpenAtStart) {
+                    // Pulled left by at least threshold
+                    if (diffX <= -threshold) {
+                        this._openFullscreenInfoDrawer();
+                    } else {
+                        this._closeFullscreenInfoDrawer();
+                    }
+                } else {
+                    // Pushed right by at least threshold
+                    if (diffX >= threshold) {
+                        this._closeFullscreenInfoDrawer();
+                    } else {
+                        this._openFullscreenInfoDrawer();
+                    }
+                }
+
+                touchStartY = null;
+                touchStartX = null;
+                currentDragY = 0;
+                currentDragX = 0;
+                isDragging = false;
+                isHorizontalDrag = false;
+                return;
+            }
+
+            // 2. Handle vertical post navigation release
+            const diffY = currentDragY;
+            const screenHeight = window.innerHeight || 800;
+            const threshold = Math.min(70, screenHeight * 0.10);
+
+            const slide = activeSlideEl || getActiveSlide();
+
+            if (isDragging && Math.abs(diffY) >= threshold && !this._fullscreenTransitioning) {
+                this._autoSlidePausedByUser = false;
+                cleanupDragPreviews();
+                if (diffY < 0) {
+                    // Swiped up -> Next post
+                    this._fullscreenNext("down");
+                } else {
+                    // Swiped down -> Prev post
+                    this._fullscreenPrev("up");
+                }
+            } else if (isDragging) {
+                // Snap back all slides smoothly to initial positions
+                if (slide) {
+                    slide.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
+                    slide.style.transform = 'translate3d(0, 0, 0) scale(1)';
+                    slide.style.opacity = '1';
+                }
+                if (previewNextSlide) {
+                    previewNextSlide.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
+                    previewNextSlide.style.transform = `translate3d(0, ${screenHeight}px, 0) scale(0.92)`;
+                    previewNextSlide.style.opacity = '0';
+                }
+                if (previewPrevSlide) {
+                    previewPrevSlide.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
+                    previewPrevSlide.style.transform = `translate3d(0, ${-screenHeight}px, 0) scale(0.92)`;
+                    previewPrevSlide.style.opacity = '0';
+                }
+                setTimeout(() => {
+                    cleanupDragPreviews();
+                    if (slide) {
+                        slide.style.transition = '';
+                    }
+                }, 260);
+            } else {
+                cleanupDragPreviews();
+            }
+
             touchStartY = null;
-            swipeDirection = null;
+            touchStartX = null;
+            currentDragY = 0;
+            currentDragX = 0;
+            isDragging = false;
+            isHorizontalDrag = false;
+            activeSlideEl = null;
         };
 
         const keyHandler = (e) => {
+            if (window.safeScreen && window.safeScreen.isActive) return;
             if (!this.fullscreenContainer) return;
             const isShiftEsc = e.shiftKey && e.key === 'Escape';
             const isCtrlShiftS = e.ctrlKey && e.shiftKey && (e.key === 's' || e.key === 'S' || e.key === 'ы' || e.key === 'Ы');
@@ -2588,7 +3159,14 @@ export class Gallery {
                 e.stopPropagation();
             }
             if (e.key === 'Escape' && !e.shiftKey) {
-                this._exitFullscreen();
+                const drawer = this.fullscreenContainer ? this.fullscreenContainer.querySelector('.fullscreen-info-drawer') : null;
+                if (drawer && drawer.classList.contains('open')) {
+                    this._closeFullscreenInfoDrawer();
+                } else {
+                    this._exitFullscreen();
+                }
+            } else if (e.key.toLowerCase() === 'i' || e.key.toLowerCase() === 'ш') {
+                this._toggleFullscreenInfoDrawer();
             } else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') {
                 this._autoSlidePausedByUser = false;
                 this._fullscreenNext();

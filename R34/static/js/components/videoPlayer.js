@@ -275,12 +275,28 @@ export class VideoPlayer {
             const rect = this.video.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
-            const centerWidth = rect.width * 0.4;
-            const centerHeight = rect.height * 0.4;
-            const isCenterArea = clickX >= (rect.width - centerWidth) / 2 && clickX <= (rect.width + centerWidth) / 2 && clickY >= (rect.height - centerHeight) / 2 && clickY <= (rect.height + centerHeight) / 2;
+            // Center click area for play/pause (compact central zone, e.g. 50-70px radius or 18% of screen)
+            // This ensures user can tap the center to toggle play/pause even when controls are hidden,
+            // while edges and larger surroundings toggle controls visibility or double-tap seek.
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const centerRadius = Math.min(60, Math.min(rect.width, rect.height) * 0.18);
+            const distFromCenter = Math.hypot(clickX - centerX, clickY - centerY);
+            const isCenterArea = distFromCenter <= centerRadius;
 
-            // Check if clicking on play button (center play btn or bottom play btn)
-            const isPlayClick = e.target.closest('.center-play-btn') || e.target.closest('.video-bottom-play-btn');
+            // Check if clicking directly on play button or in the compact center play zone
+            let isPlayClick = Boolean(e.target.closest('.center-play-btn') || e.target.closest('.video-bottom-play-btn'));
+            if (!isPlayClick && this.centerPlayBtn && !this.centerPlayBtn.classList.contains('hide-controls')) {
+                const btnRect = this.centerPlayBtn.getBoundingClientRect();
+                if (
+                    e.clientX >= btnRect.left &&
+                    e.clientX <= btnRect.right &&
+                    e.clientY >= btnRect.top &&
+                    e.clientY <= btnRect.bottom
+                ) {
+                    isPlayClick = true;
+                }
+            }
             const isTogglePlayClick = isPlayClick || isCenterArea;
 
             const performSingleClick = () => {

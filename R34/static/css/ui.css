@@ -61,13 +61,20 @@
   background: var(--glass-bg);
   color: var(--light);
   cursor: pointer;
-  transition: all 0.2s var(--ease);
+  transform: translateZ(0);
+  will-change: transform, border-color, background-color, box-shadow;
+  backface-visibility: hidden;
+  transition: transform 0.22s var(--ease), border-color 0.22s var(--ease), background-color 0.22s var(--ease), box-shadow 0.22s var(--ease);
 }
 
 .preset-btn:hover {
   border-color: var(--accent);
   background: var(--glass-bg-strong);
-  transform: translateY(-2px);
+  transform: translateY(-2px) translateZ(0);
+}
+
+.preset-btn:active {
+  transform: scale(0.97) translateZ(0);
 }
 
 .preset-btn.active {
@@ -1676,7 +1683,7 @@
   user-select: none;
   -webkit-user-select: none;
   cursor: pointer;
-  animation: safeScreenFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: none;
 }
 
 @keyframes safeScreenFadeIn {

@@ -9,8 +9,19 @@ export class SafeScreen {
         this.overlay = null;
         this.toast = null;
         this.isActive = false;
+        this.preloadedFiles = [];
         
         this.init();
+        this.preloadFiles();
+    }
+
+    async preloadFiles() {
+        try {
+            const files = await this.getFiles();
+            this.preloadedFiles = files;
+        } catch (e) {
+            console.warn('Error preloading safe screen files:', e);
+        }
     }
 
     init() {
@@ -165,20 +176,24 @@ export class SafeScreen {
 
     async trigger() {
         try {
-            // Pause all media in gallery immediately before fetching
+            // First pause everything instantly
             this.pauseAllMedia();
 
-            const resp = await fetch('/api/safe-screen/files');
-            const data = await resp.json();
+            // Try to use preloaded files for 0ms latency
+            let files = this.preloadedFiles;
+            if (!files || files.length === 0) {
+                files = await this.getFiles();
+                this.preloadedFiles = files;
+            }
 
-            if (!data.ok || !data.files || data.files.length === 0) {
+            if (!files || files.length === 0) {
                 this.showEmptyToast();
                 return;
             }
 
             // Select random item
-            const randomIndex = Math.floor(Math.random() * data.files.length);
-            const item = data.files[randomIndex];
+            const randomIndex = Math.floor(Math.random() * files.length);
+            const item = files[randomIndex];
 
             this.open(item);
         } catch (err) {
@@ -189,36 +204,51 @@ export class SafeScreen {
 
     pauseAllMedia() {
         try {
-            // 1. Exit native browser HTML5 fullscreen if active
-            if (document.fullscreenElement) {
-                document.exitFullscreen().catch(() => {});
-            }
-
-            // 2. Exit gallery fullscreen mode & pause gallery playback
+            // 1. Pause gallery playback but KEEP the fullscreen container
             if (window.gallery) {
-                if (typeof window.gallery._exitFullscreen === 'function') {
-                    window.gallery._exitFullscreen();
+                this.galleryWasFullscreen = !!window.gallery.fullscreenContainer;
+                this.galleryWasAutoplay = false;
+                this.galleryWasVideoPlaying = false;
+
+                if (window.gallery._photoViewer) {
+                    if (!window.gallery._photoViewer.paused) {
+                        this.galleryWasAutoplay = true;
+                        window.gallery._photoViewer.pause();
+                    }
                 }
-                if (typeof window.gallery.pauseAll === 'function') {
-                    window.gallery.pauseAll();
+
+                if (window.gallery.fullscreenContainer) {
+                    const video = window.gallery.fullscreenContainer.querySelector('video');
+                    if (video && !video.paused) {
+                        this.galleryWasVideoPlaying = true;
+                        video.pause();
+                        video.muted = true;
+                    }
                 }
                 window.gallery._autoSlidePausedByUser = true;
             }
 
-            // 3. Destroy and close active puzzle game if running
-            if (window.activePuzzleGame && typeof window.activePuzzleGame.destroy === 'function') {
-                window.activePuzzleGame.destroy();
-                window.activePuzzleGame = null;
+            // Exit general browser fullscreen ONLY if it is not the gallery's fullscreen container.
+            // Keeping gallery fullscreen active allows the Safe Screen overlay to render seamlessly inside it.
+            if (document.fullscreenElement && (!window.gallery || document.fullscreenElement !== window.gallery.fullscreenContainer)) {
+                document.exitFullscreen().catch(() => {});
             }
-            window.puzzleGameActive = false;
-            
-            // Remove any leftover puzzle overlays / modals
-            const puzzleElements = document.querySelectorAll('.puzzle-overlay, .puzzle-completed-modal, .puzzle-stats-modal');
-            puzzleElements.forEach(el => el.remove());
 
-            // 4. Pause and mute all video and audio elements on page
+            // 2. Pause active puzzle game timer and audio/video without hiding elements (SafeScreen overlay covers full screen)
+            if (window.activePuzzleGame) {
+                if (window.activePuzzleGame.overlay && document.body.contains(window.activePuzzleGame.overlay)) {
+                    if (typeof window.activePuzzleGame.pauseForSafeScreen === 'function') {
+                        window.activePuzzleGame.pauseForSafeScreen();
+                    }
+                } else {
+                    window.activePuzzleGame = null;
+                }
+            }
+
+            // 3. Pause and mute all video and audio elements on page (except safe-screen itself)
             const allMedia = document.querySelectorAll('video, audio');
             allMedia.forEach(el => {
+                if (el.closest('.safe-screen-overlay') || el.closest('#safe-screen-overlay')) return;
                 try {
                     el.pause();
                     el.muted = true;
@@ -240,6 +270,7 @@ export class SafeScreen {
         const overlay = document.createElement('div');
         overlay.id = 'safe-screen-overlay';
         overlay.className = 'safe-screen-overlay';
+        overlay.style.zIndex = '2147483647'; // Use highest possible z-index to overlay everything
 
         const closeBtn = document.createElement('button');
         closeBtn.className = 'safe-screen-close-btn';
@@ -295,7 +326,14 @@ export class SafeScreen {
             this.close();
         };
 
-        document.body.appendChild(overlay);
+        // If gallery is in fullscreen mode, we append the overlay to the fullscreen container
+        // to render on top of native fullscreen without exiting it or breaking layout/playback!
+        if (window.gallery && window.gallery.fullscreenContainer) {
+            window.gallery.fullscreenContainer.appendChild(overlay);
+        } else {
+            document.body.appendChild(overlay);
+        }
+        
         this.overlay = overlay;
 
         // Auto hide hint after 3s
@@ -318,6 +356,49 @@ export class SafeScreen {
             this.overlay.remove();
             this.overlay = null;
         }
+
+        // Restore active puzzle game timer and update board size
+        if (window.activePuzzleGame) {
+            if (window.activePuzzleGame.overlay && document.body.contains(window.activePuzzleGame.overlay)) {
+                if (typeof window.activePuzzleGame.resumeFromSafeScreen === 'function') {
+                    window.activePuzzleGame.resumeFromSafeScreen();
+                }
+                if (typeof window.activePuzzleGame.updateBoardSize === 'function') {
+                    window.activePuzzleGame.updateBoardSize();
+                }
+            } else {
+                window.activePuzzleGame = null;
+                window.puzzleGameActive = false;
+            }
+        }
+
+        const activePuzzle = document.querySelector('.puzzle-overlay');
+        if (!activePuzzle) {
+            window.puzzleGameActive = false;
+        }
+
+        if (window.gallery && window.gallery.observer) {
+            document.querySelectorAll('.media-container').forEach(container => {
+                try {
+                    window.gallery.observer.observe(container);
+                } catch (e) {}
+            });
+        }
+
+        // Restore gallery slideshow and video playback state
+        if (window.gallery) {
+            if (this.galleryWasAutoplay && window.gallery._photoViewer) {
+                window.gallery._photoViewer.resume();
+                window.gallery._autoSlidePausedByUser = false;
+            }
+            if (this.galleryWasVideoPlaying && window.gallery.fullscreenContainer) {
+                const video = window.gallery.fullscreenContainer.querySelector('video');
+                if (video) {
+                    video.muted = false;
+                    video.play().catch(() => {});
+                }
+            }
+        }
     }
 
     showEmptyToast(msg) {
@@ -332,7 +413,7 @@ export class SafeScreen {
             <div class="safe-screen-toast-icon">📁</div>
             <div class="safe-screen-toast-body">
                 <div class="safe-screen-toast-title">Папка safe_screen пуста</div>
-                <div class="safe-screen-toast-text">${msg || 'Добавьте фото или видео в папку <code>/safe_screen</code> проекта!'}</div>
+                <div class="safe-screen-toast-text">${msg || 'Добавьте фото или видео в папку <code>/safe_screen</code> проекта или загрузите их через Базовые настройки!'}</div>
             </div>
             <button class="safe-screen-toast-close">&times;</button>
         `;
@@ -374,18 +455,33 @@ export class SafeScreen {
                 console.error('Upload error:', e);
             }
         }
+        await this.preloadFiles();
         return uploaded;
     }
 
-    async getFiles() {
-        try {
-            const resp = await fetch('/api/safe-screen/files');
-            const data = await resp.json();
-            return (data && data.ok) ? data.files : [];
-        } catch (e) {
-            console.error('Error fetching safe_screen files:', e);
-            return [];
+    async getFiles(retries = 2) {
+        for (let attempt = 0; attempt <= retries; attempt++) {
+            try {
+                const resp = await fetch('/api/safe-screen/files');
+                if (!resp.ok) {
+                    if (attempt < retries) {
+                        await new Promise(r => setTimeout(r, 1000));
+                        continue;
+                    }
+                    return [];
+                }
+                const data = await resp.json();
+                return (data && data.ok && Array.isArray(data.files)) ? data.files : [];
+            } catch (e) {
+                if (attempt < retries) {
+                    await new Promise(r => setTimeout(r, 1000));
+                    continue;
+                }
+                console.warn('Unable to fetch safe_screen files:', e);
+                return [];
+            }
         }
+        return [];
     }
 
     async deleteFile(filename) {
@@ -396,7 +492,11 @@ export class SafeScreen {
                 body: JSON.stringify({ filename })
             });
             const data = await resp.json();
-            return data && data.ok;
+            if (data && data.ok) {
+                await this.preloadFiles();
+                return true;
+            }
+            return false;
         } catch (e) {
             console.error('Error deleting safe_screen file:', e);
             return false;

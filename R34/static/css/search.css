@@ -169,8 +169,8 @@
 }
 
 .inactive-dot {
-  background-color: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
+  background-color: var(--error, #ff5c5c);
+  box-shadow: 0 0 8px rgba(255, 92, 92, 0.4);
 }
 
 /* Плавное сворачивание списка тегов */
@@ -214,7 +214,7 @@
 }
 
 .active-icon { color: var(--success); }
-.inactive-icon { color: var(--accent); }
+.inactive-icon { color: var(--error, #ff5c5c); }
 
 .tag {
   display: flex;
@@ -345,7 +345,9 @@
   color: #fff;
   cursor: pointer;
   box-shadow: 0 6px 16px rgba(var(--accent-rgb), 0.3);
-  transition: all 0.25s var(--ease);
+  transform: translateZ(0);
+  will-change: transform, box-shadow;
+  transition: transform 0.22s var(--ease), box-shadow 0.22s var(--ease);
 }
 
 .r34-search-arrow-btn svg {
@@ -357,12 +359,12 @@
 }
 
 .r34-search-arrow-btn:hover {
-  transform: translateY(-1px) scale(1.03);
+  transform: translateY(-1px) scale(1.03) translateZ(0);
   box-shadow: 0 10px 24px rgba(var(--accent-rgb), 0.45);
 }
 
 .r34-search-arrow-btn:active {
-  transform: translateY(1px) scale(0.97);
+  transform: translateY(1px) scale(0.97) translateZ(0);
 }
 
 /* ---------- Кнопка переключения режима тегов (+ / -) ---------- */
@@ -381,7 +383,9 @@
   border-radius: var(--radius-sm, 12px);
   color: var(--adaptive-text-main, rgba(255, 255, 255, 0.85));
   cursor: pointer;
-  transition: all 0.25s var(--ease);
+  transform: translateZ(0);
+  will-change: transform, background-color, border-color, color;
+  transition: transform 0.22s var(--ease), background-color 0.22s var(--ease), border-color 0.22s var(--ease), color 0.22s var(--ease), box-shadow 0.22s var(--ease);
 }
 
 .r34-tag-mode-btn svg {
@@ -390,19 +394,19 @@
   stroke: currentColor;
   stroke-width: 2;
   fill: none;
-  transition: all 0.25s var(--ease);
+  transition: transform 0.2s var(--ease);
 }
 
 .r34-tag-mode-btn:hover {
   background: rgba(var(--accent-rgb), 0.15);
   border-color: rgba(var(--accent-rgb), 0.4);
   color: var(--accent);
-  transform: translateY(-1px) scale(1.05);
+  transform: translateY(-1px) scale(1.05) translateZ(0);
   box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.2);
 }
 
 .r34-tag-mode-btn:active {
-  transform: translateY(1px) scale(0.95);
+  transform: translateY(1px) scale(0.95) translateZ(0);
 }
 
 /* Режим исключения (минус) */

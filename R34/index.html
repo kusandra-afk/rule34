@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="static/css/adaptive.css">
 <link rel="stylesheet" href="static/css/ui.css">
 <link rel="stylesheet" href="static/css/higherLower.css">
+<link rel="stylesheet" href="static/css/lobby.css">
 </head>
 <body>
 
@@ -43,11 +44,11 @@
 <!-- ═══ Табы режимов ═══ -->
 <div class="app-mode-tabs">
   <button id="modeGalleryBtn" class="app-mode-btn active">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
     Галерея
   </button>
   <button id="modeProfileBtn" class="app-mode-btn">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
     Избранное
   </button>
   <button id="settingsBtn" class="app-mode-btn app-mode-btn--icon" title="Настройки">
@@ -108,7 +109,7 @@
       <!-- ═══ ВКЛАДКА 1: ОБЫЧНЫЕ ═══ -->
       <div id="settings-content-basic" class="settings-tab-pane" style="display: flex;">
 
-        <!-- СЕКЦИЯ: ПОИСК И ФИЛЬТРАЦИЯ -->
+        <!-- СЕКЦИЯ 1: ПОИСК И ФИЛЬТРАЦИЯ -->
         <div class="settings-section-title">
           <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <span>Поиск и фильтрация</span>
@@ -133,7 +134,8 @@
           </div>
         </div>
 
-        <div class="settings-option">
+        <!-- Сортировка медиа -->
+        <div class="settings-option settings-option--divided">
           <label class="settings-label">Сортировка медиа</label>
           <select id="settingsSortSelect" class="r34-select">
             <option value="new">Новое</option>
@@ -143,12 +145,14 @@
           </select>
         </div>
 
-        <div id="settingsLikesGroup" class="settings-option" style="display: none;">
+        <!-- Порог лайков -->
+        <div id="settingsLikesGroup" class="settings-option settings-option--divided" style="display: none;">
           <label class="settings-label">Минимальный score (лайки)</label>
           <input id="settingsMinLikesInput" type="number" class="r34-input" min="0" value="0">
         </div>
 
-        <div id="settingsCombineRandomLikesGroup" class="settings-option settings-option-row">
+        <!-- Совместить случайный поиск с лайками -->
+        <div id="settingsCombineRandomLikesGroup" class="settings-option settings-option-row settings-option--divided">
           <label class="settings-label" title="Применять порог лайков (минимальный score) при случайном поиске">Совместить случайный поиск с лайками</label>
           <label class="r34-toggle-switch">
             <input type="checkbox" id="settingsCombineRandomLikesCheckbox">
@@ -157,7 +161,7 @@
         </div>
 
         <!-- Только GIF -->
-        <div class="settings-option">
+        <div class="settings-option settings-option--divided">
           <div class="settings-row">
             <div class="settings-label-group">
               <label class="settings-label" title="Показывать только анимации в формате GIF">Только GIF</label>
@@ -174,7 +178,7 @@
         </div>
 
         <!-- Фильтр мин. длительности видео -->
-        <div class="settings-option">
+        <div class="settings-option settings-option--divided">
           <div class="settings-row">
             <div class="settings-label-group">
               <label class="settings-label settings-label-sub">Фильтр мин. длительности видео</label>
@@ -216,10 +220,11 @@
           </label>
         </div>
 
-        <!-- СЕКЦИЯ: СЕТКА И КАЧЕСТВО -->
-        <div class="settings-section-title">
+
+        <!-- СЕКЦИЯ 2: ОТОБРАЖЕНИЕ И КАЧЕСТВО -->
+        <div class="settings-section-title settings-section-title-spaced">
           <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          <span>Сетка и качество</span>
+          <span>Отображение и качество</span>
         </div>
 
         <!-- Количество колонок -->
@@ -245,7 +250,7 @@
         </div>
 
         <!-- Оригинальное качество -->
-        <div class="settings-option">
+        <div class="settings-option settings-option--divided-top">
           <div class="settings-row">
             <div class="settings-label-group">
               <label class="settings-label" title="Загружать оригинальное качество для фото, GIF и видео вместо оптимизированных превью">Оригинальное качество</label>
@@ -266,7 +271,7 @@
         </div>
 
         <!-- Экономия трафика -->
-        <div class="settings-option">
+        <div class="settings-option settings-option--divided-top">
           <div class="settings-row">
             <div class="settings-label-group">
               <label class="settings-label" title="Подгружать только легкое превью для экономии трафика">Экономия трафика (только превью)</label>
@@ -282,58 +287,11 @@
           </div>
         </div>
 
-        <!-- СЕКЦИЯ: ВОСПРОИЗВЕДЕНИЕ МЕДИА -->
-        <div class="settings-section-title">
+
+        <!-- СЕКЦИЯ 3: ВОСПРОИЗВЕДЕНИЕ И СЛАЙД-ШОУ -->
+        <div class="settings-section-title settings-section-title-spaced">
           <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          <span>Воспроизведение медиа</span>
-        </div>
-
-        <!-- СЕКЦИЯ: SAFE SCREEN (ЭКРАН БЕЗОПАСНОСТИ) -->
-        <div id="safeScreenSettingsBlock" class="safe-screen-settings-wrapper">
-          <div class="settings-section-title">
-            <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <span style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-              Safe Screen (Экран безопасности)
-              <span class="pc-only-badge">(только для ПК)</span>
-            </span>
-          </div>
-
-          <div class="settings-option settings-option--divided-compact">
-            <!-- Горячие клавиши -->
-            <div class="settings-row settings-row--wrap" style="gap: 12px; align-items: center;">
-              <div class="settings-label-group" style="flex: 1;">
-                <label class="settings-label">Быстрый вызов (Горячая клавиша)</label>
-                <div style="font-size: 0.85rem; color: rgba(255, 255, 255, 0.6); margin-top: 4px; display: flex; align-items: center; gap: 8px;">
-                  <span>Текущая комбинация:</span>
-                  <kbd id="safeScreenHotkeyDisplay" style="background: var(--accent); padding: 3px 8px; border-radius: 6px; color: #fff; font-weight: 600; font-size: 0.85rem;">Alt + S</kbd>
-                </div>
-              </div>
-              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                <button id="safeScreenChangeHotkeyBtn" class="r34-btn-secondary" style="min-width: 140px;">Изменить клавишу</button>
-                <button id="safeScreenTestBtn" class="r34-btn-secondary" style="min-width: 90px;">Проверить</button>
-              </div>
-            </div>
-
-            <!-- Загрузка и Список файлов в safe_screen -->
-            <div style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
-                <label class="settings-label" style="font-size: 0.9rem;">Файлы в папке safe_screen:</label>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <input type="file" id="safeScreenFileInput" multiple accept="image/*,video/*" style="display: none;">
-                  <button id="safeScreenUploadBtn" class="r34-btn-secondary" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; padding: 6px 12px;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    Загрузить файлы
-                  </button>
-                  <span id="safeScreenUploadStatus" style="font-size: 0.85rem; color: #2ecc71;"></span>
-                </div>
-              </div>
-
-              <!-- Контейнер со списком загруженных файлов -->
-              <div id="safeScreenFileList" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px;">
-                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.5); text-align: center; padding: 12px;">Загрузка списка файлов...</div>
-              </div>
-            </div>
-          </div>
+          <span>Воспроизведение и Слайд-шоу</span>
         </div>
 
         <!-- Бесконечный повтор видео -->
@@ -371,7 +329,7 @@
         </div>
 
         <!-- Начальный уровень громкости -->
-        <div class="settings-option">
+        <div class="settings-option settings-option--divided-top">
           <div class="settings-row">
             <div class="settings-label-group">
               <label class="settings-label">Начальный уровень громкости</label>
@@ -389,7 +347,7 @@
         </div>
 
         <!-- Автопролистывание фото -->
-        <div class="settings-option settings-option-row">
+        <div class="settings-option settings-option-row settings-option--divided-top">
           <label class="settings-label" title="Автоматически переключать изображения в полноэкранном режиме">Автопролистывание изображений</label>
           <label class="r34-toggle-switch">
             <input type="checkbox" id="settingsAutoSlideCheckbox" checked>
@@ -397,8 +355,17 @@
           </label>
         </div>
 
+        <!-- Автопролистывание видео -->
+        <div class="settings-option settings-option-row settings-option--divided-top">
+          <label class="settings-label" title="Автоматически переключать видео в полноэкранном режиме по окончании воспроизведения">Автопролистывание видео</label>
+          <label class="r34-toggle-switch">
+            <input type="checkbox" id="settingsAutoVideoSlideCheckbox" checked>
+            <span class="r34-slider"></span>
+          </label>
+        </div>
+
         <!-- Интервал автопролистывания -->
-        <div class="settings-option">
+        <div class="settings-option settings-option--divided-top">
           <div class="settings-row">
             <div class="settings-label-group">
               <label class="settings-label settings-label-sub">Интервал автопролистывания (сек)</label>
@@ -407,12 +374,62 @@
             <input type="number" id="settingsAutoSlideInterval" class="r34-input-mini input-mini-num" placeholder="5" min="1" max="60">
           </div>
           <div class="info-help-box" id="info-autoslide" style="display: none;">
-            Указывает время в секундах для автопролистывания в полноэкранном режиме.
+            Указывает время в секундах для автопролистывания в полноэкранном режиме. Видео переключается автоматически сразу после окончания воспроизведения.
           </div>
         </div>
 
-        <!-- СЕКЦИЯ: СИСТЕМА И ДАННЫЕ -->
-        <div class="settings-section-title">
+
+        <!-- СЕКЦИЯ 4: SAFE SCREEN (ЭКРАН БЕЗОПАСНОСТИ) -->
+        <div id="safeScreenSettingsBlock" class="safe-screen-settings-wrapper" style="border: none; padding: 0; background: none; margin-top: 0;">
+          <div class="settings-section-title settings-section-title-spaced">
+            <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              Safe Screen (Экран безопасности)
+              <span class="pc-only-badge">(только для ПК)</span>
+            </span>
+          </div>
+
+          <div class="settings-option" style="border: none; padding: 0;">
+            <!-- Горячие клавиши -->
+            <div class="settings-row settings-row--wrap" style="gap: 12px; align-items: center;">
+              <div class="settings-label-group" style="flex: 1;">
+                <label class="settings-label">Быстрый вызов (Горячая клавиша)</label>
+                <div style="font-size: 0.85rem; color: rgba(255, 255, 255, 0.6); margin-top: 4px; display: flex; align-items: center; gap: 8px;">
+                  <span>Текущая комбинация:</span>
+                  <kbd id="safeScreenHotkeyDisplay" style="background: var(--accent); padding: 3px 8px; border-radius: 6px; color: #fff; font-weight: 600; font-size: 0.85rem;">Alt + S</kbd>
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <button id="safeScreenChangeHotkeyBtn" class="r34-btn-secondary" style="min-width: 140px;">Изменить клавишу</button>
+                <button id="safeScreenTestBtn" class="r34-btn-secondary" style="min-width: 90px;">Проверить</button>
+              </div>
+            </div>
+
+            <!-- Загрузка и Список файлов в safe_screen -->
+            <div style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                <label class="settings-label" style="font-size: 0.9rem;">Файлы в папке safe_screen:</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <input type="file" id="safeScreenFileInput" multiple accept="image/*,video/*" style="display: none;">
+                  <button id="safeScreenUploadBtn" class="r34-btn-secondary" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; padding: 6px 12px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Загрузить файлы
+                  </button>
+                  <span id="safeScreenUploadStatus" style="font-size: 0.85rem; color: #2ecc71;"></span>
+                </div>
+              </div>
+
+              <!-- Контейнер со списком загруженных файлов -->
+              <div id="safeScreenFileList" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px;">
+                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.5); text-align: center; padding: 12px;">Загрузка списка файлов...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- СЕКЦИЯ 5: СИСТЕМА И ДАННЫЕ -->
+        <div class="settings-section-title settings-section-title-spaced">
           <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span>Система и данные</span>
         </div>
@@ -432,7 +449,7 @@
         </div>
 
         <!-- Выход из аккаунта -->
-        <div class="settings-option settings-logout-group">
+        <div class="settings-option settings-logout-group settings-option--divided-top">
           <a href="/logout" class="r34-btn-danger settings-logout-link" id="logoutBtn">Выйти из аккаунта</a>
         </div>
 
@@ -597,14 +614,28 @@
 <!-- ═══ Колонка опций ═══ -->
 <div class="advanced-options-col">
 
-  <!-- СЕКЦИЯ: ТЕМА, ЦВЕТА И ЗАГОЛОВОК (Палитра → SVG) -->
+  <!-- СЕКЦИЯ 1: ВНЕШНИЙ ВИД И ТЕМА (Палитра → SVG) -->
   <div class="settings-section-title">
     <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-4.96-4.48-9-10-9z"/><circle cx="6.5" cy="11.5" r="1.5"/><circle cx="9.5" cy="7.5" r="1.5"/><circle cx="14.5" cy="7.5" r="1.5"/><circle cx="17.5" cy="11.5" r="1.5"/></svg>
-    <span>Тема, цвета и заголовок</span>
+    <span>Внешний вид и Тема</span>
+  </div>
+
+  <!-- Свой логотип -->
+  <div class="settings-option settings-option--divided">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Свой логотип (Заголовок)</label>
+        <button class="info-btn" data-info="custom-logo" title="Инструкция">!</button>
+      </div>
+      <input type="text" id="settingsCustomLogoInput" class="r34-input-mini input-mini-text" placeholder="Rule34 Gallery">
+    </div>
+    <div class="info-help-box" id="info-custom-logo" style="display: none;">
+      Позволяет заменить стандартный текстовый логотип "Rule34 Gallery" в шапке сайта на ваше собственное название. Оставьте пустым, чтобы вернуть стандартный логотип.
+    </div>
   </div>
 
   <!-- Акцентный цвет -->
-  <div class="settings-option settings-option--divided">
+  <div class="settings-option settings-option--divided-top">
     <div class="settings-row">
       <div class="settings-label-group">
         <label class="settings-label">Акцентный цвет сайта</label>
@@ -632,7 +663,7 @@
   </div>
 
   <!-- Фон интерфейса -->
-  <div class="settings-option settings-option--divided">
+  <div class="settings-option settings-option--divided-top">
     <div class="settings-row">
       <div class="settings-label-group">
         <label class="settings-label">Фон интерфейса</label>
@@ -657,7 +688,415 @@
     </select>
   </div>
 
-  <!-- СЕКЦИЯ: ОПТИМИЗАЦИЯ (Ракета → SVG, жёлтый блок) -->
+  <!-- Стиль шапки поиска -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Стиль шапки поиска</label>
+        <button class="info-btn" data-info="header-style" title="Инструкция">!</button>
+      </div>
+    </div>
+    <div class="info-help-box" id="info-header-style" style="display: none;">
+      Определяет внешний вид верхней поисковой панели. <br><br>
+      <b>Полупрозрачное стекло</b>: Размытие заднего фона с эффектом матового стекла.<br>
+      <b>Сплошной темный</b>: Обычный сплошной глубокий темный цвет.<br>
+      <b>Полностью прозрачный</b>: Шапка сливается с основным фоном сайта.<br>
+      <b>В цвет акцента</b>: Фирменный цвет выбранного вами акцента.
+    </div>
+    <select id="settingsHeaderStyleSelect" class="r34-select settings-select-spaced">
+      <option value="glass">Полупрозрачное стекло (Glassmorphic)</option>
+      <option value="dark">Сплошной темный (Solid Dark)</option>
+      <option value="transparent">Полностью прозрачный (Transparent)</option>
+      <option value="accent">В цвет акцента (Accent Color)</option>
+    </select>
+  </div>
+
+  <!-- Шрифт интерфейса -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Шрифт интерфейса</label>
+        <button class="info-btn" data-info="font" title="Инструкция">!</button>
+      </div>
+      <input type="text" id="settingsFontManual" class="r34-input-mini input-mini-text" placeholder="Arial">
+    </div>
+    <div class="info-help-box" id="info-font" style="display: none;">
+      Изменяет шрифт всех текстовых элементов интерфейса галереи.<br><br>
+      <b>Как настроить:</b><br>
+      - Вы можете выбрать один из специально подобранных стилей шрифта из списка ниже.<br>
+      - Вы можете ввести точное название любого шрифта, установленного на вашем устройстве, в поле ввода справа. Введите название (например: <code>Arial</code>, <code>Tahoma</code>, <code>Times New Roman</code>, <code>Courier New</code>) и шрифт мгновенно применится.
+    </div>
+    <select id="settingsFontSelect" class="r34-select settings-select-spaced">
+      <option value="sans">Inter (Классический без засечек)</option>
+      <option value="mono">JetBrains Mono (Технический моноширинный)</option>
+      <option value="rounded">Comfortaa / System Rounded (Округлый)</option>
+    </select>
+  </div>
+
+  <!-- Базовый масштаб шрифта -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Базовый масштаб шрифта</label>
+        <button class="info-btn" data-info="base-font" title="Инструкция">!</button>
+      </div>
+      <div class="settings-control-group">
+        <input type="number" id="settingsBaseFontManual" class="r34-input-mini input-mini-num" min="12" max="24">
+        <span id="settingsBaseFontValue" class="settings-value">16px</span>
+      </div>
+    </div>
+    <div class="info-help-box" id="info-base-font" style="display: none;">
+      Задает глобальный размер шрифта на веб-сайте. Изменение этого параметра масштабирует все надписи, размеры кнопок, подписи к тегам и описания. Стандартный размер — 16px. Можно установить от 12px до 24px.
+    </div>
+    <input id="settingsBaseFontInput" type="range" min="12" max="24" step="1" value="16" class="r34-range r34-range-gradient settings-range">
+  </div>
+
+
+  <!-- СЕКЦИЯ 2: СЕТКА И РАЗМЕРЫ (Сетка → SVG) -->
+  <div class="settings-section-title settings-section-title-spaced">
+    <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    <span>Параметры сетки и размеры</span>
+  </div>
+
+  <!-- Расстояние между карточками -->
+  <div class="settings-option settings-option--divided">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Расстояние между карточками (Gap)</label>
+        <button class="info-btn" data-info="gap" title="Инструкция">!</button>
+      </div>
+      <div class="settings-control-group">
+        <input type="number" id="settingsGapManual" class="r34-input-mini input-mini-num" min="0" max="80">
+        <span id="settingsGapValue" class="settings-value">24px</span>
+      </div>
+    </div>
+    <div class="info-help-box" id="info-gap" style="display: none;">
+      Увеличивает или уменьшает зазоры в сетке медиа-карточек. Стандартное значение — 24px. Допускается диапазон от 0 до 80px.
+    </div>
+    <input id="settingsGapInput" type="range" min="4" max="40" step="2" value="24" class="r34-range r34-range-gradient settings-range">
+  </div>
+
+  <!-- Минимальный размер карточки -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Минимальный размер карточки</label>
+        <button class="info-btn" data-info="colwidth" title="Инструкция">!</button>
+      </div>
+      <div class="settings-control-group">
+        <input type="number" id="settingsColWidthManual" class="r34-input-mini input-mini-num" min="100" max="600">
+        <span id="settingsColWidthValue" class="settings-value">300px</span>
+      </div>
+    </div>
+    <div class="info-help-box" id="info-colwidth" style="display: none;">
+      Регулирует плотность сетки. Чем меньше минимальный размер одной карточки, тем больше элементов поместится в один горизонтальный ряд на экране (от 100 до 600px).
+    </div>
+    <input id="settingsColWidthInput" type="range" min="160" max="480" step="10" value="300" class="r34-range r34-range-gradient settings-range">
+  </div>
+
+  <!-- Принудительные размеры -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Принудительная ширина (px)</label>
+        <button class="info-btn" data-info="forced-size" title="Инструкция">!</button>
+      </div>
+      <input type="number" id="settingsForcedWidth" class="r34-input-mini input-mini-md" placeholder="Авто" min="50" max="2000">
+    </div>
+    <div class="info-help-box" id="info-forced-size" style="display: none;">
+      Фиксирует размеры медиа. Оставьте поля пустыми для автоматического расчёта. При задании размеров снимаются внутренние ограничения на максимальную ширину карточек.
+    </div>
+    <div class="settings-row settings-row-spaced">
+      <label class="settings-label">Принудительная высота (px)</label>
+      <input type="number" id="settingsForcedHeight" class="r34-input-mini input-mini-md" placeholder="Авто" min="50" max="2000">
+    </div>
+  </div>
+
+
+  <!-- СЕКЦИЯ 3: СТИЛИЗАЦИЯ И ЭФФЕКТЫ КАРТОЧЕК (Искры/Слои → SVG) -->
+  <div class="settings-section-title settings-section-title-spaced">
+    <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    <span>Стилизация и эффекты карточек</span>
+  </div>
+
+  <!-- Скругление карточек -->
+  <div class="settings-option settings-option--divided">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Скругление карточек</label>
+        <button class="info-btn" data-info="radius" title="Инструкция">!</button>
+      </div>
+      <div class="settings-control-group">
+        <input type="number" id="settingsRadiusManual" class="r34-input-mini input-mini-num" min="0" max="60">
+        <span id="settingsRadiusValue" class="settings-value">20px</span>
+      </div>
+    </div>
+    <div class="info-help-box" id="info-radius" style="display: none;">
+      Управляет радиусом скругления углов карточек в результатах поиска. 0px — острые углы. Стандартное значение — 20px. Вы можете ввести любое значение от 0 до 60px.
+    </div>
+    <input id="settingsRadiusInput" type="range" min="0" max="32" step="2" value="20" class="r34-range r34-range-gradient settings-range">
+  </div>
+
+  <!-- Прозрачность карточек -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Прозрачность карточек</label>
+        <button class="info-btn" data-info="card-opacity" title="Инструкция">!</button>
+      </div>
+      <div class="settings-control-group">
+        <input type="number" id="settingsCardOpacityManual" class="r34-input-mini input-mini-num" min="0" max="100">
+        <span id="settingsCardOpacityValue" class="settings-value">85%</span>
+      </div>
+    </div>
+    <div class="info-help-box" id="info-card-opacity" style="display: none;">
+      Регулирует прозрачность заднего фона каждой карточки. 0% — карточки полностью прозрачны, виден только контент. 100% — полностью сплошной темный фон. Стандартное значение — 85%.
+    </div>
+    <input id="settingsCardOpacityInput" type="range" min="0" max="100" step="5" value="85" class="r34-range r34-range-gradient settings-range">
+  </div>
+
+  <!-- Размытие фона карточек -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Размытие фона карточек</label>
+        <button class="info-btn" data-info="card-blur" title="Инструкция">!</button>
+      </div>
+      <div class="settings-control-group">
+        <input type="number" id="settingsCardBlurManual" class="r34-input-mini input-mini-num" min="0" max="24">
+        <span id="settingsCardBlurValue" class="settings-value">0px</span>
+      </div>
+    </div>
+    <div class="info-help-box" id="info-card-blur" style="display: none;">
+      Применяет эффект размытия заднего плана (backdrop-filter) для карточек. Создает эффект "матового стекла". Примечание: высокое размытие на старых телефонах может снизить производительность прокрутки. Рекомендуется от 0px до 12px.
+    </div>
+    <input id="settingsCardBlurInput" type="range" min="0" max="24" step="2" value="0" class="r34-range r34-range-gradient settings-range">
+  </div>
+
+  <!-- Толщина рамки карточки -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Толщина рамки карточки</label>
+        <button class="info-btn" data-info="card-border-width" title="Инструкция">!</button>
+      </div>
+      <div class="settings-control-group">
+        <input type="number" id="settingsCardBorderWidthManual" class="r34-input-mini input-mini-num" min="0" max="8">
+        <span id="settingsCardBorderWidthValue" class="settings-value">1px</span>
+      </div>
+    </div>
+    <div class="info-help-box" id="info-card-border-width" style="display: none;">
+      Задает толщину рамки вокруг карточек публикаций. По умолчанию 1px. Вы можете установить значение от 0px (без рамки) до 8px (жирная стильная рамка).
+    </div>
+    <input id="settingsCardBorderWidthInput" type="range" min="0" max="8" step="1" value="1" class="r34-range r34-range-gradient settings-range">
+  </div>
+
+  <!-- Цвет рамки карточки -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Цвет рамки карточки</label>
+        <button class="info-btn" data-info="card-border-color" title="Инструкция">!</button>
+      </div>
+      <div class="settings-control-group">
+        <input type="color" id="settingsCardBorderColorPicker" class="color-picker" title="Выбрать цвет">
+        <input type="text" id="settingsCardBorderColorManual" class="r34-input-mini input-mini-rgba" placeholder="rgba(255,255,255,0.06)">
+      </div>
+    </div>
+    <div class="info-help-box" id="info-card-border-color" style="display: none;">
+      Определяет цвет рамки вокруг карточек в спокойном состоянии. По умолчанию используется полупрозрачный белый. Вы можете выбрать любой оттенок.
+    </div>
+  </div>
+
+  <!-- Эффект при наведении -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-label-group">
+      <label class="settings-label">Эффект при наведении на медиа</label>
+      <button class="info-btn" data-info="hover" title="Инструкция">!</button>
+    </div>
+    <div class="info-help-box" id="info-hover" style="display: none;">
+      Эффект при наведении определяет, как будут вести себя карточки в галерее, когда вы наводите на них курсор. Вы можете выбрать вариант из выпадающего списка. <br><br>
+      <b>Увеличение и подъем (Стандартный)</b>: Карточка слегка приподнимается вверх и увеличивается, а её границы подсвечиваются.<br>
+      <b>Неоновое свечение границ</b>: Карточка остается на месте, но вокруг неё появляется яркое неоновое свечение.<br>
+      <b>Легкий сдвиг вверх</b>: Плавное перемещение карточки вверх с появлением небольшой тени внизу.<br>
+      <b>Пульсация</b>: Легкое увеличение карточки при наведении.<br>
+      <b>Яркая рамка</b>: Появление яркой рамки вокруг карточки.<br>
+      <b>Без эффекта</b>: Отключение визуальных эффектов (карточка останется статичной).
+    </div>
+    <select id="settingsHoverSelect" class="r34-select settings-select-spaced">
+      <option value="zoom">Увеличение и подъем (Стандартный)</option>
+      <option value="glow">Неоновое свечение границ</option>
+      <option value="slide">Легкий сдвиг вверх</option>
+      <option value="pulse">Пульсация</option>
+      <option value="borderPop">Яркая рамка</option>
+      <option value="none">Без эффекта</option>
+    </select>
+  </div>
+
+  <!-- Интенсивность свечения -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Интенсивность свечения (Shadow)</label>
+        <button class="info-btn" data-info="card-glow-intensity" title="Инструкция">!</button>
+      </div>
+      <div class="settings-control-group">
+        <input type="number" id="settingsCardGlowManual" class="r34-input-mini input-mini-num" min="0" max="100">
+        <span id="settingsCardGlowValue" class="settings-value">45%</span>
+      </div>
+    </div>
+    <div class="info-help-box" id="info-card-glow-intensity" style="display: none;">
+      Увеличивает или уменьшает яркость неонового свечения или тени, которая появляется у карточки при наведении. Выставьте 0%, чтобы полностью отключить свечение/тень.
+    </div>
+    <input id="settingsCardGlowInput" type="range" min="0" max="100" step="5" value="45" class="r34-range r34-range-gradient settings-range">
+  </div>
+
+  <!-- Скорость анимации карточек -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Скорость анимации карточек</label>
+        <button class="info-btn" data-info="card-transition-speed" title="Инструкция">!</button>
+      </div>
+      <div class="settings-control-group">
+        <input type="number" id="settingsCardTransitionManual" class="r34-input-mini input-mini-num" min="100" max="1000" step="50">
+        <span id="settingsCardTransitionValue" class="settings-value">300ms</span>
+      </div>
+    </div>
+    <div class="info-help-box" id="info-card-transition-speed" style="display: none;">
+      Управляет временем плавного изменения состояния карточки при наведении (эффект увеличения, появление тени и т.д.). От 100ms (почти мгновенно) до 1000ms (очень медленный кинематографичный переход).
+    </div>
+    <input id="settingsCardTransitionInput" type="range" min="100" max="1000" step="50" value="300" class="r34-range r34-range-gradient settings-range">
+  </div>
+
+
+  <!-- СЕКЦИЯ 4: ИНФОРМАТИВНОСТЬ И ПОВЕДЕНИЕ ТЕГОВ (Тег → SVG) -->
+  <div class="settings-section-title settings-section-title-spaced">
+    <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+    <span>Информативность и Поведение тегов</span>
+  </div>
+
+  <!-- Показывать теги в описании -->
+  <div class="settings-option settings-option--divided">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Показывать теги в описании</label>
+        <button class="info-btn" data-info="card-tags" title="Инструкция">!</button>
+      </div>
+      <label class="r34-toggle-switch">
+        <input type="checkbox" id="settingsCardTagsCheckbox" checked>
+        <span class="r34-slider"></span>
+      </label>
+    </div>
+    <div class="info-help-box" id="info-card-tags" style="display: none;">
+      Если отключено, списки тегов внутри разворачиваемой информации о публикации (и в предпросмотре) будут полностью скрыты. Идеально для ультра-минималистичного вида галереи.
+    </div>
+  </div>
+
+  <!-- Скрывать теги до наведения -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Скрывать теги до наведения</label>
+        <button class="info-btn" data-info="tags-hover-only" title="Инструкция">!</button>
+      </div>
+      <label class="r34-toggle-switch">
+        <input type="checkbox" id="settingsTagsOnHoverCheckbox">
+        <span class="r34-slider"></span>
+      </label>
+    </div>
+    <div class="info-help-box" id="info-tags-hover-only" style="display: none;">
+      Если включено, список тегов в открытой карточке будет скрыт по умолчанию и плавно появится только тогда, когда вы наведете курсор мыши на область карточки. Это создает чистый и лаконичный дизайн.
+    </div>
+  </div>
+
+  <!-- Размер шрифта тегов -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Размер шрифта тегов</label>
+        <button class="info-btn" data-info="tag-size" title="Инструкция">!</button>
+      </div>
+      <div class="settings-control-group">
+        <input type="number" id="settingsTagSizeManual" class="r34-input-mini input-mini-num" min="8" max="16">
+        <span id="settingsTagSizeValue" class="settings-value">11px</span>
+      </div>
+    </div>
+    <div class="info-help-box" id="info-tag-size" style="display: none;">
+      Управляет размером шрифта тегов в карточке. По умолчанию 11px. Вы можете сделать теги ультра-компактными (8px) или крупными (до 16px).
+    </div>
+    <input id="settingsTagSizeInput" type="range" min="8" max="16" step="1" value="11" class="r34-range r34-range-gradient settings-range">
+  </div>
+
+  <!-- Поведение клика по тегу -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Поведение клика по тегу</label>
+        <button class="info-btn" data-info="tag-click-behavior" title="Инструкция">!</button>
+      </div>
+    </div>
+    <div class="info-help-box" id="info-tag-click-behavior" style="display: none;">
+      Определяет, что происходит при нажатии на уже добавленный активный тег.<br><br>
+      <b>Стандартное поведение</b>:<br>Клик по тегу делает его исключенным (с минусом), а повторный клик удаляет его полностью.<br><br>
+      <b>Быстрое удаление (Зажатие для искл.)</b>:<br>Клик по тегу сразу удаляет его полностью. Чтобы исключить тег (сделать неактивным), зажмите его (long-press) на 0.5 сек. Работает как на смартфонах, так и на ПК.<br><br>
+      <b>Быстрое удаление (Двойной клик для искл.)</b>:<br>Клик по тегу сразу удаляет его полностью. Двойной клик по тегу переводит его в исключенные.<br><br>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <strong>Shift+клик</strong>: Перемещает тег из исключенных во включенные (работает во всех режимах).<br><br>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <strong>Долгое нажатие (0.5 сек)</strong>: Перемещает тег только из исключенных во включенные (работает на сенсорных экранах и ПК во всех режимах).
+    </div>
+    <select id="settingsTagClickBehaviorSelect" class="r34-select settings-select-spaced">
+      <option value="default">Стандартное (Клик — исключить, повторный — удалить)</option>
+      <option value="longpress">Быстрое удаление (Клик — удалить, зажатие — исключить)</option>
+      <option value="dblclick">Быстрое удаление (Клик — удалить, 2х клик — исключить)</option>
+    </select>
+  </div>
+
+
+  <!-- СЕКЦИЯ 5: КАСТОМИЗАЦИЯ ПОЛОСЫ ПРОКРУТКИ (Скроллбар → SVG) -->
+  <div class="settings-section-title settings-section-title-spaced">
+    <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+    <span>Кастомизация полосы прокрутки</span>
+  </div>
+
+  <!-- Толщина полосы прокрутки -->
+  <div class="settings-option settings-option--divided">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Толщина полосы прокрутки</label>
+        <button class="info-btn" data-info="scrollbar-width" title="Инструкция">!</button>
+      </div>
+      <div class="settings-control-group">
+        <input type="number" id="settingsScrollbarWidthManual" class="r34-input-mini input-mini-num" min="0" max="16">
+        <span id="settingsScrollbarWidthValue" class="settings-value">8px</span>
+      </div>
+    </div>
+    <div class="info-help-box" id="info-scrollbar-width" style="display: none;">
+      Управляет шириной (толщиной) вертикальных и горизонтальных полос прокрутки (скроллбаров) во всем приложении. Стандарт — 8px. Можно сделать скроллбар невидимым (0px), супер-тонким (например, 2px) или толстым.
+    </div>
+    <input id="settingsScrollbarWidthInput" type="range" min="0" max="16" step="1" value="8" class="r34-range r34-range-gradient settings-range">
+  </div>
+
+  <!-- Цвет ползунка прокрутки -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-label-group">
+        <label class="settings-label">Цвет ползунка прокрутки</label>
+        <button class="info-btn" data-info="scrollbar-color" title="Инструкция">!</button>
+      </div>
+      <div class="settings-control-group">
+        <input type="color" id="settingsScrollbarColorPicker" class="color-picker" title="Выбрать цвет">
+        <input type="text" id="settingsScrollbarColorManual" class="r34-input-mini input-mini-rgba" placeholder="rgba(255,255,255,0.16)">
+      </div>
+    </div>
+    <div class="info-help-box" id="info-scrollbar-color" style="display: none;">
+      Позволяет изменить цвет бегунка (ползунка) скроллбара. При наведении на него он автоматически будет подсвечиваться вашим акцентным цветом сайта.
+    </div>
+  </div>
+
+
+  <!-- СЕКЦИЯ 6: ОПТИМИЗАЦИЯ И ПРОИЗВОДИТЕЛЬНОСТЬ (Ракета → SVG, жёлтый блок) -->
   <div class="settings-perf-block">
     <div class="settings-perf-block-title">
       <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
@@ -671,14 +1110,16 @@
     <!-- Режим для слабых устройств -->
     <div class="settings-option settings-option--divided-compact">
       <div class="settings-row">
-        <div class="settings-label-group">
-          <label class="settings-label" title="Снизить нагрузку на CPU/GPU и отключить часть эффектов для плавной работы на слабых устройствах">Режим для слабых устройств</label>
-          <button class="info-btn info-btn--warn" data-info="low-power" title="Инструкция">!</button>
+        <div class="settings-row-container" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+          <div class="settings-label-group">
+            <label class="settings-label" title="Снизить нагрузку на CPU/GPU и отключить часть эффектов для плавной работы на слабых устройствах">Режим для слабых устройств</label>
+            <button class="info-btn info-btn--warn" data-info="low-power" title="Инструкция">!</button>
+          </div>
+          <label class="r34-toggle-switch">
+            <input type="checkbox" id="settingsLowPowerCheckbox">
+            <span class="r34-slider"></span>
+          </label>
         </div>
-        <label class="r34-toggle-switch">
-          <input type="checkbox" id="settingsLowPowerCheckbox">
-          <span class="r34-slider"></span>
-        </label>
       </div>
       <div class="info-help-box info-help-box--warn" id="info-low-power" style="display: none;">
         <strong>Режим для слабых устройств:</strong><br>
@@ -694,14 +1135,16 @@
     <!-- Ограничить одновременную загрузку -->
     <div class="settings-option settings-option--divided-compact">
       <div class="settings-row">
-        <div class="settings-label-group">
-          <label class="settings-label" title="Ограничить количество одновременно загружаемых карточек для более стабильной работы">Ограничить параллельную загрузку</label>
-          <button class="info-btn info-btn--warn" data-info="load-limit" title="Инструкция">!</button>
+        <div class="settings-row-container" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+          <div class="settings-label-group">
+            <label class="settings-label" title="Ограничить количество одновременно загружаемых карточек для более стабильной работы">Ограничить параллельную загрузку</label>
+            <button class="info-btn info-btn--warn" data-info="load-limit" title="Инструкция">!</button>
+          </div>
+          <label class="r34-toggle-switch">
+            <input type="checkbox" id="settingsLoadLimitCheckbox">
+            <span class="r34-slider"></span>
+          </label>
         </div>
-        <label class="r34-toggle-switch">
-          <input type="checkbox" id="settingsLoadLimitCheckbox">
-          <span class="r34-slider"></span>
-        </label>
       </div>
       <div class="info-help-box info-help-box--warn" id="info-load-limit" style="display: none;">
         <strong>Ограничение параллельной загрузки:</strong><br>
@@ -740,14 +1183,16 @@
     <!-- Упростить пазлы -->
     <div class="settings-option settings-option--divided-compact">
       <div class="settings-row">
-        <div class="settings-label-group">
-          <label class="settings-label" title="Упростить генерацию пазлов для более стабильной работы и лучшей читаемости">Упростить пазлы для скорости</label>
-          <button class="info-btn info-btn--warn" data-info="puzzle-perf" title="Инструкция">!</button>
+        <div class="settings-row-container" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+          <div class="settings-label-group">
+            <label class="settings-label" title="Упростить генерацию пазлов для более стабильной работы и лучшей читаемости">Упростить пазлы для скорости</label>
+            <button class="info-btn info-btn--warn" data-info="puzzle-perf" title="Инструкция">!</button>
+          </div>
+          <label class="r34-toggle-switch">
+            <input type="checkbox" id="settingsPuzzlePerformanceCheckbox">
+            <span class="r34-slider"></span>
+          </label>
         </div>
-        <label class="r34-toggle-switch">
-          <input type="checkbox" id="settingsPuzzlePerformanceCheckbox">
-          <span class="r34-slider"></span>
-        </label>
       </div>
       <div class="info-help-box info-help-box--warn" id="info-puzzle-perf" style="display: none;">
         <strong>Упрощение пазлов:</strong><br>
@@ -758,503 +1203,83 @@
         <em>Рекомендуется включить при лагах в пазлах.</em>
       </div>
     </div>
-
-
-
   </div>
 
-<!-- СЕКЦИЯ: ТЕХНИЧЕСКИЕ НАСТРОЙКИ (Шестеренка → SVG) -->
-<div class="settings-section-title">
-  <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-  <span>Технические настройки</span>
-</div>
 
-<!-- Служебная панель -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label" title="Показывать служебную панель с метриками и отладочной информацией">Показывать служебную панель</label>
-      <button class="info-btn" data-info="dev-mode" title="Инструкция">!</button>
-    </div>
-    <label class="r34-toggle-switch">
-      <input type="checkbox" id="settingsDeveloperModeCheckbox">
-      <span class="r34-slider"></span>
-    </label>
+  <!-- СЕКЦИЯ 7: ТЕХНИЧЕСКИЕ И ОБЛАЧНЫЕ НАСТРОЙКИ (Шестеренка/Облако → SVG) -->
+  <div class="settings-section-title settings-section-title-spaced">
+    <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+    <span>Облако и технические настройки</span>
   </div>
-  <div class="info-help-box" id="info-dev-mode" style="display: none;">
-    Отображает служебную панель с текущими метриками: количество карточек, активных видео и режим предзагрузки. Это полезно для диагностики и настройки интерфейса, а не для обычной работы.
-  </div>
-</div>
 
-<!-- Синхронизация через Turso -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label" title="Синхронизировать избранное и пазлы через Turso (SQLite в облаке)">Синхронизация через Turso</label>
-      <button class="info-btn info-btn--turso" data-info="turso-sync" title="Инструкция">!</button>
+  <!-- Служебная панель -->
+  <div class="settings-option settings-option--divided">
+    <div class="settings-row">
+      <div class="settings-row-container" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <div class="settings-label-group">
+          <label class="settings-label" title="Показывать служебную панель с метриками и отладочной информацией">Показывать служебную панель</label>
+          <button class="info-btn" data-info="dev-mode" title="Инструкция">!</button>
+        </div>
+        <label class="r34-toggle-switch">
+          <input type="checkbox" id="settingsDeveloperModeCheckbox">
+          <span class="r34-slider"></span>
+        </label>
+      </div>
     </div>
-    <label class="r34-toggle-switch">
-      <input type="checkbox" id="settingsTursoSyncCheckbox">
-      <span class="r34-slider"></span>
-    </label>
+    <div class="info-help-box" id="info-dev-mode" style="display: none;">
+      Отображает служебную панель с текущими метриками: количество карточек, активных видео и режим предзагрузки. Это полезно для диагностики и настройки интерфейса, а не для обычной работы.
+    </div>
   </div>
-  <div class="info-help-box info-help-box--turso" id="info-turso-sync" style="display: none;">
-    <strong>Turso синхронизация:</strong><br>
-    • Синхронизирует избранное и пройденные пазлы между устройствами<br>
-    • Использует SQLite в облаке (Turso) для хранения данных<br>
-    • Бесплатный tier: 3GB, 500 запросов/день<br>
-    • Данные доступны с любого устройства<br>
-    • Если не настроено - используется локальное хранилище<br>
-    <br>
-    <strong>Инструкция по настройке:</strong><br>
-    1. Перейди на <a href="https://turso.tech" target="_blank" class="turso-link">turso.tech</a> и создай бесплатный аккаунт<br>
-    2. Создай новую базу данных (Create Database)<br>
-    3. Получи Database URL и Auth Token в настройках базы<br>
-    4. Введи URL в поле "Turso Database URL"<br>
-    5. Введи токен в поле "Turso Auth Token"<br>
-    6. Включи переключатель "Синхронизация через Turso"<br>
-    <br>
-    <em>После настройки данные будут автоматически синхронизироваться между всеми устройствами с этими же настройками.</em>
-  </div>
-</div>
 
-<!-- Turso URL -->
-<div class="settings-option settings-option--divided">
-  <label class="settings-label" title="URL базы данных Turso">Turso Database URL</label>
-  <input type="text" id="settingsTursoUrl" class="r34-input-mini input-mini-full" placeholder="https://xxx.turso.io">
-</div>
+  <!-- Синхронизация через Turso -->
+  <div class="settings-option settings-option--divided-top">
+    <div class="settings-row">
+      <div class="settings-row-container" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <div class="settings-label-group">
+          <label class="settings-label" title="Синхронизировать избранное и пазлы через Turso (SQLite в облаке)">Синхронизация через Turso</label>
+          <button class="info-btn info-btn--turso" data-info="turso-sync" title="Инструкция">!</button>
+        </div>
+        <label class="r34-toggle-switch">
+          <input type="checkbox" id="settingsTursoSyncCheckbox">
+          <span class="r34-slider"></span>
+        </label>
+      </div>
+    </div>
+    <div class="info-help-box info-help-box--turso" id="info-turso-sync" style="display: none;">
+      <strong>Turso синхронизация:</strong><br>
+      • Синхронизирует избранное и пройденные пазлы между устройствами<br>
+      • Использует SQLite в облаке (Turso) для хранения данных<br>
+      • Бесплатный tier: 3GB, 500 запросов/день<br>
+      • Данные доступны с любого устройства<br>
+      • Если не настроено - используется локальное хранилище<br>
+      <br>
+      <strong>Инструкция по настройке:</strong><br>
+      1. Перейди на <a href="https://turso.tech" target="_blank" class="turso-link">turso.tech</a> и создай бесплатный аккаунт<br>
+      2. Создай новую базу данных (Create Database)<br>
+      3. Получи Database URL и Auth Token в настройках базы<br>
+      4. Введи URL в поле "Turso Database URL"<br>
+      5. Введи токен в поле "Turso Auth Token"<br>
+      6. Включи переключатель "Синхронизация через Turso"<br>
+      <br>
+      <em>После настройки данные будут автоматически синхронизироваться между всеми устройствами с этими же настройками.</em>
+    </div>
+  </div>
 
-<!-- Turso Auth Token -->
-<div class="settings-option settings-option--divided">
-  <label class="settings-label" title="Токен авторизации Turso">Turso Auth Token</label>
-  <input type="password" id="settingsTursoToken" class="r34-input-mini input-mini-full" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
-  <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-    <button type="button" id="settingsTursoSaveBtn" class="col-btn" style="padding: 6px 16px; font-size: 0.85rem; height: 36px; border-radius: 8px;">Проверить и сохранить Turso</button>
-    <span id="settingsTursoStatusMsg" style="font-size: 0.82rem; font-weight: 600;"></span>
+  <!-- Turso URL -->
+  <div class="settings-option settings-option--divided-top">
+    <label class="settings-label" title="URL базы данных Turso">Turso Database URL</label>
+    <input type="text" id="settingsTursoUrl" class="r34-input-mini input-mini-full" placeholder="https://xxx.turso.io">
   </div>
-</div>
 
-<!-- Скругление карточек -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Скругление карточек</label>
-      <button class="info-btn" data-info="radius" title="Инструкция">!</button>
-    </div>
-    <div class="settings-control-group">
-      <input type="number" id="settingsRadiusManual" class="r34-input-mini input-mini-num" min="0" max="60">
-      <span id="settingsRadiusValue" class="settings-value">20px</span>
+  <!-- Turso Auth Token -->
+  <div class="settings-option settings-option--divided-top">
+    <label class="settings-label" title="Токен авторизации Turso">Turso Auth Token</label>
+    <input type="password" id="settingsTursoToken" class="r34-input-mini input-mini-full" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+    <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <button type="button" id="settingsTursoSaveBtn" class="col-btn" style="padding: 6px 16px; font-size: 0.85rem; height: 36px; border-radius: 8px;">Проверить и сохранить Turso</button>
+      <span id="settingsTursoStatusMsg" style="font-size: 0.82rem; font-weight: 600;"></span>
     </div>
   </div>
-  <div class="info-help-box" id="info-radius" style="display: none;">
-    Управляет радиусом скругления углов карточек в результатах поиска. 0px — острые углы. Стандартное значение — 20px. Вы можете ввести любое значение от 0 до 60px.
-  </div>
-  <input id="settingsRadiusInput" type="range" min="0" max="32" step="2" value="20" class="r34-range r34-range-gradient settings-range">
-</div>
-
-<!-- Расстояние между карточками -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Расстояние между карточками</label>
-      <button class="info-btn" data-info="gap" title="Инструкция">!</button>
-    </div>
-    <div class="settings-control-group">
-      <input type="number" id="settingsGapManual" class="r34-input-mini input-mini-num" min="0" max="80">
-      <span id="settingsGapValue" class="settings-value">24px</span>
-    </div>
-  </div>
-  <div class="info-help-box" id="info-gap" style="display: none;">
-    Увеличивает или уменьшает зазоры в сетке медиа-карточек. Стандартное значение — 24px. Допускается диапазон от 0 до 80px.
-  </div>
-  <input id="settingsGapInput" type="range" min="4" max="40" step="2" value="24" class="r34-range r34-range-gradient settings-range">
-</div>
-
-<!-- Минимальный размер карточки -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Минимальный размер карточки</label>
-      <button class="info-btn" data-info="colwidth" title="Инструкция">!</button>
-    </div>
-    <div class="settings-control-group">
-      <input type="number" id="settingsColWidthManual" class="r34-input-mini input-mini-num" min="100" max="600">
-      <span id="settingsColWidthValue" class="settings-value">300px</span>
-    </div>
-  </div>
-  <div class="info-help-box" id="info-colwidth" style="display: none;">
-    Регулирует плотность сетки. Чем меньше минимальный размер одной карточки, тем больше элементов поместится в один горизонтальный ряд на экране (от 100 до 600px).
-  </div>
-  <input id="settingsColWidthInput" type="range" min="160" max="480" step="10" value="300" class="r34-range r34-range-gradient settings-range">
-</div>
-
-<!-- Принудительные размеры -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Принудительная ширина (px)</label>
-      <button class="info-btn" data-info="forced-size" title="Инструкция">!</button>
-    </div>
-    <input type="number" id="settingsForcedWidth" class="r34-input-mini input-mini-md" placeholder="Авто" min="50" max="2000">
-  </div>
-  <div class="info-help-box" id="info-forced-size" style="display: none;">
-    Фиксирует размеры медиа. Оставьте поля пустыми для автоматического расчёта. При задании размеров снимаются внутренние ограничения на максимальную ширину карточек.
-  </div>
-  <div class="settings-row settings-row-spaced">
-    <label class="settings-label">Принудительная высота (px)</label>
-    <input type="number" id="settingsForcedHeight" class="r34-input-mini input-mini-md" placeholder="Авто" min="50" max="2000">
-  </div>
-</div>
-
-<!-- СЕКЦИЯ: ВИЗУАЛЬНЫЕ ЭФФЕКТЫ КАРТОЧЕК (Эффекты → SVG) -->
-<div class="settings-section-title settings-section-title-spaced">
-  <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></svg>
-  <span>Визуальные эффекты карточек</span>
-</div>
-
-<!-- Эффект при наведении -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-label-group">
-    <label class="settings-label">Эффект при наведении на медиа</label>
-    <button class="info-btn" data-info="hover" title="Инструкция">!</button>
-  </div>
-  <div class="info-help-box" id="info-hover" style="display: none;">
-    Эффект при наведении определяет, как будут вести себя карточки в галерее, когда вы наводите на них курсор. Вы можете выбрать вариант из выпадающего списка. <br><br>
-    <b>Увеличение и подъем (Стандартный)</b>: Карточка слегка приподнимается вверх и увеличивается, а её границы подсвечиваются.<br>
-    <b>Неоновое свечение границ</b>: Карточка остается на месте, но вокруг неё появляется яркое неоновое свечение.<br>
-    <b>Легкий сдвиг вверх</b>: Плавное перемещение карточки вверх с появлением небольшой тени внизу.<br>
-    <b>Пульсация</b>: Легкое увеличение карточки при наведении.<br>
-    <b>Яркая рамка</b>: Появление яркой рамки вокруг карточки.<br>
-    <b>Без эффекта</b>: Отключение визуальных эффектов (карточка останется статичной).
-  </div>
-  <select id="settingsHoverSelect" class="r34-select settings-select-spaced">
-    <option value="zoom">Увеличение и подъем (Стандартный)</option>
-    <option value="glow">Неоновое свечение границ</option>
-    <option value="slide">Легкий сдвиг вверх</option>
-    <option value="pulse">Пульсация</option>
-    <option value="borderPop">Яркая рамка</option>
-    <option value="none">Без эффекта</option>
-  </select>
-</div>
-
-<!-- СЕКЦИЯ: ТИПОГРАФИКА, ТЕГИ И ИНТЕРФЕЙС (Шрифт → SVG) -->
-<div class="settings-section-title settings-section-title-spaced">
-  <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-  <span>Типографика, теги и интерфейс</span>
-</div>
-
-<!-- Шрифт интерфейса -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Шрифт интерфейса</label>
-      <button class="info-btn" data-info="font" title="Инструкция">!</button>
-    </div>
-    <input type="text" id="settingsFontManual" class="r34-input-mini input-mini-text" placeholder="Arial">
-  </div>
-  <div class="info-help-box" id="info-font" style="display: none;">
-    Изменяет шрифт всех текстовых элементов интерфейса галереи.<br><br>
-    <b>Как настроить:</b><br>
-    - Вы можете выбрать один из специально подобранных стилей шрифта из списка ниже.<br>
-    - Вы можете ввести точное название любого шрифта, установленного на вашем устройстве, в поле ввода справа. Введите название (например: <code>Arial</code>, <code>Tahoma</code>, <code>Times New Roman</code>, <code>Courier New</code>) и шрифт мгновенно применится.
-  </div>
-  <select id="settingsFontSelect" class="r34-select settings-select-spaced">
-    <option value="sans">Inter (Классический без засечек)</option>
-    <option value="mono">JetBrains Mono (Технический моноширинный)</option>
-    <option value="rounded">Comfortaa / System Rounded (Округлый)</option>
-  </select>
-</div>
-
-<!-- Прозрачность карточек -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Прозрачность карточек</label>
-      <button class="info-btn" data-info="card-opacity" title="Инструкция">!</button>
-    </div>
-    <div class="settings-control-group">
-      <input type="number" id="settingsCardOpacityManual" class="r34-input-mini input-mini-num" min="0" max="100">
-      <span id="settingsCardOpacityValue" class="settings-value">85%</span>
-    </div>
-  </div>
-  <div class="info-help-box" id="info-card-opacity" style="display: none;">
-    Регулирует прозрачность заднего фона каждой карточки. 0% — карточки полностью прозрачны, виден только контент. 100% — полностью сплошной темный фон. Стандартное значение — 85%.
-  </div>
-  <input id="settingsCardOpacityInput" type="range" min="0" max="100" step="5" value="85" class="r34-range r34-range-gradient settings-range">
-</div>
-
-<!-- Размытие фона карточек -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Размытие фона карточек</label>
-      <button class="info-btn" data-info="card-blur" title="Инструкция">!</button>
-    </div>
-    <div class="settings-control-group">
-      <input type="number" id="settingsCardBlurManual" class="r34-input-mini input-mini-num" min="0" max="24">
-      <span id="settingsCardBlurValue" class="settings-value">0px</span>
-    </div>
-  </div>
-  <div class="info-help-box" id="info-card-blur" style="display: none;">
-    Применяет эффект размытия заднего плана (backdrop-filter) для карточек. Создает эффект "матового стекла". Примечание: высокое размытие на старых телефонах может снизить производительность прокрутки. Рекомендуется от 0px до 12px.
-  </div>
-  <input id="settingsCardBlurInput" type="range" min="0" max="24" step="2" value="0" class="r34-range r34-range-gradient settings-range">
-</div>
-
-<!-- Показывать теги в описании -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Показывать теги в описании</label>
-      <button class="info-btn" data-info="card-tags" title="Инструкция">!</button>
-    </div>
-    <label class="r34-toggle-switch">
-      <input type="checkbox" id="settingsCardTagsCheckbox" checked>
-      <span class="r34-slider"></span>
-    </label>
-  </div>
-  <div class="info-help-box" id="info-card-tags" style="display: none;">
-    Если отключено, списки тегов внутри разворачиваемой информации о публикации (и в предпросмотре) будут полностью скрыты. Идеально для ультра-минималистичного вида галереи.
-  </div>
-</div>
-
-<!-- Базовый масштаб шрифта -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Базовый масштаб шрифта</label>
-      <button class="info-btn" data-info="base-font" title="Инструкция">!</button>
-    </div>
-    <div class="settings-control-group">
-      <input type="number" id="settingsBaseFontManual" class="r34-input-mini input-mini-num" min="12" max="24">
-      <span id="settingsBaseFontValue" class="settings-value">16px</span>
-    </div>
-  </div>
-  <div class="info-help-box" id="info-base-font" style="display: none;">
-    Задает глобальный размер шрифта на веб-сайте. Изменение этого параметра масштабирует все надписи, размеры кнопок, подписи к тегам и описания. Стандартный размер — 16px. Можно установить от 12px до 24px.
-  </div>
-  <input id="settingsBaseFontInput" type="range" min="12" max="24" step="1" value="16" class="r34-range r34-range-gradient settings-range">
-</div>
-
-<!-- Толщина полосы прокрутки -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Толщина полосы прокрутки</label>
-      <button class="info-btn" data-info="scrollbar-width" title="Инструкция">!</button>
-    </div>
-    <div class="settings-control-group">
-      <input type="number" id="settingsScrollbarWidthManual" class="r34-input-mini input-mini-num" min="2" max="16">
-      <span id="settingsScrollbarWidthValue" class="settings-value">8px</span>
-    </div>
-  </div>
-  <div class="info-help-box" id="info-scrollbar-width" style="display: none;">
-    Управляет шириной (толщиной) вертикальных и горизонтальных полос прокрутки (скроллбаров) во всем приложении. Стандарт — 8px. Можно сделать скроллбар супер-тонким (например, 2px) или толстым.
-  </div>
-  <input id="settingsScrollbarWidthInput" type="range" min="2" max="16" step="1" value="8" class="r34-range r34-range-gradient settings-range">
-</div>
-
-<!-- Цвет ползунка прокрутки -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Цвет ползунка прокрутки</label>
-      <button class="info-btn" data-info="scrollbar-color" title="Инструкция">!</button>
-    </div>
-    <div class="settings-control-group">
-      <input type="color" id="settingsScrollbarColorPicker" class="color-picker" title="Выбрать цвет">
-      <input type="text" id="settingsScrollbarColorManual" class="r34-input-mini input-mini-rgba" placeholder="rgba(255,255,255,0.16)">
-    </div>
-  </div>
-  <div class="info-help-box" id="info-scrollbar-color" style="display: none;">
-    Позволяет изменить цвет бегунка (ползунка) скроллбара. При наведении на него он автоматически будет подсвечиваться вашим акцентным цветом сайта.
-  </div>
-</div>
-
-<!-- Бесконечный повтор видео (дубль из продвинутых) -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Бесконечный повтор видео</label>
-      <button class="info-btn" data-info="video-loop" title="Инструкция">!</button>
-    </div>
-    <label class="r34-toggle-switch">
-      <input type="checkbox" id="settingsVideoLoopCheckbox" checked>
-      <span class="r34-slider"></span>
-    </label>
-  </div>
-  <div class="info-help-box" id="info-video-loop" style="display: none;">
-    Управляет бесконечным повтором (loop) видеофайлов в карточках. При включении ролик будет проигрываться циклично. При выключении ролик остановится на последнем кадре (в полноэкранном режиме ролик переключится на следующий файл автоматически).
-  </div>
-</div>
-
-<!-- Скрывать теги до наведения -->
-<div class="settings-option settings-option--divided">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Скрывать теги до наведения</label>
-      <button class="info-btn" data-info="tags-hover-only" title="Инструкция">!</button>
-    </div>
-    <label class="r34-toggle-switch">
-      <input type="checkbox" id="settingsTagsOnHoverCheckbox">
-      <span class="r34-slider"></span>
-    </label>
-  </div>
-  <div class="info-help-box" id="info-tags-hover-only" style="display: none;">
-    Если включено, список тегов в открытой карточке будет скрыт по умолчанию и плавно появится только тогда, когда вы наведете курсор мыши на область карточки. Это создает чистый и лаконичный дизайн.
-  </div>
-</div>
-
-<!-- Свой логотип -->
-<div class="settings-option settings-option--divided-top">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Свой логотип (Заголовок)</label>
-      <button class="info-btn" data-info="custom-logo" title="Инструкция">!</button>
-    </div>
-    <input type="text" id="settingsCustomLogoInput" class="r34-input-mini input-mini-text" placeholder="Rule34 Gallery">
-  </div>
-  <div class="info-help-box" id="info-custom-logo" style="display: none;">
-    Позволяет заменить стандартный текстовый логотип "Rule34 Gallery" в шапке сайта на ваше собственное название. Оставьте пустым, чтобы вернуть стандартный логотип.
-  </div>
-</div>
-
-<!-- Толщина рамки карточки -->
-<div class="settings-option settings-option--divided-top">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Толщина рамки карточки</label>
-      <button class="info-btn" data-info="card-border-width" title="Инструкция">!</button>
-    </div>
-    <div class="settings-control-group">
-      <input type="number" id="settingsCardBorderWidthManual" class="r34-input-mini input-mini-num" min="0" max="8">
-      <span id="settingsCardBorderWidthValue" class="settings-value">1px</span>
-    </div>
-  </div>
-  <div class="info-help-box" id="info-card-border-width" style="display: none;">
-    Задает толщину рамки вокруг карточек публикаций. По умолчанию 1px. Вы можете установить значение от 0px (без рамки) до 8px (жирная стильная рамка).
-  </div>
-  <input id="settingsCardBorderWidthInput" type="range" min="0" max="8" step="1" value="1" class="r34-range r34-range-gradient settings-range">
-</div>
-
-<!-- Цвет рамки карточки -->
-<div class="settings-option settings-option--divided-top">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Цвет рамки карточки</label>
-      <button class="info-btn" data-info="card-border-color" title="Инструкция">!</button>
-    </div>
-    <div class="settings-control-group">
-      <input type="color" id="settingsCardBorderColorPicker" class="color-picker" title="Выбрать цвет">
-      <input type="text" id="settingsCardBorderColorManual" class="r34-input-mini input-mini-rgba" placeholder="rgba(255,255,255,0.06)">
-    </div>
-  </div>
-  <div class="info-help-box" id="info-card-border-color" style="display: none;">
-    Определяет цвет рамки вокруг карточек в спокойном состоянии. По умолчанию используется полупрозрачный белый. Вы можете выбрать любой оттенок.
-  </div>
-</div>
-
-<!-- Скорость анимации карточек -->
-<div class="settings-option settings-option--divided-top">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Скорость анимации карточек</label>
-      <button class="info-btn" data-info="card-transition-speed" title="Инструкция">!</button>
-    </div>
-    <div class="settings-control-group">
-      <input type="number" id="settingsCardTransitionManual" class="r34-input-mini input-mini-num" min="100" max="1000" step="50">
-      <span id="settingsCardTransitionValue" class="settings-value">300ms</span>
-    </div>
-  </div>
-  <div class="info-help-box" id="info-card-transition-speed" style="display: none;">
-    Управляет временем плавного изменения состояния карточки при наведении (эффект увеличения, появление тени и т.д.). От 100ms (почти мгновенно) до 1000ms (очень медленный кинематографичный переход).
-  </div>
-  <input id="settingsCardTransitionInput" type="range" min="100" max="1000" step="50" value="300" class="r34-range r34-range-gradient settings-range">
-</div>
-
-<!-- Интенсивность свечения -->
-<div class="settings-option settings-option--divided-top">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Интенсивность свечения (Shadow)</label>
-      <button class="info-btn" data-info="card-glow-intensity" title="Инструкция">!</button>
-    </div>
-    <div class="settings-control-group">
-      <input type="number" id="settingsCardGlowManual" class="r34-input-mini input-mini-num" min="0" max="100">
-      <span id="settingsCardGlowValue" class="settings-value">45%</span>
-    </div>
-  </div>
-  <div class="info-help-box" id="info-card-glow-intensity" style="display: none;">
-    Увеличивает или уменьшает яркость неонового свечения или тени, которая появляется у карточки при наведении. Выставьте 0%, чтобы полностью отключить свечение/тень.
-  </div>
-  <input id="settingsCardGlowInput" type="range" min="0" max="100" step="5" value="45" class="r34-range r34-range-gradient settings-range">
-</div>
-
-<!-- Размер шрифта тегов -->
-<div class="settings-option settings-option--divided-top">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Размер шрифта тегов</label>
-      <button class="info-btn" data-info="tag-size" title="Инструкция">!</button>
-    </div>
-    <div class="settings-control-group">
-      <input type="number" id="settingsTagSizeManual" class="r34-input-mini input-mini-num" min="8" max="16">
-      <span id="settingsTagSizeValue" class="settings-value">11px</span>
-    </div>
-  </div>
-  <div class="info-help-box" id="info-tag-size" style="display: none;">
-    Управляет размером шрифта тегов в карточке. По умолчанию 11px. Вы можете сделать теги ультра-компактными (8px) или крупными (до 16px).
-  </div>
-  <input id="settingsTagSizeInput" type="range" min="8" max="16" step="1" value="11" class="r34-range r34-range-gradient settings-range">
-</div>
-
-<!-- Стиль шапки поиска -->
-<div class="settings-option settings-option--divided-top">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Стиль шапки поиска</label>
-      <button class="info-btn" data-info="header-style" title="Инструкция">!</button>
-    </div>
-  </div>
-  <div class="info-help-box" id="info-header-style" style="display: none;">
-    Определяет внешний вид верхней поисковой панели. <br><br>
-    <b>Полупрозрачное стекло</b>: Размытие заднего фона с эффектом матового стекла.<br>
-    <b>Сплошной темный</b>: Обычный сплошной глубокий темный цвет.<br>
-    <b>Полностью прозрачный</b>: Шапка сливается с основным фоном сайта.<br>
-    <b>В цвет акцента</b>: Фирменный цвет выбранного вами акцента.
-  </div>
-  <select id="settingsHeaderStyleSelect" class="r34-select settings-select-spaced">
-    <option value="glass">Полупрозрачное стекло (Glassmorphic)</option>
-    <option value="dark">Сплошной темный (Solid Dark)</option>
-    <option value="transparent">Полностью прозрачный (Transparent)</option>
-    <option value="accent">В цвет акцента (Accent Color)</option>
-  </select>
-</div>
-
-<!-- Поведение клика по тегу -->
-<div class="settings-option settings-option--divided-top">
-  <div class="settings-row">
-    <div class="settings-label-group">
-      <label class="settings-label">Поведение клика по тегу</label>
-      <button class="info-btn" data-info="tag-click-behavior" title="Инструкция">!</button>
-    </div>
-  </div>
-  <div class="info-help-box" id="info-tag-click-behavior" style="display: none;">
-    Определяет, что происходит при нажатии на уже добавленный активный тег.<br><br>
-    <b>Стандартное поведение</b>:<br>Клик по тегу делает его исключенным (с минусом), а повторный клик удаляет его полностью.<br><br>
-    <b>Быстрое удаление (Зажатие для искл.)</b>:<br>Клик по тегу сразу удаляет его полностью. Чтобы исключить тег (сделать неактивным), зажмите его (long-press) на 0.5 сек. Работает как на смартфонах, так и на ПК.<br><br>
-    <b>Быстрое удаление (Двойной клик для искл.)</b>:<br>Клик по тегу сразу удаляет его полностью. Двойной клик по тегу переводит его в исключенные.<br><br>
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-    <strong>Shift+клик</strong>: Перемещает тег из исключенных во включенные (работает во всех режимах).<br><br>
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-    <strong>Долгое нажатие (0.5 сек)</strong>: Перемещает тег только из исключенных во включенные (работает на сенсорных экранах и ПК во всех режимах).
-  </div>
-  <select id="settingsTagClickBehaviorSelect" class="r34-select settings-select-spaced">
-    <option value="default">Стандартное (Клик — исключить, повторный — удалить)</option>
-    <option value="longpress">Быстрое удаление (Клик — удалить, зажатие — исключить)</option>
-    <option value="dblclick">Быстрое удаление (Клик — удалить, 2х клик — исключить)</option>
-  </select>
-</div>
 
 <!-- СЕКЦИЯ: НАСТРОЙКИ API (Сервер → SVG) -->
 <div class="settings-section-title settings-section-title-spaced">
@@ -1431,17 +1456,17 @@
 
     <div class="settings-modal-body tutorial-modal-body">
       
-      <!-- Карточка 1: Поиск тегов и подчеркивание -->
+      <!-- Карточка 1: Поиск тегов и автозамена пробелов -->
       <div class="tutorial-card">
         <div class="tutorial-card-header">
           <span class="tutorial-step-num">1</span>
-          <h3>Как искать теги (подчеркивание <code>_</code> вместо пробела)</h3>
+          <h3>Как искать теги (автозамена пробелов на <code>_</code>)</h3>
         </div>
         <p>
-          В базе данных Rule34 все теги из нескольких слов пишутся через нижнее подчеркивание <code>_</code> без пробелов.
+          В базе данных Rule34 все теги пишутся через нижнее подчеркивание <code>_</code> без пробелов. <b>При вводе пробелы автоматически заменяются на <code>_</code> для вашего удобства!</b> Также пост можно найти напрямую по его ID в формате <code>id:1234</code>.
         </p>
         <p style="margin-top: 6px;">
-          <b>Примеры:</b> <code>genshin_impact</code>, <code>hatsune_miku</code>, <code>cat_ears</code>.
+          <b>Примеры:</b> <code>genshin_impact</code>, <code>hatsune_miku</code>, <code>id:1234567</code>.
         </p>
       </div>
 
@@ -1499,14 +1524,14 @@
             <div class="tutorial-device-title">🖥️ На компьютерах (ПК):</div>
             <ul>
               <li><b>Левый клик (ЛКМ)</b> — добавляет тег во <b>включенные</b> (<code>+</code>).</li>
-              <li><b>Правый клик (ПКМ)</b> или иконка <b><code>-</code></b> — добавляет тег в <b>исключенные</b> (<code>-</code>).</li>
+              <li><b>Правый клик (ПКМ)</b> — добавляет тег в <b>исключенные</b> (<code>-</code>).</li>
             </ul>
           </div>
           <div class="tutorial-device-box">
             <div class="tutorial-device-title">📱 На телефонах (Touch):</div>
             <ul>
               <li><b>Быстрый тап</b> — добавляет тег во <b>включенные</b> (<code>+</code>).</li>
-              <li><b>Долгое зажатие (Long Press)</b> или повторный тап по активному тегу — переключает его в <b>исключенные</b> (<code>-</code>).</li>
+              <li><b>Долгое зажатие (Long Press)</b> — переключает его в <b>исключенные</b> (<code>-</code>).</li>
             </ul>
           </div>
         </div>

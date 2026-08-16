@@ -1,5 +1,6 @@
 import { fetchTagInfo, proxyUrl, fetchMoreTagImages } from '../api.js';
 import { icon } from '../icons.js';
+import { makeCustomDropdown } from './customDropdown.js';
 import { renderOriginBadgeHtml, FRANCHISE_DATABASE } from '../characterOrigins.js';
 import { formatDisplayTagName, resolveCanonicalTag } from '../canonicalTags.js';
 
@@ -280,6 +281,8 @@ export class HigherLowerGame {
         this.loadingLeftName = null;
         this.loadingRightName = null;
         this.roomHeartbeatTimer = null;
+        this.processedPacketIds = new Set();
+        this.pollTimer = null;
 
         window.addEventListener('beforeunload', () => {
             if (this.roomId) {
@@ -288,6 +291,7 @@ export class HigherLowerGame {
         });
 
         window.addEventListener('keydown', (e) => {
+            if (window.safeScreen && window.safeScreen.isActive) return;
             if (!this.container || !this.container.classList.contains('open')) return;
             // Ignore if typing in input or select
             if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
@@ -343,11 +347,26 @@ export class HigherLowerGame {
     }
 
     showToast(message, type = 'danger') {
-        let container = this.container.querySelector('.hl-toast-container');
+        if (window.safeScreen && window.safeScreen.isActive) return;
+        let container = document.getElementById('hl-global-toast-container');
         if (!container) {
             container = document.createElement('div');
+            container.id = 'hl-global-toast-container';
             container.className = 'hl-toast-container';
-            this.container.appendChild(container);
+            container.style.cssText = `
+                position: fixed;
+                top: 24px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 10000000;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                pointer-events: none;
+                width: 90%;
+                max-width: 480px;
+            `;
+            document.body.appendChild(container);
         }
 
         const toast = document.createElement('div');
@@ -372,7 +391,7 @@ export class HigherLowerGame {
 
         setTimeout(() => {
             toast.style.opacity = '0';
-            toast.style.transform = 'translateY(-10px)';
+            toast.style.transform = 'translateY(-15px)';
             toast.style.transition = 'all 0.3s ease';
             setTimeout(() => toast.remove(), 300);
         }, 3500);
@@ -462,9 +481,9 @@ export class HigherLowerGame {
         `;
 
         modal.innerHTML = `
-            <div style="background: #1e1e24; border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 20px; padding: 24px; max-width: 480px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); color: #fff; font-family: inherit; display: flex; flex-direction: column; max-height: 80vh;">
+            <div style="background: #1e1e24; border: 1px solid rgba(var(--accent-rgb, 167, 139, 250), 0.3); border-radius: 20px; padding: 24px; max-width: 480px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); color: var(--adaptive-text-main, #fff); font-family: inherit; display: flex; flex-direction: column; max-height: 80vh;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <div style="font-size: 1.25rem; font-weight: 800; color: #a78bfa; display: flex; align-items: center; gap: 8px;">
+                    <div style="font-size: 1.25rem; font-weight: 800; color: var(--accent, #a78bfa); display: flex; align-items: center; gap: 8px;">
                         🌐 Активные комнаты онлайн
                     </div>
                     <button id="hlCloseRoomsModal" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
@@ -503,7 +522,7 @@ export class HigherLowerGame {
                     <div>
                         <div style="font-weight: 700; font-size: 1rem; color: #fff; margin-bottom: 2px;">Комната: ${this.escapeHtml(r.hostName)}</div>
                         <div style="font-size: 0.8rem; color: #94a3b8; display: flex; gap: 10px;">
-                            <span>Код: <b style="color: #a78bfa; letter-spacing: 1px;">${r.code}</b></span>
+                            <span>Код: <b style="color: var(--accent, #a78bfa); letter-spacing: 1px;">${r.code}</b></span>
                             <span>Игроки: ${r.currentPlayers}/${r.maxPlayers}</span>
                             <span>До победы: ${r.targetScore}</span>
                         </div>
@@ -534,9 +553,23 @@ export class HigherLowerGame {
     }
     async leaveRoom() {
         this.syncLogs = [];
+        const wasHost = this.isHost;
+        const prevRoomId = this.roomId;
+
+        if (this.roomId) {
+            fetch('/api/room/leave', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ roomId: this.roomId, playerId: this.playerId })
+            }).catch(() => {});
+        }
         if (this.roomHeartbeatTimer) {
             clearInterval(this.roomHeartbeatTimer);
             this.roomHeartbeatTimer = null;
+        }
+        if (this.pollTimer) {
+            clearInterval(this.pollTimer);
+            this.pollTimer = null;
         }
         if (this.wsConnection) {
             this.wsConnection.close();
@@ -579,6 +612,14 @@ export class HigherLowerGame {
         this.multiplayerLoadingTags = false;
         this.loadingLeftName = null;
         this.loadingRightName = null;
+
+        if (prevRoomId) {
+            if (wasHost) {
+                this.showToast(`🚪 Комната ${prevRoomId} закрыта. Соединение отключено.`, 'info');
+            } else {
+                this.showToast(`🚪 Вы покинули комнату ${prevRoomId}. Соединение отключено.`, 'info');
+            }
+        }
     }
 
     renderSyncScreen(title = 'Синхронизация игроков...', desc = 'Ожидание подключения...') {
@@ -589,7 +630,7 @@ export class HigherLowerGame {
                     <div class="hl-logo-icon">${icon('space', { size: 20 })}</div>
                     <h2 class="hl-app-title">Мультиплеер</h2>
                 </div>
-                <button class="hl-close-btn" id="hlCloseBtn">&times;</button>
+                <button class="hl-close-btn" id="hlCloseBtn" title="Закрыть">&times;</button>
             </div>
             <div class="hl-card">
                 <div class="hl-sync-container">
@@ -605,10 +646,13 @@ export class HigherLowerGame {
                 </div>
             </div>
         `;
-        document.getElementById('hlCloseBtn').addEventListener('click', async () => {
+        const handleCancel = async () => {
             await this.leaveRoom();
-            this.renderMenu();
-        });
+            this.renderMultiplayerSetup();
+        };
+        const backBtn = document.getElementById('hlHeaderBackBtn');
+        if (backBtn) backBtn.addEventListener('click', handleCancel);
+        document.getElementById('hlCloseBtn').addEventListener('click', handleCancel);
     }
 
     addSyncLog(message) {
@@ -643,17 +687,17 @@ export class HigherLowerGame {
         this.container.innerHTML = `
             <div class="hl-header">
                 <div class="hl-title-group">
-                    <div class="hl-logo-icon">${icon('flame', { size: 20 })}</div>
+                    <div class="hl-logo-icon game-logo-icon game-logo-icon-higherlower">${icon('flame', { size: 20 })}</div>
                     <h2 class="hl-app-title">Больше или Меньше</h2>
                 </div>
-                <button class="hl-close-btn" id="hlCloseBtn">&times;</button>
+                <button class="hl-close-btn" id="hlCloseBtn" title="Закрыть">&times;</button>
             </div>
 
             <div class="hl-card">
                 <div class="hl-menu-container">
-                    <span class="hl-hero-badge">Интерактивная Мини-Игра</span>
-                    <h1 class="hl-menu-title">Угадай, у какого тега больше постов!</h1>
-                    <p class="hl-menu-desc">
+                    <span class="hl-hero-badge game-badge-gradient-primary">Интерактивная Мини-Игра</span>
+                    <h1 class="hl-menu-title game-menu-title">Угадай, у какого тега больше постов!</h1>
+                    <p class="hl-menu-desc game-menu-desc">
                         Вам даются два тега с обложками реальных артов из базы. Сравните их популярность и угадайте, у второго тега <b>БОЛЬШЕ</b> или <b>МЕНЬШЕ</b> постов, чем у первого!
                     </p>
 
@@ -669,11 +713,38 @@ export class HigherLowerGame {
                                 ${icon('space', { size: 16 })} Битва Вселенных
                             </button>
                         </div>
-                        <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
-                            <input type="checkbox" id="hlSoloNoAiCheckbox" ${this.isNoAiMode ? 'checked' : ''} style="width: 16px; height: 16px; accent-color: #a78bfa; cursor: pointer;">
-                            <label for="hlSoloNoAiCheckbox" style="font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.9); cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px;">
-                                ${icon('noAi', { size: 14 })} Режим "Без ИИ"
+                        <div class="game-setting-box" style="margin-top: 8px;">
+                            <label class="game-switch">
+                                <input type="checkbox" id="hlSoloNoAiCheckbox" ${this.isNoAiMode ? 'checked' : ''}>
+                                <span class="game-switch-slider"></span>
+                                <span class="game-switch-label" style="display: flex; align-items: center; gap: 6px;">
+                                    ${icon('noAi', { size: 14 })} Режим "Без ИИ"
+                                </span>
                             </label>
+                        </div>
+                    </div>
+
+                    <!-- Выбор режима (Higher/Lower style modes grid) -->
+                    <div class="hl-modes-grid">
+                        <div class="hl-mode-card game-mode-card primary-mode" id="hlStartSoloBtn">
+                            <div class="hl-mode-icon-circle game-mode-icon-circle">
+                                ${icon('gamepad', { size: 24 })}
+                            </div>
+                            <h3 class="hl-mode-title game-mode-title">Одиночный Режим</h3>
+                            <p class="hl-mode-subtitle game-mode-subtitle">Сравнивайте популярность тегов в одиночку и бейте свои рекорды.</p>
+                            <div class="hl-mode-stat game-mode-stat">Рекорд: <span>${this.highScore}</span></div>
+                        </div>
+
+                        <div class="hl-mode-card game-mode-card multiplayer" id="hlMultiplayerMenuBtn">
+                            <div class="hl-mode-icon-circle game-mode-icon-circle">
+                                ${icon('space', { size: 24 })}
+                            </div>
+                            <h3 class="hl-mode-title game-mode-title">Онлайн с Друзьями</h3>
+                            <p class="hl-mode-subtitle game-mode-subtitle">Создавайте комнаты и угадывайте популярность вместе в реальном времени.</p>
+                            <div class="hl-mode-stat game-mode-stat" style="color: #fcd34d; background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3);">
+                                Мультиплеер (до 15 чел.)
+                            </div>
+                            <span id="hlKeyWarningTag" style="display: none; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); background: #ef4444; color: #fff; font-size: 0.6rem; font-weight: 900; padding: 1px 6px; border-radius: 4px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.3); pointer-events: none;">ТРЕБУЕТСЯ API</span>
                         </div>
                     </div>
 
@@ -685,29 +756,20 @@ export class HigherLowerGame {
                             • За каждый правильный ответ вы получаете +1 очко и открываете следующий тег!
                         </div>
                     </div>
-
-                    <div style="display: flex; gap: 16px; margin-bottom: 6px;">
-                        <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 12px 24px; border-radius: 14px; text-align: center;">
-                            <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">Твой лучший рекорд</div>
-                            <div style="font-size: 1.6rem; font-weight: 900; color: #a78bfa;">${this.highScore}</div>
-                        </div>
-                    </div>
-
-                    <div class="hl-menu-actions">
-                        <button class="hl-btn-primary" id="hlStartSoloBtn">
-                            ${icon('gamepad', { size: 18 })} Одиночный Режим
-                        </button>
-                        <button class="hl-btn-secondary" id="hlMultiplayerMenuBtn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; position: relative; margin-top: 6px;">
-                            <span style="position: absolute; top: -10px; right: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.5); pointer-events: none;">Бета</span>
-                            <span id="hlKeyWarningTag" style="display: none; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); background: #ef4444; color: #fff; font-size: 0.6rem; font-weight: 900; padding: 1px 6px; border-radius: 4px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.3); pointer-events: none;">ТРЕБУЕТСЯ API</span>
-                            ${icon('space', { size: 18 })} Онлайн с Друзьями
-                        </button>
-                    </div>
                 </div>
             </div>
         `;
 
         document.getElementById('hlCloseBtn').addEventListener('click', () => this.close());
+        const menuHeaderBackBtn = document.getElementById('hlMenuHeaderBackBtn');
+        if (menuHeaderBackBtn) {
+            menuHeaderBackBtn.addEventListener('click', () => {
+                this.close();
+                if (typeof window.openGameChoiceModal === 'function') {
+                    window.openGameChoiceModal();
+                }
+            });
+        }
         document.getElementById('hlStartSoloBtn').addEventListener('click', () => this.startSoloGame());
         
         const multiBtn = document.getElementById('hlMultiplayerMenuBtn');
@@ -852,85 +914,97 @@ export class HigherLowerGame {
     }
 
     renderMultiplayerSetup() {
-        
         this.container.innerHTML = `
             <div class="hl-header">
                 <div class="hl-title-group">
-                    <div class="hl-logo-icon">${icon('space', { size: 20 })}</div>
+                    <div class="hl-logo-icon game-logo-icon game-logo-icon-higherlower">${icon('space', { size: 20 })}</div>
                     <h2 class="hl-app-title">Онлайн Режим <span style="font-size: 0.65em; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; padding: 2px 8px; border-radius: 8px; font-weight: 800; vertical-align: middle; margin-left: 6px;">БЕТА</span></h2>
                 </div>
-                <button class="hl-close-btn" id="hlCloseBtn">&times;</button>
+                <button class="hl-close-btn" id="hlCloseBtn" title="Закрыть">&times;</button>
             </div>
 
-            <div class="hl-card">
-                <div class="hl-menu-container">
-                    <h2 style="font-size: 1.8rem; font-weight: 800; color: #fff; margin: 0;">Мультиплеерные Комнаты</h2>
-                    <p style="color: rgba(255,255,255,0.7); font-size: 0.95rem;">
+            <div class="hl-card game-card-setup">
+                <div class="hl-menu-container game-menu-container-compact">
+                    <span class="hl-hero-badge game-badge-gradient-secondary">Интерактивный Онлайн</span>
+
+                    <h1 class="hl-menu-title game-menu-title" style="font-size: 1.75rem;">Мультиплеерные Комнаты</h1>
+                    <p class="hl-menu-desc game-menu-desc" style="font-size: 0.9rem;">
                         Играй с друзьями вне зависимости от устройства. Создай комнату или введи 5-значный код для входа!
                     </p>
 
-                    <div class="hl-form-box">
-                        <div class="hl-form-field">
-                            <label class="hl-form-label">Твое Имя / Никнейм:</label>
-                            <input type="text" id="hlPlayerNameInput" class="hl-input" value="${this.escapeHtml(this.playerName)}" maxlength="20">
+                    <div class="hl-form-box game-form-box">
+                        <div class="hl-form-field game-form-field">
+                            <label class="hl-form-label game-form-label" style="display: flex; align-items: center; gap: 6px;">${icon('user', { size: 14 })} Твое Имя / Никнейм:</label>
+                            <input type="text" id="hlPlayerNameInput" class="hl-input game-input" value="${this.escapeHtml(this.playerName)}" placeholder="Введите ваш ник..." maxlength="20">
                         </div>
 
-                        <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 6px 0;">
+                        <hr class="game-form-divider">
 
-                        <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <label class="hl-form-label">Присоединиться к комнате:</label>
-                            <div style="display: flex; gap: 8px;">
-                                <input type="text" id="hlRoomCodeInput" class="hl-input" placeholder="5-значный код (напр. BFTZK)" maxlength="5" style="text-align: center; font-weight: bold; letter-spacing: 2px; text-transform: uppercase;">
-                                <button class="hl-btn-primary" id="hlJoinRoomBtn" style="min-width: auto; padding: 10px 18px;">Войти</button>
+                        <div class="game-form-group">
+                            <label class="hl-form-label game-form-label">Присоединиться к комнате:</label>
+                            <div class="game-form-row">
+                                <input type="text" id="hlRoomCodeInput" class="hl-input game-input game-code-input" placeholder="КОД КОМНАТЫ">
+                                <button class="hl-btn-primary" id="hlJoinRoomBtn" style="min-width: auto; padding: 10px 18px;">${icon('arrowRight', { size: 16 })} Войти</button>
                             </div>
                         </div>
 
-                        <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 6px 0;">
+                        <hr class="game-form-divider">
 
-                        <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <label class="hl-form-label">Создать новую комнату:</label>
+                        <div class="game-form-group">
+                            <label class="hl-form-label game-form-label">Создать новую комнату:</label>
                             
-                            <div style="background: rgba(255,255,255,0.05); padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                                    <label class="hl-form-label" style="margin: 0;">Макс. игроков:</label>
-                                    <span id="hlMaxPlayersVal" style="font-weight: 800; font-size: 1rem; color: #a78bfa;">6 игрок.</span>
+                            <div style="display: flex; flex-direction: column; gap: 8px; text-align: left;">
+                                <label class="hl-form-label game-form-label" style="font-size: 0.85rem;">Категория игры:</label>
+                                <div class="hl-category-pills" style="width: 100%;">
+                                    <div id="hlCatCharactersBtn" class="hl-cat-pill game-pills-row ${this.selectedCategory === 'characters' ? 'active' : ''}">
+                                        ${icon('user', { size: 14 })} Персонажи
+                                    </div>
+                                    <div id="hlCatCopyrightsBtn" class="hl-cat-pill game-pills-row ${this.selectedCategory === 'copyrights' ? 'active' : ''}">
+                                        ${icon('space', { size: 14 })} Франшизы
+                                    </div>
                                 </div>
-                                <input type="range" id="hlMaxPlayersRange" min="2" max="15" value="6" style="width: 100%; accent-color: #a78bfa; cursor: pointer; height: 6px;">
+                            </div>
+
+                            <div class="game-setting-box">
+                                <div class="game-setting-header">
+                                    <label class="hl-form-label game-form-label" style="margin: 0;">Макс. игроков:</label>
+                                    <span id="hlMaxPlayersVal" style="font-weight: 800; font-size: 1rem; color: var(--accent, #a78bfa);">6 игрок.</span>
+                                </div>
+                                <input type="range" id="hlMaxPlayersRange" class="game-range-slider" min="2" max="15" value="6">
                             </div>
 
                             <div style="display: flex; flex-direction: column; gap: 6px;">
-                                <label class="hl-form-label" style="margin: 0;">Очков для победы:</label>
+                                <label class="hl-form-label game-form-label" style="margin: 0;">Очков для победы:</label>
                                 <div style="display: flex; gap: 8px; align-items: center;">
-                                    <select id="hlTargetScoreSelect" class="hl-input" style="flex: 1;">
+                                    <select id="hlTargetScoreSelect" class="game-select" style="flex: 1;">
                                         <option value="5">5 очков (Быстрая)</option>
                                         <option value="10" selected>10 очков (Стандарт)</option>
                                         <option value="15">15 очков (Долгая)</option>
                                         <option value="20">20 очков (Марафон)</option>
                                         <option value="custom">Свой вариант...</option>
                                     </select>
-                                    <input type="number" id="hlTargetScoreCustom" class="hl-input" min="1" max="100" value="10" placeholder="1-100" style="display: none; width: 110px; text-align: center; font-weight: bold;">
+                                    <input type="number" id="hlTargetScoreCustom" class="hl-input game-input" min="1" max="100" value="10" placeholder="1-100" style="display: none; width: 110px; text-align: center; font-weight: bold;">
                                 </div>
                             </div>
 
-                            <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); margin-top: 2px;">
-                                <label for="hlNoAiCheckbox" style="font-size: 0.9rem; font-weight: 600; color: rgba(255,255,255,0.9); cursor: pointer; display: flex; align-items: center; gap: 8px; margin: 0;">
+                            <div class="game-setting-box" style="display: flex; align-items: center; justify-content: space-between; margin-top: 2px;">
+                                <span style="font-size: 0.9rem; font-weight: 600; color: rgba(255,255,255,0.9); display: flex; align-items: center; gap: 8px;">
                                     ${icon('noAi', { size: 16 })} Режим "Без ИИ"
+                                </span>
+                                <label class="game-switch">
+                                    <input type="checkbox" id="hlNoAiCheckbox">
+                                    <span class="game-switch-slider"></span>
                                 </label>
-                                <input type="checkbox" id="hlNoAiCheckbox" style="width: 18px; height: 18px; accent-color: #a78bfa; cursor: pointer;">
                             </div>
 
-                            <select id="hlRoomCategorySelect" class="hl-input" style="width: 100%;">
-                                <option value="characters" ${this.selectedCategory === 'characters' ? 'selected' : ''}>Категория: Только Персонажи</option>
-                                <option value="copyrights" ${this.selectedCategory === 'copyrights' ? 'selected' : ''}>Категория: Битва Вселенных (Франшизы)</option>
-                            </select>
-                            <button class="hl-btn-primary" id="hlCreateRoomBtn" style="width: 100%; margin-top: 6px;">
+                            <button class="hl-btn-primary game-create-btn" id="hlCreateRoomBtn">
                                 ${icon('sparkles', { size: 16 })} Создать Комнату
                             </button>
                         </div>
                     </div>
 
-                    <button class="hl-btn-secondary" id="hlBackMenuBtn" style="min-width: 160px; padding: 10px 18px; margin-top: 10px;">
-                        ← Назад
+                    <button class="hl-btn-secondary game-back-btn" id="hlBackMenuBtn">
+                        ${icon('arrowLeft', { size: 14 })} Назад в меню
                     </button>
                 </div>
             </div>
@@ -938,12 +1012,32 @@ export class HigherLowerGame {
 
         document.getElementById('hlCloseBtn').addEventListener('click', () => this.close());
         document.getElementById('hlBackMenuBtn').addEventListener('click', () => this.renderMenu());
+        const headerBackBtn = document.getElementById('hlHeaderBackBtn');
+        if (headerBackBtn) headerBackBtn.addEventListener('click', () => this.renderMenu());
 
         const nameInput = document.getElementById('hlPlayerNameInput');
         nameInput.addEventListener('change', () => {
             this.playerName = nameInput.value.trim() || 'Игрок';
             localStorage.setItem('r34_hl_player_name', this.playerName);
         });
+
+        // Категории в виде табов
+        const catCharBtn = document.getElementById('hlCatCharactersBtn');
+        const catCopyBtn = document.getElementById('hlCatCopyrightsBtn');
+        if (catCharBtn && catCopyBtn) {
+            catCharBtn.addEventListener('click', () => {
+                this.selectedCategory = 'characters';
+                localStorage.setItem('r34_hl_category', 'characters');
+                catCharBtn.classList.add('active');
+                catCopyBtn.classList.remove('active');
+            });
+            catCopyBtn.addEventListener('click', () => {
+                this.selectedCategory = 'copyrights';
+                localStorage.setItem('r34_hl_category', 'copyrights');
+                catCopyBtn.classList.add('active');
+                catCharBtn.classList.remove('active');
+            });
+        }
 
         const rangeInput = document.getElementById('hlMaxPlayersRange');
         const rangeVal = document.getElementById('hlMaxPlayersVal');
@@ -956,6 +1050,7 @@ export class HigherLowerGame {
         const scoreSelect = document.getElementById('hlTargetScoreSelect');
         const scoreCustom = document.getElementById('hlTargetScoreCustom');
         if (scoreSelect && scoreCustom) {
+            makeCustomDropdown(scoreSelect);
             scoreSelect.addEventListener('change', (e) => {
                 if (e.target.value === 'custom') {
                     scoreCustom.style.display = 'block';
@@ -983,7 +1078,7 @@ export class HigherLowerGame {
                 targetS = parseInt(scoreSelect.value, 10) || 10;
             }
 
-            const cat = document.getElementById('hlRoomCategorySelect').value;
+            const cat = this.selectedCategory;
             const noAiCb = document.getElementById('hlNoAiCheckbox');
             const noAi = noAiCb ? noAiCb.checked : false;
             await this.createRoom(maxP, targetS, cat, noAi);
@@ -1376,7 +1471,7 @@ export class HigherLowerGame {
                     
                     <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); padding: 20px 30px; border-radius: 18px; margin: 10px 0;">
                         <div style="font-size: 0.9rem; color: rgba(255,255,255,0.7);">Твой итоговый счёт:</div>
-                        <div style="font-size: 3rem; font-weight: 900; color: #a78bfa;">${this.score}</div>
+                        <div style="font-size: 3rem; font-weight: 900; color: var(--accent, #a78bfa);">${this.score}</div>
                         <div style="font-size: 0.85rem; color: rgba(255,255,255,0.5); margin-top: 4px;">Лучший рекорд: ${this.highScore}</div>
                     </div>
 
@@ -1397,7 +1492,7 @@ export class HigherLowerGame {
         document.getElementById('hlMenuBtn').addEventListener('click', () => this.renderMenu());
     }
 
-    // --- SERVERLESS P2P MULTIPLAYER LOGIC ---
+    // --- SERVER & P2P HYBRID MULTIPLAYER LOGIC ---
     generateRoomCode() {
         const chars = 'BCDFGHJKLMNPQRSTVWXYZ';
         let code = '';
@@ -1410,9 +1505,21 @@ export class HigherLowerGame {
     getMeteredKey() {
         return localStorage.getItem('hlMeteredKey') || '';
     }
-    async sendSignal(code, data) {
+
+    async sendSignal(code, data, targetId = null) {
+        if (!data) return;
+        if (!data._msgId) {
+            data._msgId = `${this.playerId}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        }
+        
+        // Only allow WebRTC handshake signals through ntfy
+        const allowedSignalingTypes = ['JOIN_ROOM', 'JOIN_ACCEPT', 'JOIN_REJECT', 'OFFER', 'ANSWER', 'ICE_CANDIDATE', 'GUEST_JOINED', 'JOIN'];
+        if (data.type && !allowedSignalingTypes.includes(data.type)) {
+            return;
+        }
+
+        // Public ntfy.sh topic for internet-wide signaling
         const topic = `r34_sig_${code}`;
-        console.log(`>>> DEBUG: [Signaling] Publishing to ntfy topic ${topic}:`, data);
         try {
             await fetch(`https://ntfy.sh/${topic}`, {
                 method: 'POST',
@@ -1420,53 +1527,107 @@ export class HigherLowerGame {
             });
         } catch (e) {
             console.error('>>> DEBUG: [Signaling] Send error:', e);
-            this.signalQueue.push({ code, data });
+            this.signalQueue.push({ code, data, targetId });
         }
+
+        // Also notify local server if available
+        try {
+            fetch('/api/room/signal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomId: code,
+                    senderId: this.playerId,
+                    targetId: targetId || null,
+                    packet: data
+                })
+            }).catch(() => {});
+        } catch (e) {}
     }
 
     listenSignal(code, onMessage) {
-        const topic = `r34_sig_${code}`;
-        console.log(`>>> DEBUG: [Signaling] Connecting SSE for ntfy topic ${topic}`);
-        
         if (this.eventSource) {
             try { this.eventSource.close(); } catch(err) {}
             this.eventSource = null;
+        }
+        if (this.pollTimer) {
+            clearInterval(this.pollTimer);
+            this.pollTimer = null;
         }
 
         // Default free public STUN servers for WebRTC
         this.iceServers = [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun.cloudflare.com:3478' }
         ];
+
+        const savedKey = this.getMeteredKey();
+        if (savedKey && typeof savedKey === 'string' && savedKey.trim()) {
+            const cleanKey = savedKey.trim();
+            const appName = cleanKey.includes('.') ? cleanKey.split('.')[0] : cleanKey;
+            this.iceServers = [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun.cloudflare.com:3478' },
+                { urls: `stun:${appName}.metered.ca:80` },
+                { urls: `stun:${appName}.metered.ca:443` },
+                {
+                    urls: [
+                        `turn:${appName}.metered.ca:80?transport=udp`,
+                        `turn:${appName}.metered.ca:443?transport=tcp`
+                    ],
+                    username: 'metered',
+                    credential: 'key'
+                }
+            ];
+        }
 
         if (typeof this.onSignalingWelcome === 'function') {
             this.onSignalingWelcome();
         }
 
+        const safeOnMessage = (msg) => {
+            if (!msg || typeof msg !== 'object') return;
+            if (msg._msgId) {
+                if (this.processedPacketIds.has(msg._msgId)) return;
+                this.processedPacketIds.add(msg._msgId);
+                if (this.processedPacketIds.size > 2000) {
+                    const first = this.processedPacketIds.values().next().value;
+                    this.processedPacketIds.delete(first);
+                }
+            }
+            onMessage(msg);
+        };
+
         // Process queued signals
         while (this.signalQueue.length > 0) {
             const queued = this.signalQueue.shift();
-            this.sendSignal(queued.code, queued.data);
+            this.sendSignal(queued.code, queued.data, queued.targetId);
         }
 
-        const esUrl = `https://ntfy.sh/${topic}/sse`;
-        this.eventSource = new EventSource(esUrl);
-        this.eventSource.onmessage = (event) => {
-            try {
-                const packet = JSON.parse(event.data);
-                if (packet.message) {
-                    const msg = JSON.parse(packet.message);
-                    console.log('>>> DEBUG: [Signaling] Received message via ntfy:', msg);
-                    onMessage(msg);
+        // Public ntfy.sh SSE stream for room signaling
+        const topic = `r34_sig_${code}`;
+        try {
+            this.eventSource = new EventSource(`https://ntfy.sh/${topic}/sse`);
+            this.eventSource.onmessage = (event) => {
+                try {
+                    const packet = JSON.parse(event.data);
+                    if (packet.message) {
+                        const msg = JSON.parse(packet.message);
+                        safeOnMessage(msg);
+                    }
+                } catch (e) {}
+            };
+            this.eventSource.onerror = (e) => {
+                if (this.eventSource && this.eventSource.readyState === EventSource.CLOSED) {
+                    console.log('>>> DEBUG: [Signaling] ntfy SSE closed');
                 }
-            } catch (e) {
-                // Ignore keepalive / non-JSON packets
-            }
-        };
-        this.eventSource.onerror = (e) => {
-            console.error('>>> DEBUG: [Signaling] SSE error:', e);
-        };
+            };
+        } catch (err) {
+            console.error('>>> DEBUG: [Signaling] SSE error:', err);
+        }
     }
 
     async createRoom(maxPlayers, targetScore, category = 'characters', noAi = false) {
@@ -1515,116 +1676,157 @@ export class HigherLowerGame {
             createdAt: new Date().toISOString()
         };
 
-        this.addSyncLog('Открытие сигналинга на ntfy.sh...');
+        // Notify server of room creation
+        try {
+            await fetch('/api/room/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomId: code,
+                    hostId: this.playerId,
+                    gameType: 'higher_lower',
+                    roomData: this.roomData
+                })
+            });
+        } catch (e) {}
+
+        this.addSyncLog('Открытие канала связи...');
         this.listenSignal(code, async (msg) => {
+            if (!msg || typeof msg !== 'object') return;
+
+            // Handle client JOIN via server relay
+            if (msg.type === 'JOIN' && msg.player && msg.player.id !== this.playerId) {
+                const clientPlayer = msg.player;
+                const clientPlayerId = clientPlayer.id;
+                this.addSyncLog(`Игрок ${clientPlayer.name} подключился`);
+                this.roomData.players[clientPlayerId] = clientPlayer;
+                this.broadcastRoomData();
+                this.handleRoomStateUpdate();
+                return;
+            }
+
+            // Handle client ANSWER via server relay
+            if (msg.type === 'ANSWER' && msg.choice && msg.playerId && msg.playerId !== this.playerId) {
+                console.log('DEBUG: Host received ANSWER from', msg.playerId, ':', msg.choice);
+                if (this.roomData.players[msg.playerId]) {
+                    this.roomData.players[msg.playerId].status = 'answered';
+                    this.roomData.players[msg.playerId].lastAnswer = msg.choice;
+                    this.broadcastRoomData();
+                    this.handleRoomStateUpdate();
+                    this.checkAndEvaluateRound();
+                }
+                return;
+            }
+
+            // Handle client LEAVE via server relay
+            if (msg.type === 'LEAVE' && msg.playerId && msg.playerId !== this.playerId) {
+                const leftPlayerId = msg.playerId;
+                if (this.roomData?.players[leftPlayerId]) {
+                    const leftName = this.roomData.players[leftPlayerId].name || 'Игрок';
+                    delete this.roomData.players[leftPlayerId];
+                    this.showToast(`🚪 Игрок "${this.escapeHtml(leftName)}" покинул комнату`, 'danger');
+                    this.broadcastRoomData();
+                    this.handleRoomStateUpdate();
+                    this.checkAndEvaluateRound();
+                }
+                return;
+            }
+
+            // Handle WebRTC OFFER
             if (msg.type === 'OFFER') {
                 const clientPlayerId = msg.playerId;
-                this.addSyncLog(`Получен OFFER от игрока ${clientPlayerId.substring(0, 6)}...`);
+                this.addSyncLog(`Получен P2P OFFER от игрока ${clientPlayerId.substring(0, 6)}...`);
                 if (this.roomData.status === 'playing') {
                     this.addSyncLog('Отклонено: игра уже идет');
-                    await this.sendSignal(code, { type: 'ERROR', playerId: clientPlayerId, message: 'Игра уже началась!' });
+                    await this.sendSignal(code, { type: 'ERROR', playerId: clientPlayerId, message: 'Игра уже началась!' }, clientPlayerId);
                     return;
                 }
                 if (Object.keys(this.roomData.players).length >= this.roomData.maxPlayers && !this.roomData.players[clientPlayerId]) {
                     this.addSyncLog('Отклонено: комната заполнена');
-                    await this.sendSignal(code, { type: 'ERROR', playerId: clientPlayerId, message: 'Комната заполнена!' });
+                    await this.sendSignal(code, { type: 'ERROR', playerId: clientPlayerId, message: 'Комната заполнена!' }, clientPlayerId);
                     return;
                 }
 
-                const iceConfig = {
-                    iceServers: this.iceServers || [{ urls: 'stun:stun.l.google.com:19302' }]
-                };
-                const pc = new RTCPeerConnection(iceConfig);
-                this.clientPeerConnections[clientPlayerId] = pc;
-                this.addSyncLog('Создан RTCPeerConnection для клиента с ICE-серверами Metered...');
+                try {
+                    const iceConfig = {
+                        iceServers: this.iceServers || [{ urls: 'stun:stun.l.google.com:19302' }]
+                    };
+                    const pc = new RTCPeerConnection(iceConfig);
+                    this.clientPeerConnections[clientPlayerId] = pc;
+                    this.addSyncLog('Создан RTCPeerConnection для клиента...');
 
-                pc.ondatachannel = (event) => {
-                    const dc = event.channel;
-                    this.connections.push({ playerId: clientPlayerId, dc });
-                    this.addSyncLog('DataChannel получен от клиента');
-
-                    dc.onopen = () => {
-                        this.addSyncLog('DataChannel открыт!');
-                        this.broadcastRoomData();
+                    pc.onicecandidateerror = (e) => {
+                        console.warn('[Host WebRTC ICE Notice]:', e);
                     };
 
-                    dc.onmessage = (e) => {
-                        try {
-                            const data = JSON.parse(e.data);
-                            if (data.type === 'JOIN') {
-                                this.addSyncLog(`Игрок ${data.player.name} присоединился`);
-                                this.roomData.players[data.player.id] = data.player;
-                                this.broadcastRoomData();
-                                this.handleRoomStateUpdate();
-                            } else if (data.type === 'ANSWER') {
-                                console.log('DEBUG: Host received ANSWER from', data.playerId, ':', data.choice);
-                                if (this.roomData.players[data.playerId]) {
-                                    this.roomData.players[data.playerId].status = 'answered';
-                                    this.roomData.players[data.playerId].lastAnswer = data.choice;
-                                    this.broadcastRoomData();
-                                    this.handleRoomStateUpdate();
-                                    this.checkAndEvaluateRound();
-                                }
-                            } else if (data.type === 'LEAVE') {
-                                const leftPlayerId = data.playerId || clientPlayerId;
-                                if (this.roomData?.players[leftPlayerId]) {
-                                    const leftName = this.roomData.players[leftPlayerId].name || 'Игрок';
-                                    delete this.roomData.players[leftPlayerId];
-                                    this.showToast(`🚪 Игрок "${this.escapeHtml(leftName)}" покинул комнату`, 'danger');
-                                    this.broadcastRoomData();
-                                    this.handleRoomStateUpdate();
-                                    this.checkAndEvaluateRound();
-                                }
-                            } else if (data.type === 'PONG') {
-                                // Received heartbeat response from client
-                            }
-                        } catch (err) {}
-                    };
+                    pc.ondatachannel = (event) => {
+                        const dc = event.channel;
+                        this.connections.push({ playerId: clientPlayerId, dc });
+                        this.addSyncLog('DataChannel получен от клиента');
 
-                    dc.onclose = () => {
-                        this.addSyncLog('DataChannel закрыт клиентом');
-                        this.connections = this.connections.filter(c => c.dc !== dc);
-                        delete this.clientPeerConnections[clientPlayerId];
-                        if (this.roomData?.players[clientPlayerId]) {
-                            const leftName = this.roomData.players[clientPlayerId].name || 'Игрок';
-                            delete this.roomData.players[clientPlayerId];
-                            
-                            // Explicitly show toast on host side as well
-                            this.showToast(`🚪 Игрок "${leftName}" покинул игру`, 'danger');
-                            
+                        dc.onopen = () => {
+                            this.addSyncLog('DataChannel открыт!');
                             this.broadcastRoomData();
-                            this.handleRoomStateUpdate();
+                        };
 
-                            // Check if host is alone (only 1 player left in the room data)
-                            if (Object.keys(this.roomData.players).length <= 1) {
-                                setTimeout(() => {
-                                    if (Object.keys(this.roomData.players).length <= 1) {
-                                        this.showModalAlert('Сессия завершена', 'Все игроки покинули комнату. Сессия закрыта.', async () => {
-                                            await this.leaveRoom();
-                                            this.renderMenu();
-                                        });
+                        dc.onmessage = (e) => {
+                            try {
+                                const data = JSON.parse(e.data);
+                                if (data.type === 'JOIN') {
+                                    this.addSyncLog(`Игрок ${data.player.name} присоединился (P2P)`);
+                                    this.roomData.players[data.player.id] = data.player;
+                                    this.broadcastRoomData();
+                                    this.handleRoomStateUpdate();
+                                } else if (data.type === 'ANSWER') {
+                                    console.log('DEBUG: Host received ANSWER from', data.playerId, ':', data.choice);
+                                    if (this.roomData.players[data.playerId]) {
+                                        this.roomData.players[data.playerId].status = 'answered';
+                                        this.roomData.players[data.playerId].lastAnswer = data.choice;
+                                        this.broadcastRoomData();
+                                        this.handleRoomStateUpdate();
+                                        this.checkAndEvaluateRound();
                                     }
-                                }, 500);
-                            }
-                        }
+                                } else if (data.type === 'LEAVE') {
+                                    const leftPlayerId = data.playerId || clientPlayerId;
+                                    if (this.roomData?.players[leftPlayerId]) {
+                                        const leftName = this.roomData.players[leftPlayerId].name || 'Игрок';
+                                        delete this.roomData.players[leftPlayerId];
+                                        this.showToast(`🚪 Игрок "${this.escapeHtml(leftName)}" покинул комнату`, 'danger');
+                                        this.broadcastRoomData();
+                                        this.handleRoomStateUpdate();
+                                        this.checkAndEvaluateRound();
+                                    }
+                                } else if (data.type === 'PONG') {
+                                    // Heartbeat response
+                                }
+                            } catch (err) {}
+                        };
+
+                        dc.onclose = () => {
+                            this.addSyncLog('DataChannel закрыт клиентом');
+                            this.connections = this.connections.filter(c => c.dc !== dc);
+                            delete this.clientPeerConnections[clientPlayerId];
+                        };
                     };
-                };
 
-                await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
+                    await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
+                    const answer = await pc.createAnswer();
+                    await pc.setLocalDescription(answer);
 
-                await new Promise(resolve => {
-                    if (pc.iceGatheringState === 'complete') resolve();
-                    else {
-                        const checkState = () => { if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', checkState); resolve(); } };
-                        pc.addEventListener('icegatheringstatechange', checkState);
-                        setTimeout(() => { pc.removeEventListener('icegatheringstatechange', checkState); resolve(); }, 1500);
-                    }
-                });
+                    await new Promise(resolve => {
+                        if (pc.iceGatheringState === 'complete') resolve();
+                        else {
+                            const checkState = () => { if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', checkState); resolve(); } };
+                            pc.addEventListener('icegatheringstatechange', checkState);
+                            setTimeout(() => { pc.removeEventListener('icegatheringstatechange', checkState); resolve(); }, 1200);
+                        }
+                    });
 
-                this.addSyncLog('Отправка ANSWER клиенту через сигналинг...');
-                await this.sendSignal(code, { type: 'ANSWER', playerId: clientPlayerId, answer: pc.localDescription });
+                    this.addSyncLog('Отправка ANSWER клиенту через сигналинг...');
+                    await this.sendSignal(code, { type: 'ANSWER', playerId: clientPlayerId, answer: pc.localDescription }, clientPlayerId);
+                } catch (pcErr) {
+                    console.warn('[Host WebRTC error]:', pcErr);
+                }
             }
         });
 
@@ -1665,84 +1867,137 @@ export class HigherLowerGame {
         this.isHost = false;
         this.roomId = cleanCode;
 
-        let answered = false;
+        // 1. First attempt to join room via server backend
+        try {
+            const resp = await fetch('/api/room/join', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomId: cleanCode,
+                    playerId: this.playerId,
+                    playerName: this.playerName
+                })
+            });
+            if (resp.ok) {
+                const json = await resp.json();
+                if (json.roomData) {
+                    this.roomData = json.roomData;
+                    this.addSyncLog('Комната найдена на сервере! Загрузка лобби...');
+                    if (this.mode !== 'lobby' && this.roomData.status === 'waiting') {
+                        this.mode = 'lobby';
+                        this.renderLobby();
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[JoinRoom Server Notice]:', e);
+        }
 
-        this.onSignalingWelcome = async () => {
-            this.onSignalingWelcome = null; // trigger once
-            this.addSyncLog('Подключение к сигналингу установлено, настройка WebRTC...');
+        const myPlayerObj = {
+            id: this.playerId,
+            name: this.playerName,
+            score: 0,
+            status: 'joined',
+            isHost: false,
+            lastAnswer: null,
+            lastResult: null
+        };
 
+        const handleRoomStatePacket = (newRoomData) => {
+            const currentRoundNum = this.roomData?.round || 0;
+            const newRoundNum = newRoomData.round || 0;
+            
+            if (currentRoundNum === newRoundNum && this.roomData?.players?.[this.playerId]) {
+                const localPlayer = this.roomData.players[this.playerId];
+                if (localPlayer.status === 'answered' && newRoomData.players?.[this.playerId]?.status === 'answering') {
+                    console.log('>>> DEBUG: [Sync] Preserving local "answered" status (host is slightly behind)');
+                    newRoomData.players[this.playerId].status = 'answered';
+                    newRoomData.players[this.playerId].lastAnswer = localPlayer.lastAnswer;
+                }
+            }
+
+            this.roomData = newRoomData;
+            
+            if (this.mode !== 'lobby' && this.roomData.status === 'waiting') {
+                this.addSyncLog('Получено состояние комнаты, открытие лобби...');
+                this.mode = 'lobby';
+                this.renderLobby();
+            } else {
+                this.handleRoomStateUpdate();
+            }
+        };
+
+        this.listenSignal(cleanCode, async (msg) => {
+            if (!msg || typeof msg !== 'object') return;
+
+            if (msg.type === 'ROOM_STATE' && msg.data) {
+                handleRoomStatePacket(msg.data);
+            } else if (msg.type === 'ANSWER' && msg.playerId === this.playerId) {
+                if (this.pc && this.pc.signalingState === 'have-local-offer') {
+                    this.addSyncLog('Получен ANSWER от хоста, настраиваем P2P...');
+                    try {
+                        await this.pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
+                    } catch (e) {
+                        console.warn('[WebRTC setRemoteDescription]:', e);
+                    }
+                }
+            } else if (msg.type === 'ERROR' && msg.playerId === this.playerId) {
+                this.addSyncLog(`Ошибка соединения: ${msg.message}`);
+                this.showModalAlert('Ошибка', msg.message, async () => {
+                    await this.leaveRoom();
+                    this.renderMenu();
+                });
+            } else if (msg.type === 'ROOM_CLOSED') {
+                this.addSyncLog('Комната была закрыта создателем');
+                this.showModalAlert('Создатель покинул игру', '🛑 Комната была закрыта создателем. Сессия завершена.', async () => {
+                    await this.leaveRoom();
+                    this.renderMenu();
+                });
+            }
+        });
+
+        // Announce JOIN immediately over server relay
+        this.addSyncLog('Отправка запроса на вход (Relay)...');
+        await this.sendSignal(cleanCode, {
+            type: 'JOIN',
+            playerId: this.playerId,
+            player: myPlayerObj
+        }, this.roomData?.hostId);
+
+        // In parallel, attempt WebRTC P2P connection
+        try {
             const iceConfig = {
                 iceServers: this.iceServers || [{ urls: 'stun:stun.l.google.com:19302' }]
             };
-            console.log('>>> DEBUG: [WebRTC] Creating RTCPeerConnection with config:', iceConfig);
-
             const pc = new RTCPeerConnection(iceConfig);
             this.pc = pc;
-            this.addSyncLog('Создан RTCPeerConnection (клиент) c ICE-серверами Metered...');
+
+            pc.onicecandidateerror = (e) => {
+                console.warn('[Client WebRTC ICE Notice]:', e);
+            };
 
             const dc = pc.createDataChannel('game');
             this.hostConn = dc;
-            this.addSyncLog('Создан DataChannel для отправки сообщений хосту');
 
             dc.onopen = () => {
-                this.addSyncLog('DataChannel с хостом открыт, отправка JOIN...');
+                this.addSyncLog('P2P DataChannel с хостом открыт');
                 this.lastHostPingTime = Date.now();
-
-                if (this.roomHeartbeatTimer) clearInterval(this.roomHeartbeatTimer);
-                this.roomHeartbeatTimer = setInterval(() => {
-                    if (!this.isHost && this.roomId && this.hostConn) {
-                        if (Date.now() - this.lastHostPingTime > 15000) {
-                            clearInterval(this.roomHeartbeatTimer);
-                            this.roomHeartbeatTimer = null;
-                            this.showModalAlert('Разрыв соединения', '🛑 Потеряна связь с создателем комнаты.', async () => {
-                                await this.leaveRoom();
-                                this.renderMenu();
-                            });
-                        }
-                    }
-                }, 4000);
-
                 dc.send(JSON.stringify({
                     type: 'JOIN',
-                    player: {
-                        id: this.playerId,
-                        name: this.playerName,
-                        score: 0,
-                        status: 'joined',
-                        isHost: false,
-                        lastAnswer: null,
-                        lastResult: null
-                    }
+                    player: myPlayerObj
                 }));
+                // Guest stops ntfy listener when DataChannel opens
+                if (this.eventSource) {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                }
             };
 
             dc.onmessage = (e) => {
                 try {
                     const data = JSON.parse(e.data);
                     if (data.type === 'ROOM_STATE') {
-                        const newRoomData = data.data;
-                        
-                        const currentRoundNum = this.roomData?.round || 0;
-                        const newRoundNum = newRoomData.round || 0;
-                        
-                        if (currentRoundNum === newRoundNum && this.roomData?.players[this.playerId]) {
-                            const localPlayer = this.roomData.players[this.playerId];
-                            if (localPlayer.status === 'answered' && newRoomData.players[this.playerId]?.status === 'answering') {
-                                console.log('>>> DEBUG: [Sync] Preserving local "answered" status (host is slightly behind)');
-                                newRoomData.players[this.playerId].status = 'answered';
-                                newRoomData.players[this.playerId].lastAnswer = localPlayer.lastAnswer;
-                            }
-                        }
-
-                        this.roomData = newRoomData;
-                        
-                        if (this.mode !== 'lobby' && this.roomData.status === 'waiting') {
-                            this.addSyncLog('Получено состояние комнаты, открытие лобби...');
-                            this.mode = 'lobby';
-                            this.renderLobby();
-                        } else {
-                            this.handleRoomStateUpdate();
-                        }
+                        handleRoomStatePacket(data.data);
                     } else if (data.type === 'ERROR') {
                         this.addSyncLog(`Ошибка от хоста: ${data.message}`);
                         this.showModalAlert('Ошибка', data.message, async () => {
@@ -1764,14 +2019,6 @@ export class HigherLowerGame {
                 } catch (err) {}
             };
 
-            dc.onclose = () => {
-                this.addSyncLog('DataChannel закрыт (потеря связи с хостом)');
-                this.showModalAlert('Разрыв связи', '🛑 Соединение с хостом потеряно', async () => {
-                    await this.leaveRoom();
-                    this.renderMenu();
-                });
-            };
-
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
 
@@ -1780,38 +2027,21 @@ export class HigherLowerGame {
                 else {
                     const checkState = () => { if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', checkState); resolve(); } };
                     pc.addEventListener('icegatheringstatechange', checkState);
-                    setTimeout(() => { pc.removeEventListener('icegatheringstatechange', checkState); resolve(); }, 1500);
+                    setTimeout(() => { pc.removeEventListener('icegatheringstatechange', checkState); resolve(); }, 1200);
                 }
             });
 
-            this.addSyncLog('Создан WebRTC Offer, отправка через сигналинг...');
-            await this.sendSignal(cleanCode, { type: 'OFFER', playerId: this.playerId, offer: pc.localDescription });
-        };
+            this.addSyncLog('Отправка WebRTC Offer...');
+            await this.sendSignal(cleanCode, { type: 'OFFER', playerId: this.playerId, offer: pc.localDescription }, this.roomData?.hostId);
+        } catch (webrtcErr) {
+            console.warn('[Client WebRTC setup error, relying on server relay]:', webrtcErr);
+        }
 
-        this.listenSignal(cleanCode, async (msg) => {
-            if (msg.type === 'ANSWER' && msg.playerId === this.playerId) {
-                if (this.pc && this.pc.signalingState === 'have-local-offer') {
-                    answered = true;
-                    this.addSyncLog('Получен ANSWER от хоста, применяем RemoteDescription...');
-                    await this.pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
-                }
-            } else if (msg.type === 'ERROR' && msg.playerId === this.playerId) {
-                answered = true;
-                this.addSyncLog(`Ошибка соединения: ${msg.message}`);
-                this.showModalAlert('Ошибка', msg.message, async () => {
-                    await this.leaveRoom();
-                    this.renderMenu();
-                });
-            }
-        });
-
-        setTimeout(() => {
-            if (!answered && !this.isHost && this.roomId === cleanCode) {
-                this.addSyncLog('Таймаут: хост не ответил на подключение');
-                this.showModalAlert('Ошибка подключения', 'Комната не найдена или хост не в сети! Убедитесь, что у вас и у хоста открыты порты/разрешен WebRTC.', async () => {
-                    await this.leaveRoom();
-                    this.renderMenu();
-                });
+        // Heartbeat monitor for client (P2P liveness)
+        if (this.roomHeartbeatTimer) clearInterval(this.roomHeartbeatTimer);
+        this.roomHeartbeatTimer = setInterval(() => {
+            if (!this.isHost && this.roomId) {
+                this.lastHostPingTime = Date.now();
             }
         }, 8000);
     }
@@ -1820,8 +2050,8 @@ export class HigherLowerGame {
         if (!this.roomId || !this.roomData || !this.isHost) return;
         const msg = JSON.stringify({ type: 'ROOM_STATE', data: this.roomData });
         this.connections.forEach(c => {
-            if (c.dc.readyState === 'open') {
-                c.dc.send(msg);
+            if (c.dc && c.dc.readyState === 'open') {
+                try { c.dc.send(msg); } catch(e) {}
             }
         });
     }
@@ -1854,8 +2084,20 @@ export class HigherLowerGame {
         this.previousPlayers = { ...currentPlayers };
 
         if (this.roomData.status === 'finished') {
+            if (!this._gameOverToastShown) {
+                this._gameOverToastShown = true;
+                const players = Object.values(this.roomData.players || {}).sort((a, b) => b.score - a.score);
+                const maxScore = players[0]?.score || 0;
+                const winners = players.filter(p => p.score === maxScore && maxScore > 0);
+                if (winners.length > 0) {
+                    const names = winners.map(w => w.name).join(', ');
+                    this.showToast(`🏆 Игра окончена! Победитель: ${names} (${maxScore} очков)`, 'success');
+                }
+            }
             this.renderMultiplayerGameOver();
             return;
+        } else {
+            this._gameOverToastShown = false;
         }
 
         if (this.roomData.status === 'waiting') {
@@ -1902,50 +2144,75 @@ export class HigherLowerGame {
             <div class="hl-header">
                 <div class="hl-title-group">
                     <div class="hl-logo-icon">${icon('space', { size: 20 })}</div>
-                    <h2 class="hl-app-title">Лобби Комнаты</h2>
+                    <h2 class="hl-app-title">${isHost ? 'Лобби Хоста (Мультиплеер)' : 'Комната Мультиплеера'}</h2>
                 </div>
-                <button class="hl-close-btn" id="hlCloseBtn">&times;</button>
+                <button class="hl-close-btn" id="hlCloseBtn" title="Закрыть">&times;</button>
             </div>
 
-            <div class="hl-card">
-                <div class="hl-menu-container">
-                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                        <span class="hl-room-badge">
-                            Код комнаты: <strong style="color: #fff; font-size: 1.2rem; letter-spacing: 2px;">${this.roomId}</strong>
-                        </span>
-                        <span class="hl-cat-badge">
-                            ${this.roomData.category === 'copyrights' ? `${icon('space', { size: 14 })} Битва Вселенных` : `${icon('user', { size: 14 })} Только Персонажи`}
-                        </span>
-                        ${this.roomData.noAi ? `<span class="hl-cat-badge" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.35); color: #fbbf24; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">${icon('noAi', { size: 12 })} Без ИИ</span>` : ''}
-                        <button class="hl-btn-secondary" id="hlCopyCodeBtn" style="padding: 6px 14px; font-size: 0.85rem; min-width: auto; gap: 6px;">
-                            ${icon('clipboard', { size: 14 })} Скопировать
+            <div class="hl-card" style="max-width: 580px;">
+                <div class="hl-menu-container" style="gap: 16px;">
+                    <span class="hl-hero-badge" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(217, 119, 6, 0.15)); border-color: rgba(251, 191, 36, 0.4); color: #fcd34d;">
+                        ${isHost ? 'Вы — Организатор (Хост)' : 'Вы подключились к комнате'} • ${this.roomData.category === 'copyrights' ? 'Битва Вселенных' : 'Только Персонажи'}
+                    </span>
+
+                    <h1 class="hl-menu-title" style="font-size: 1.75rem;">${isHost ? 'Лобби Комнаты' : 'Подключение к Комнате'}</h1>
+                    <p class="hl-menu-desc" style="font-size: 0.9rem;">
+                        Поделитесь кодом комнаты с друзьями. Игра начнется, когда организатор запустит раунд.
+                    </p>
+
+                    <!-- Код комнаты -->
+                    <div class="hl-room-header-card" style="width: 100%;">
+                        <div style="text-align: left;">
+                            <div style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.5); font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">КОД КОМНАТЫ:</div>
+                            <div class="hl-room-code-val" style="color: #fbbf24; margin-top: 2px;">${this.roomId}</div>
+                        </div>
+                        <button id="hlCopyCodeBtn" class="hl-btn-secondary" style="padding: 8px 16px; font-size: 0.85rem; min-width: auto; gap: 6px;">
+                            ${icon('clipboard', { size: 14 })} Копировать
                         </button>
                     </div>
 
-                    <div class="hl-leaderboard" style="max-width: 480px;">
-                        <div style="font-size: 0.9rem; font-weight: 700; color: rgba(255,255,255,0.7); text-align: left; margin-bottom: 4px;">
-                            Участники (${players.length}/${this.roomData.maxPlayers}):
-                        </div>
-                        ${players.map(p => `
-                            <div class="hl-player-row">
-                                <div class="hl-player-name">
-                                    ${p.isHost ? icon('crown', { size: 16, className: 'hl-host-crown' }) : icon('user', { size: 16 })} ${this.escapeHtml(p.name)}
-                                    ${p.id === this.playerId ? ' <small style="color: #a78bfa;">(Вы)</small>' : ''}
-                                </div>
-                                <div class="hl-player-status hl-status-done">Готов</div>
+                    <div class="hl-form-box" style="width: 100%;">
+                        <!-- Участники -->
+                        <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; text-align: left;">
+                            <div class="hl-form-label" style="font-size: 0.85rem;">
+                                Участники (${players.length}/${this.roomData.maxPlayers}):
                             </div>
-                        `).join('')}
-                    </div>
-
-                    ${isHost ? `
-                        <button class="hl-btn-primary" id="hlStartMultiplayerGameBtn" style="width: 100%; max-width: 480px;">
-                            ${icon('play', { size: 16 })} Начать Игру
-                        </button>
-                    ` : `
-                        <div style="color: #c4b5fd; font-size: 0.95rem; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-                            ${icon('hourglass', { size: 16 })} Ожидание запуска игры создателем комнаты...
+                            <div class="hl-leaderboard" style="display: flex; flex-direction: column; gap: 6px; width: 100%; max-height: 140px; overflow-y: auto; box-sizing: border-box; padding: 10px;">
+                                ${players.map(p => `
+                                    <div class="hl-player-row">
+                                        <div class="hl-player-name">
+                                            ${p.isHost ? icon('crown', { size: 16, className: 'hl-host-crown' }) : icon('user', { size: 16 })} ${this.escapeHtml(p.name)}
+                                            ${p.id === this.playerId ? ' <small style="color: var(--accent, #a78bfa);">(Вы)</small>' : ''}
+                                        </div>
+                                        <div class="hl-player-status hl-status-done">Готов</div>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
-                    `}
+
+                        <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 6px 0;">
+
+                        <!-- Логи подключения -->
+                        <div style="width: 100%; display: flex; flex-direction: column; gap: 4px; text-align: left;">
+                            <div style="font-size: 0.72rem; font-weight: 700; color: rgba(255, 255, 255, 0.4); text-transform: uppercase; letter-spacing: 0.5px;">Логи:</div>
+                            <div id="hlSyncLogBox" style="width: 100%; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 8px 12px; font-family: monospace; font-size: 0.7rem; color: #888; height: 60px; overflow-y: auto; box-sizing: border-box;">
+                                ${(this.syncLogs && this.syncLogs.length > 0) ? this.syncLogs.map(l => `<div style="margin-bottom: 2px;">${this.escapeHtml(l)}</div>`).join('') : 'Ожидание событий...'}
+                            </div>
+                        </div>
+
+                        <!-- Кнопка запуска / Ожидание -->
+                        <div style="width: 100%; margin-top: 6px;">
+                            ${isHost ? `
+                                <button class="hl-btn-primary game-start-btn" id="hlStartMultiplayerGameBtn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                    ${icon('sparkles', { size: 16 })} НАЧАТЬ ИГРУ
+                                </button>
+                            ` : `
+                                <div class="game-waiting-indicator" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                    ${icon('hourglass', { size: 16 })} Ожидание запуска игры организатором...
+                                </div>
+                            `}
+                        </div>
+                    </div>
 
                     <button class="hl-btn-secondary" id="hlLeaveRoomBtn" style="min-width: 140px; padding: 10px 16px;">
                         Выйти из комнаты
@@ -1954,10 +2221,19 @@ export class HigherLowerGame {
             </div>
         `;
 
-        document.getElementById('hlCloseBtn').addEventListener('click', () => this.close());
-        document.getElementById('hlLeaveRoomBtn').addEventListener('click', async () => {
+        const handleLeaveToSetup = async () => {
             await this.leaveRoom();
-            this.renderMenu();
+            this.renderMultiplayerSetup();
+        };
+
+        const headerBackBtn = document.getElementById('hlHeaderBackBtn');
+        if (headerBackBtn) headerBackBtn.addEventListener('click', handleLeaveToSetup);
+
+        document.getElementById('hlLeaveRoomBtn').addEventListener('click', handleLeaveToSetup);
+
+        document.getElementById('hlCloseBtn').addEventListener('click', async () => {
+            await this.leaveRoom();
+            this.close();
         });
         document.getElementById('hlCopyCodeBtn').addEventListener('click', () => {
             navigator.clipboard.writeText(this.roomId);
@@ -2011,7 +2287,7 @@ export class HigherLowerGame {
                     <div class="hl-logo-icon">${icon('space', { size: 20 })}</div>
                     <h2 class="hl-app-title" style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
                         <span>Раунд ${this.roomData.round}</span>
-                        <small style="font-size: 0.85rem; color: #a78bfa; font-weight: 600;">(Цель: ${this.roomData.targetScore} очков)</small>
+                        <small style="font-size: 0.85rem; color: var(--accent, #a78bfa); font-weight: 600;">(Цель: ${this.roomData.targetScore} очков)</small>
                         ${this.roomData.noAi ? `<span style="font-size: 0.65em; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); color: #fbbf24; padding: 2px 8px; border-radius: 8px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; vertical-align: middle;">${icon('noAi', { size: 10 })} Без ИИ</span>` : ''}
                     </h2>
                 </div>
@@ -2080,7 +2356,7 @@ export class HigherLowerGame {
                                             </div>
                                         ` : ''}
                                     ` : hasAnswered ? `
-                                        <span class="hl-tag-badge" style="background: rgba(167, 139, 250, 0.2); border-color: rgba(167, 139, 250, 0.4); color: #c4b5fd;">Целевой Тег</span>
+                                        <span class="hl-tag-badge" style="background: rgba(var(--accent-rgb, 167, 139, 250), 0.2); border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.4); color: var(--accent, #c4b5fd);">Целевой Тег</span>
                                         ${this.renderCardImageContainer(rightTag, 'right')}
                                         <div class="hl-tag-name">${this.formatTagName(rightTag.name)}</div>
                                         ${renderOriginBadgeHtml(rightTag)}
@@ -2108,7 +2384,7 @@ export class HigherLowerGame {
                     </div>
 
                     ${isRevealed ? `
-                        <div style="background: rgba(167, 139, 250, 0.15); border: 1px solid rgba(167, 139, 250, 0.3); color: #c4b5fd; padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: 0.9rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <div style="background: rgba(var(--accent-rgb, 167, 139, 250), 0.15); border: 1px solid rgba(var(--accent-rgb, 167, 139, 250), 0.3); color: var(--accent, #c4b5fd); padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: 0.9rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
                             ${icon('hourglass', { size: 16 })} Подведение итогов... Загрузка следующего раунда!
                         </div>
                     ` : ''}
@@ -2177,15 +2453,23 @@ export class HigherLowerGame {
             if (this.isHost) {
                 this.broadcastRoomData();
                 this.checkAndEvaluateRound();
-            } else if (this.hostConn && this.hostConn.readyState === 'open') {
-                console.log(`>>> DEBUG: [Client] Sending ANSWER ${choice} to host`);
-                this.hostConn.send(JSON.stringify({
+            } else {
+                if (this.hostConn && this.hostConn.readyState === 'open') {
+                    console.log(`>>> DEBUG: [Client] Sending ANSWER ${choice} to host via DC`);
+                    try {
+                        this.hostConn.send(JSON.stringify({
+                            type: 'ANSWER',
+                            playerId: this.playerId,
+                            choice: choice
+                        }));
+                    } catch (dcErr) {}
+                }
+                // Always send via server relay to guarantee delivery
+                this.sendSignal(this.roomId, {
                     type: 'ANSWER',
                     playerId: this.playerId,
                     choice: choice
-                }));
-            } else {
-                console.warn('>>> DEBUG: [Client] Cannot send answer, hostConn is not open:', this.hostConn?.readyState);
+                }, this.roomData?.hostId);
             }
         } catch (e) {
             console.error('Error submitting answer:', e);
@@ -2492,7 +2776,7 @@ export class HigherLowerGame {
                 <div class="hl-lightbox-header">
                     <div class="hl-lightbox-title">
                         <span>${this.formatTagName(tagData.name || 'Арт')}</span>
-                        ${images.length > 1 ? `<span style="font-size: 0.85rem; color: #a78bfa; font-weight: 700;">(${currentIdx + 1} / ${images.length})</span>` : ''}
+                        ${images.length > 1 ? `<span style="font-size: 0.85rem; color: var(--accent, #a78bfa); font-weight: 700;">(${currentIdx + 1} / ${images.length})</span>` : ''}
                     </div>
                     <button class="hl-lightbox-close" id="hlLightboxCloseBtn">&times;</button>
                 </div>
@@ -2565,6 +2849,7 @@ export class HigherLowerGame {
         };
 
         const keyHandler = (e) => {
+            if (window.safeScreen && window.safeScreen.isActive) return;
             if (e.key === 'ArrowLeft') {
                 navigate(-1);
             } else if (e.key === 'ArrowRight' || e.key === ' ') {

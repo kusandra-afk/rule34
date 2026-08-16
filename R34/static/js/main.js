@@ -124,6 +124,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Сохраняем все текущие теги (и активные, и неактивные)
         const currentTags = window.tagSearch.activeTags || [];
+        const currentInactive = currentTags.filter(t => !t.active).map(t => t.value);
+
+        // Если список исключенных тегов не изменился, пропускаем перерисовку
+        if (currentInactive.length === normalizedTags.length &&
+            currentInactive.every((val, index) => val === normalizedTags[index])) {
+            return;
+        }
+
         const nextTags = [...currentTags];
         const seen = new Set(currentTags.map(tagObj => tagObj.value));
 
@@ -136,7 +144,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.tagSearch.activeTags = nextTags.filter(tagObj => {
             if (!tagObj || !tagObj.value) return false;
-            // Оставляем те, что уже были, либо те, что пришли с сервера
             return true;
         });
 
@@ -638,8 +645,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Hover effect
-        const hoverStyle = localStorage.getItem('r34_hover_style') || 'zoom';
-        const hp = hoverPresets[hoverStyle] || hoverPresets.zoom;
+        const hoverStyle = localStorage.getItem('r34_hover_style') || 'glow';
+        const hp = hoverPresets[hoverStyle] || hoverPresets.glow;
         document.documentElement.style.setProperty('--hover-transform', hp.transform);
         document.documentElement.style.setProperty('--hover-border-color', hp.borderColor);
         document.documentElement.style.setProperty('--hover-box-shadow', hp.boxShadow);
@@ -1245,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const allowLong = localStorage.getItem('r34_puzzle_allow_long_images') === 'true';
             const isTooTall = p => {
                 if (allowLong) return false;
-                return p.width && p.height && (p.height / p.width > 1.4);
+                return p.width && p.height && (p.height / p.width > 2.8);
             };
             
             const inactiveTags = window.tagSearch ? window.tagSearch.activeTags.filter(t => !t.active).map(t => t.value.toLowerCase()) : [];
@@ -1302,6 +1309,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return false;
             }
         };
+        window.loadMorePostsForPuzzle = loadMorePostsForPuzzle;
 
         const showPuzzleToast = (msg, duration = 3500) => {
             const tempErr = document.getElementById('error');
@@ -1372,58 +1380,75 @@ document.addEventListener('DOMContentLoaded', () => {
             game.start();
         };
 
-        const showModeMenu = () => {
+        const showModeMenu = async () => {
             const menuModal = document.createElement('div');
             menuModal.id = 'puzzle-mode-menu-modal';
             menuModal.className = 'hl-overlay open';
 
-            const solvedIds = JSON.parse(localStorage.getItem('r34_solved_puzzles') || '[]');
-            const solvedCount = solvedIds.length;
+            let solvedCount = 0;
+            try {
+                const completedPuzzles = await fetchPuzzleCompleted();
+                solvedCount = completedPuzzles.length;
+            } catch (err) {
+                console.error('[Puzzle Menu] Failed to load completed puzzles library count, falling back:', err);
+                try {
+                    const solvedIds = JSON.parse(localStorage.getItem('r34_solved_puzzles') || '[]');
+                    solvedCount = solvedIds.length;
+                } catch (e) {}
+            }
+
+            menuModal.innerHTML = `
+                <div class="hl-header">
+                    <div class="hl-title-group">
+                        <div class="hl-logo-icon game-logo-icon game-logo-icon-puzzle">${icon('puzzle', { size: 20 })}</div>
+                        <h2 class="hl-app-title">Пазлы</h2>
+                    </div>
+                    <button class="hl-close-btn" id="pzMenuCloseBtn" title="Закрыть">&times;</button>
+                </div>
+            `;
 
             const card = document.createElement('div');
             card.className = 'hl-card';
-            card.style.maxWidth = '520px';
 
             card.innerHTML = `
-                <div class="hl-header">
-                    <div class="hl-title-group">
-                        <div class="hl-logo-icon">${icon('puzzle', { size: 20 })}</div>
-                        <h2 class="hl-app-title">Пазлы</h2>
-                    </div>
-                    <button class="hl-close-btn" id="pzMenuCloseBtn">&times;</button>
-                </div>
-
-                <div class="hl-menu-container" style="gap: 20px; padding: 10px 0 0 0;">
-                    <span class="hl-hero-badge">Интерактивная Мини-Игра</span>
-                    <h1 class="hl-menu-title" style="font-size: 1.85rem; margin-bottom: -4px;">Соберите картинку из элементов!</h1>
-                    <p class="hl-menu-desc" style="font-size: 0.9rem; margin-bottom: 4px;">
+                <div class="hl-menu-container">
+                    <span class="hl-hero-badge game-badge-gradient-primary">Интерактивная Мини-Игра</span>
+                    <h1 class="hl-menu-title game-menu-title">Соберите картинку из элементов!</h1>
+                    <p class="hl-menu-desc game-menu-desc">
                         Вы можете собирать пазлы в одиночку, используя любимые арты из галереи, устраивать состязания на скорость в режиме «Гонка» или объединять силы с друзьями в режиме «Совместный сбор»!
                     </p>
 
-                    <div class="hl-howto-box" style="text-align: left; width: 100%; box-sizing: border-box;">
-                        <div class="hl-howto-title" style="display: flex; align-items: center; gap: 6px;">${icon('lightbulb', { size: 16 })} Правила игры:</div>
-                        <div class="hl-howto-text" style="line-height: 1.4; font-size: 0.82rem;">
-                            • <b>Одиночный режим:</b> Выбирайте любимые картинки из текущего поиска галереи и собирайте их в своём темпе.<br>
+                    <!-- Выбор режима (Higher/Lower style modes grid) -->
+                    <div class="hl-modes-grid">
+                        <div class="hl-mode-card game-mode-card primary-mode" id="pzStartSoloBtn">
+                            <div class="hl-mode-icon-circle game-mode-icon-circle">
+                                ${icon('gamepad', { size: 24 })}
+                            </div>
+                            <h3 class="hl-mode-title game-mode-title">Одиночный Режим</h3>
+                            <p class="hl-mode-subtitle game-mode-subtitle">Собирайте пазлы в своём темпе из любого выбранного арта в галерее.</p>
+                            <div class="hl-mode-stat game-mode-stat">Решено пазлов: <span id="pzSolvedCountValue">${solvedCount}</span></div>
+                        </div>
+
+                        <div class="hl-mode-card game-mode-card multiplayer" id="pzStartMultiplayerBtn">
+                            <div class="hl-mode-icon-circle game-mode-icon-circle">
+                                ${icon('users', { size: 24 })}
+                            </div>
+                            <h3 class="hl-mode-title game-mode-title">Онлайн с Друзьями</h3>
+                            <p class="hl-mode-subtitle game-mode-subtitle">Создавайте комнаты и соревнуйтесь в скорости или собирайте вместе в реальном времени.</p>
+                            <div class="hl-mode-stat game-mode-stat" style="color: #fcd34d; background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3);">
+                                Мультиплеер (до 15 чел.)
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="pzKeyWarningTag" class="game-warning-tag">ТРЕБУЕТСЯ API КЛЮЧ METERED.CA</div>
+
+                    <div class="hl-howto-box">
+                        <div class="hl-howto-title">${icon('lightbulb', { size: 16 })} Правила игры:</div>
+                        <div class="hl-howto-text">
+                            • <b>Одиночный режим:</b> Выбирайте любые арты из поиска галереи и собирайте пазл в комфортном режиме.<br>
                             • <b>Онлайн-режим:</b> Создайте комнату, поделитесь кодом с друзьями и играйте вместе в реальном времени!
                         </div>
-                    </div>
-
-                    <div style="display: flex; gap: 16px; margin-bottom: 6px; justify-content: center; width: 100%;">
-                        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); padding: 12px 24px; border-radius: 14px; text-align: center; min-width: 140px;">
-                            <div style="font-size: 0.8rem; color: rgba(255,255,255,0.5); font-weight: 600;">Решено пазлов</div>
-                            <div style="font-size: 1.6rem; font-weight: 900; color: #a78bfa; margin-top: 2px;">${solvedCount}</div>
-                        </div>
-                    </div>
-
-                    <div class="hl-menu-actions" style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
-                        <button class="hl-btn-primary" id="pzStartSoloBtn" style="width: 100%;">
-                            ${icon('gamepad', { size: 18 })} Одиночный Режим
-                        </button>
-                        <button class="hl-btn-secondary" id="pzStartMultiplayerBtn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; position: relative;">
-                            <span style="position: absolute; top: -10px; right: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.5); pointer-events: none;">Бета</span>
-                            ${icon('users', { size: 18 })} Онлайн с Друзьями
-                        </button>
-                        <div id="pzKeyWarningTag" style="display:none; text-align:center; color:#f59e0b; font-size:0.7rem; font-weight:800; margin-top:-4px; text-transform:uppercase; letter-spacing:0.5px;">ТРЕБУЕТСЯ API КЛЮЧ</div>
                     </div>
                 </div>
             `;
@@ -1438,6 +1463,13 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             menuModal.querySelector('#pzMenuCloseBtn').onclick = closeMenu;
+            const backBtn = menuModal.querySelector('#pzMenuBackBtn');
+            if (backBtn) {
+                backBtn.onclick = () => {
+                    closeMenu();
+                    openGameChoiceModal();
+                };
+            }
             menuModal.onclick = (e) => {
                 if (e.target === menuModal) closeMenu();
             };
@@ -1587,8 +1619,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showModeMenu();
     };
+    window.openPuzzleMenu = startPuzzleGame;
 
-    const openGameChoiceModal = () => {
+    function openGameChoiceModal() {
         const existing = document.getElementById('game-choice-modal');
         if (existing) existing.remove();
 
@@ -1650,7 +1683,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="custom-scroll" style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 6px; text-align: left; margin-bottom: 4px;">
                 
                 <!-- Доступно сейчас -->
-                <div style="font-size: 0.7rem; font-weight: 800; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Доступно сейчас</div>
+                <div style="font-size: 0.7rem; font-weight: 800; color: var(--accent, #a78bfa); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Доступно сейчас</div>
 
                 <!-- API KEY SECTION (Metered.ca) -->
                 <div style="margin: 4px 0 16px 0; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
@@ -1692,8 +1725,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 <button id="selectHigherLowerBtn" style="
                     padding: 14px 16px;
-                    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(167, 139, 250, 0.05) 100%);
-                    border: 1px solid #a78bfa;
+                    background: linear-gradient(135deg, rgba(var(--accent-rgb, 167, 139, 250), 0.15) 0%, rgba(var(--accent-rgb, 167, 139, 250), 0.05) 100%);
+                    border: 1px solid var(--accent, #a78bfa);
                     border-radius: 16px;
                     color: white;
                     cursor: pointer;
@@ -1701,7 +1734,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     align-items: center;
                     gap: 12px;
                     transition: all 0.2s ease;
-                    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.15);
+                    box-shadow: 0 4px 12px var(--accent-glow, rgba(167, 139, 250, 0.15));
                     position: relative;
                     width: 100%;
                 ">
@@ -1935,6 +1968,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
     };
+    window.openGameChoiceModal = openGameChoiceModal;
 
     const header = document.querySelector('h1');
     if (header) {
@@ -1969,6 +2003,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsHdCheckbox = document.getElementById('settingsHdCheckbox');
     const settingsOnlyGifsCheckbox = document.getElementById('settingsOnlyGifsCheckbox');
     const settingsAutoSlideCheckbox = document.getElementById('settingsAutoSlideCheckbox');
+    const settingsAutoVideoSlideCheckbox = document.getElementById('settingsAutoVideoSlideCheckbox');
     const settingsLongImageCheckbox = document.getElementById('settingsLongImageCheckbox');
     const settingsLowPowerCheckbox = document.getElementById('settingsLowPowerCheckbox');
     const settingsPuzzlePerformanceCheckbox = document.getElementById('settingsPuzzlePerformanceCheckbox');
@@ -2088,6 +2123,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 settingsOnlyGifsCheckbox.checked = localStorage.getItem('r34_only_gifs') === 'true';
             }
             settingsAutoSlideCheckbox.checked = localStorage.getItem('r34_auto_slide') !== 'false';
+            if (settingsAutoVideoSlideCheckbox) {
+                settingsAutoVideoSlideCheckbox.checked = localStorage.getItem('r34_auto_video_slide') !== 'false';
+            }
             settingsLongImageCheckbox.checked = localStorage.getItem('r34_long_image_protection') !== 'false';
             if (settingsLowPowerCheckbox) {
                 settingsLowPowerCheckbox.checked = localStorage.getItem('r34_low_power_mode') === 'true';
@@ -2263,7 +2301,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 6. Эффект наведения
             const settingsHoverSelect = document.getElementById('settingsHoverSelect');
             if (settingsHoverSelect) {
-                settingsHoverSelect.value = localStorage.getItem('r34_hover_style') || 'zoom';
+                settingsHoverSelect.value = localStorage.getItem('r34_hover_style') || 'glow';
             }
 
             // Поведение клика по тегу
@@ -3116,7 +3154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsScrollbarWidthManual.addEventListener('input', () => {
             let val = parseInt(settingsScrollbarWidthManual.value, 10);
             if (isNaN(val)) val = 8;
-            if (val < 2) val = 2;
+            if (val < 0) val = 0;
             if (val > 16) val = 16;
 
             if (settingsScrollbarWidthInput) {
@@ -4583,6 +4621,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 'r34_tags_only_on_hover': 'false',
                 'r34_header_style': 'glass',
                 'r34_auto_slide': 'true',
+                'r34_auto_video_slide': 'true',
                 'r34_long_image_protection': 'true'
             };
             
@@ -4621,7 +4660,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 { id: 'settingsGapManual', value: '24' },
                 { id: 'settingsColWidthInput', value: '300' },
                 { id: 'settingsColWidthManual', value: '300' },
-                { id: 'settingsHoverSelect', value: 'zoom' },
+                { id: 'settingsHoverSelect', value: 'glow' },
                 { id: 'settingsFontSelect', value: 'sans' },
                 { id: 'settingsFontManual', value: 'sans' },
                 { id: 'settingsForcedWidth', value: '' },
@@ -4998,6 +5037,12 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsAutoSlideCheckbox.addEventListener('change', () => {
             localStorage.setItem('r34_auto_slide', settingsAutoSlideCheckbox.checked ? 'true' : 'false');
             if (window.galleryApp) window.galleryApp.updateAutoSlide();
+        });
+    }
+
+    if (settingsAutoVideoSlideCheckbox) {
+        settingsAutoVideoSlideCheckbox.addEventListener('change', () => {
+            localStorage.setItem('r34_auto_video_slide', settingsAutoVideoSlideCheckbox.checked ? 'true' : 'false');
         });
     }
 
@@ -5802,7 +5847,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="zoom-authors-list" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
             </div>
             <div class="zoom-characters-group" style="display: none; margin-top: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 8px;">
-                <div style="font-size: 0.8em; color: #a78bfa; margin-bottom: 6px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px;">
+                <div style="font-size: 0.8em; color: var(--accent, #a78bfa); margin-bottom: 6px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px;">
                     ${icon('user', { size: 16 })} Персонаж:
                 </div>
                 <div class="zoom-characters-list" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>

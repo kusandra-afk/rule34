@@ -116,7 +116,7 @@
 }
 
 /* ============================================================
-   RESET
+   RESET & OPTIMIZATIONS
    ============================================================ */
 *,
 *::before,
@@ -124,6 +124,7 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html {
@@ -145,6 +146,7 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 .settings-label {
@@ -310,7 +312,9 @@ h1 {
   font-size: 0.92rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s var(--ease);
+  transition: background-color 0.22s var(--ease), color 0.22s var(--ease), box-shadow 0.22s var(--ease), transform 0.15s var(--ease);
+  will-change: transform, background-color;
+  transform: translateZ(0);
 }
 
 .app-mode-btn svg {
@@ -320,11 +324,16 @@ h1 {
   stroke: currentColor;
   stroke-width: 2;
   fill: none;
+  transition: transform 0.2s var(--ease);
 }
 
 .app-mode-btn:hover {
   color: #fff;
   background: rgba(255, 255, 255, 0.06);
+}
+
+.app-mode-btn:active {
+  transform: scale(0.96) translateZ(0);
 }
 
 .app-mode-btn.active {
@@ -348,6 +357,7 @@ h1 {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   animation: fadeIn 0.25s var(--ease);
+  will-change: opacity;
 }
 
 .tag-modal-card {
@@ -364,8 +374,10 @@ h1 {
   box-shadow: var(--shadow-lg), var(--glass-highlight);
   color: var(--light);
   text-align: center;
-  transform: scale(0.95);
+  transform: scale(0.95) translateZ(0);
   animation: scaleUp 0.35s var(--ease) forwards;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 .tag-modal-card h2 {

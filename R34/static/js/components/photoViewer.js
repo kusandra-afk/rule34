@@ -4,7 +4,7 @@ export class PhotoViewer {
     constructor(progressBar, timerSpan) {
         this.progressBar = progressBar;
         this.timerSpan = timerSpan;
-        this.timerId = null;
+        this._rafId = null;
         this.startTime = null;
         this.duration = 10;
         this.onFinish = null;
@@ -15,52 +15,72 @@ export class PhotoViewer {
 
     start(duration = 10, onFinish) {
         this.stop();
-        this.duration = duration;
+        this.duration = Math.max(1, duration);
         this.onFinish = onFinish;
         this.paused = false;
         this.elapsedBeforePause = 0;
         if (this.progressBar) {
             this.progressBar.disabled = false;
             this.progressBar.value = 0;
-            this.progressBar.max = duration;
+            this.progressBar.max = this.duration;
+            setRangeGradient(this.progressBar);
         }
-        this.startTime = Date.now();
+        this.startTime = performance.now();
         this.updateDisplay();
-        this.timerId = window.setInterval(() => this.update(), 100);
-        if (this.progressBar) setRangeGradient(this.progressBar);
+        this._startLoop();
+    }
+
+    _startLoop() {
+        if (this._rafId) cancelAnimationFrame(this._rafId);
+        const tick = () => {
+            if (this.paused || !this.startTime) return;
+            this.update();
+            if (!this.paused && this.startTime) {
+                this._rafId = requestAnimationFrame(tick);
+            }
+        };
+        this._rafId = requestAnimationFrame(tick);
     }
 
     pause() {
-        if (this.paused || !this.timerId) return;
+        if (this.paused || !this.startTime) return;
         this.paused = true;
-        this.elapsedBeforePause = (Date.now() - this.startTime) / 1000;
-        clearInterval(this.timerId);
-        this.timerId = null;
+        this.elapsedBeforePause = (performance.now() - this.startTime) / 1000;
+        if (this._rafId) {
+            cancelAnimationFrame(this._rafId);
+            this._rafId = null;
+        }
     }
 
     resume() {
         if (!this.paused) return;
         this.paused = false;
-        this.startTime = Date.now() - (this.elapsedBeforePause * 1000);
-        this.timerId = window.setInterval(() => this.update(), 100);
+        this.startTime = performance.now() - (this.elapsedBeforePause * 1000);
+        this._startLoop();
     }
 
     stop() {
-        if (this.timerId) {
-            clearInterval(this.timerId);
-            this.timerId = null;
+        if (this._rafId) {
+            cancelAnimationFrame(this._rafId);
+            this._rafId = null;
         }
         this.paused = false;
         this.elapsedBeforePause = 0;
-        if (this.progressBar) this.progressBar.value = 0;
-        if (this.timerSpan) this.timerSpan.textContent = formatTime(0) + ' / ' + formatTime(this.duration);
+        this.startTime = null;
+        if (this.progressBar) {
+            this.progressBar.value = 0;
+            setRangeGradient(this.progressBar);
+        }
+        if (this.timerSpan) {
+            this.timerSpan.textContent = formatTime(0) + ' / ' + formatTime(this.duration);
+        }
     }
 
     update() {
         if (!this.startTime || this.paused) return;
-        const elapsed = (Date.now() - this.startTime) / 1000;
+        const elapsed = (performance.now() - this.startTime) / 1000;
         if (this.progressBar) {
-            this.progressBar.value = elapsed;
+            this.progressBar.value = Math.min(this.duration, elapsed);
             if (this._lastProgressValue !== elapsed) {
                 setRangeGradient(this.progressBar);
                 this._lastProgressValue = elapsed;

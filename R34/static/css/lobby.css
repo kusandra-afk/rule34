@@ -1,0 +1,713 @@
+/* ═══════════════════════════════════════════════════════════════
+   UNIFIED LOBBY & GAME DESIGN SYSTEM - LOBBY.CSS
+   Единые стили меню, лобби и мультиплеера для всех мини-игр
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --game-primary-gradient: linear-gradient(135deg, var(--accent, #8b5cf6), var(--accent-alt, #6366f1));
+  --game-secondary-gradient: linear-gradient(135deg, var(--accent-alt, #f59e0b), var(--accent, #ec4899));
+  --game-success-gradient: linear-gradient(135deg, #10b981, #059669);
+  --game-danger-gradient: linear-gradient(135deg, #ef4444, #dc2626);
+  --game-accent-color: var(--accent, #a78bfa);
+  --game-accent-secondary: var(--accent-alt, #fbbf24);
+  --game-accent-orange: #f59e0b;
+  --game-accent-pink: var(--accent, #ec4899);
+  --game-accent-green: #10b981;
+  --game-accent-red: #ef4444;
+  
+  --game-glass-bg: var(--glass-bg, rgba(15, 15, 24, 0.7));
+  --game-glass-border: var(--glass-border, rgba(255, 255, 255, 0.12));
+  --game-glass-border-strong: var(--glass-border-strong, rgba(255, 255, 255, 0.18));
+  
+  --game-radius-sm: 12px;
+  --game-radius-md: 16px;
+  --game-radius-lg: 20px;
+  --game-radius-xl: 24px;
+}
+
+/* ═══ Бейджи и логотипы ═══ */
+.game-badge-gradient-primary {
+  background: linear-gradient(135deg, rgba(var(--accent-rgb, 167, 139, 250), 0.2), rgba(var(--accent-rgb, 99, 102, 241), 0.15));
+  border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.4);
+  color: var(--accent, #d8b4fe);
+}
+
+.game-badge-gradient-secondary {
+  background: linear-gradient(135deg, rgba(var(--accent-rgb, 245, 158, 11), 0.2), rgba(var(--accent-rgb, 236, 72, 153), 0.15));
+  border-color: rgba(var(--accent-rgb, 245, 158, 11), 0.4);
+  color: var(--accent, #fcd34d);
+}
+
+.game-badge-gradient-success {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.15));
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+}
+
+.game-logo-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--btn-primary-color, #fff);
+  font-weight: 900;
+  font-size: 1.1rem;
+  box-shadow: 0 0 16px var(--accent-glow, rgba(167, 139, 250, 0.5));
+}
+
+.game-logo-icon-higherlower {
+  background: linear-gradient(135deg, var(--accent, #a78bfa), var(--accent-alt, #f43f5e));
+}
+
+.game-logo-icon-puzzle {
+  background: linear-gradient(135deg, var(--accent, #fbbf24), var(--accent-alt, #10b981));
+}
+
+/* ═══ Типографика меню ═══ */
+.game-menu-title {
+  font-size: 2.3rem;
+  font-weight: 900;
+  color: var(--adaptive-text-main, #fff);
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+
+@media (max-width: 640px) {
+  .game-menu-title {
+    font-size: 1.65rem;
+  }
+}
+
+.game-menu-desc {
+  font-size: 1rem;
+  color: rgba(226, 232, 240, 0.8);
+  max-width: 600px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* ═══ Карточки режимов меню ═══ */
+.game-mode-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 22px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  cursor: pointer;
+  transform: translateZ(0);
+  will-change: transform, border-color, box-shadow, background-color;
+  backface-visibility: hidden;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.game-mode-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.5);
+  transform: translateY(-4px) translateZ(0);
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.4), 0 0 20px var(--accent-glow, rgba(167, 139, 250, 0.2));
+}
+
+.game-mode-card.primary-mode {
+  background: linear-gradient(180deg, rgba(var(--accent-rgb, 139, 92, 246), 0.15) 0%, rgba(var(--accent-rgb, 99, 102, 241), 0.08) 100%);
+  border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.3);
+}
+
+.game-mode-card.primary-mode:hover {
+  border-color: var(--accent, #a78bfa);
+  box-shadow: 0 16px 40px var(--accent-glow, rgba(139, 92, 246, 0.3));
+}
+
+.game-mode-card.multiplayer {
+  background: linear-gradient(180deg, rgba(var(--accent-rgb, 245, 158, 11), 0.15) 0%, rgba(var(--accent-rgb, 236, 72, 153), 0.08) 100%);
+  border-color: rgba(var(--accent-rgb, 245, 158, 11), 0.3);
+}
+
+.game-mode-card.multiplayer:hover {
+  border-color: var(--accent, #f59e0b);
+  box-shadow: 0 16px 40px var(--accent-glow, rgba(245, 158, 11, 0.3));
+}
+
+.game-mode-icon-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--btn-primary-color, #fff);
+  background: linear-gradient(135deg, var(--accent, #8b5cf6), var(--accent-alt, #6366f1));
+  box-shadow: 0 8px 20px var(--accent-glow, rgba(139, 92, 246, 0.4));
+}
+
+.game-mode-card.multiplayer .game-mode-icon-circle {
+  background: linear-gradient(135deg, var(--accent-alt, #f59e0b), var(--accent, #ec4899));
+  box-shadow: 0 8px 20px var(--accent-glow, rgba(245, 158, 11, 0.4));
+}
+
+.game-mode-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--adaptive-text-main, #fff);
+  margin: 0;
+}
+
+.game-mode-subtitle {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.game-mode-stat {
+  margin-top: auto;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent, #c4b5fd);
+  background: rgba(var(--accent-rgb, 167, 139, 250), 0.15);
+  padding: 4px 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(var(--accent-rgb, 167, 139, 250), 0.25);
+}
+
+/* ═══ Формы настроек ═══ */
+.game-form-box {
+  width: 100%;
+  max-width: 520px;
+  background: var(--game-glass-bg);
+  border: 1px solid var(--game-glass-border);
+  border-radius: var(--game-radius-lg);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.game-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.game-form-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.game-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--game-radius-sm);
+  color: #fff;
+  font-size: 0.95rem;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.game-input:focus {
+  border-color: var(--accent, #a78bfa);
+  box-shadow: 0 0 16px var(--accent-glow, rgba(167, 139, 250, 0.3));
+  background: rgba(255, 255, 255, 0.09);
+}
+
+/* ═══ Карточки информации о комнате ═══ */
+.game-room-card {
+  width: 100%;
+  background: linear-gradient(135deg, rgba(var(--accent-rgb, 167, 139, 250), 0.12), rgba(var(--accent-rgb, 99, 102, 241), 0.08));
+  border: 1px solid rgba(var(--accent-rgb, 167, 139, 250), 0.3);
+  border-radius: var(--game-radius-lg);
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  box-sizing: border-box;
+}
+
+.game-room-code-val {
+  font-size: 1.4rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #fff;
+  font-family: monospace;
+}
+
+/* ═══ Списки участников лобби ═══ */
+.game-player-list {
+  width: 100%;
+  background: rgba(15, 15, 24, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--game-radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.game-player-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--game-radius-sm);
+  font-size: 0.95rem;
+  color: #fff;
+  transition: background 0.2s ease;
+}
+
+.game-player-row:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.game-player-name {
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.game-player-score {
+  font-weight: 900;
+  color: var(--accent, #a78bfa);
+}
+
+/* ═══ Кнопки управления и ожидания ═══ */
+.game-start-btn {
+  background: var(--game-success-gradient);
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.35);
+}
+
+.game-start-btn:hover {
+  box-shadow: 0 12px 30px rgba(16, 185, 129, 0.5);
+  transform: translateY(-2px);
+}
+
+.game-start-btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.game-create-btn:active,
+.game-back-btn:active {
+  transform: scale(0.96);
+}
+
+.game-waiting-indicator {
+  text-align: center;
+  padding: 12px;
+  background: rgba(var(--accent-rgb, 167, 139, 250), 0.1);
+  border: 1px dashed rgba(var(--accent-rgb, 167, 139, 250), 0.3);
+  border-radius: var(--game-radius-md);
+  color: var(--accent, #c4b5fd);
+  font-weight: bold;
+  font-size: 0.88rem;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ═══ Дополнительные утилиты карточек и форм ═══ */
+.game-card-setup {
+  max-width: 580px !important;
+  margin: 0 auto;
+}
+
+.game-menu-container-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.game-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.game-form-row {
+  display: flex;
+  gap: 8px;
+}
+
+.game-form-divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 6px 0;
+}
+
+.game-setting-box {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 10px 14px;
+  border-radius: var(--game-radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.game-setting-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.game-range-slider {
+  width: 100%;
+  accent-color: var(--accent, #a78bfa);
+  cursor: pointer;
+  height: 6px;
+}
+
+.game-code-input {
+  text-align: center;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.game-create-btn {
+  width: 100%;
+  margin-top: 6px;
+  background: linear-gradient(135deg, var(--accent, #ec4899), var(--accent-alt, #f59e0b)) !important;
+  color: var(--btn-primary-color, #fff) !important;
+  box-shadow: 0 8px 24px var(--accent-glow, rgba(236, 72, 153, 0.35)) !important;
+}
+
+.game-back-btn {
+  min-width: 140px;
+  padding: 10px 16px;
+}
+
+.game-pills-row {
+  flex: 1;
+  text-align: center;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.game-warning-tag {
+  display: none;
+  text-align: center;
+  color: #f59e0b;
+  font-size: 0.75rem;
+  font-weight: 800;
+  margin-top: -6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.game-preview-img {
+  width: 100%;
+  height: 160px;
+  border-radius: var(--game-radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* ═══ КАСТОМНЫЕ ЭЛЕМЕНТЫ УПРАВЛЕНИЯ (SELECT, TOGGLE, CHECKBOX) ═══ */
+
+/* 1. Кастомные выпадающие списки (Custom Floating Dropdown UI) */
+.game-custom-dropdown {
+  position: relative;
+  width: 100%;
+  user-select: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.game-custom-dropdown-trigger {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--game-radius-sm);
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.game-custom-dropdown-trigger:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(167, 139, 250, 0.5);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.game-custom-dropdown.open .game-custom-dropdown-trigger {
+  border-color: var(--game-accent-color);
+  box-shadow: 0 0 16px rgba(167, 139, 250, 0.35);
+  background: rgba(30, 30, 48, 0.95);
+}
+
+.game-custom-dropdown-arrow {
+  display: flex;
+  align-items: center;
+  color: #a78bfa;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.game-custom-dropdown.open .game-custom-dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.game-custom-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  background: rgba(18, 18, 28, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--game-radius-md);
+  padding: 6px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(167, 139, 250, 0.2);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px) scale(0.98);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+  box-sizing: border-box;
+}
+
+.game-custom-dropdown.open .game-custom-dropdown-panel {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+.game-custom-dropdown-item {
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.15s ease;
+}
+
+.game-custom-dropdown-item:hover {
+  background: rgba(167, 139, 250, 0.15);
+  color: #fff;
+  transform: translateX(2px);
+}
+
+.game-custom-dropdown-item.selected {
+  background: linear-gradient(135deg, rgba(var(--accent-rgb, 167, 139, 250), 0.25), rgba(99, 102, 241, 0.2));
+  color: var(--accent, #c4b5fd);
+  font-weight: 700;
+  border: 1px solid rgba(var(--accent-rgb, 167, 139, 250), 0.3);
+}
+
+.game-custom-dropdown-item-check {
+  display: flex;
+  align-items: center;
+  color: var(--accent, #a78bfa);
+}
+
+/* Обычные выпадающие списки от браузера (<select>) */
+select.game-select,
+.game-select {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(20, 20, 30, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--game-radius-sm);
+  color: #fff;
+  font-size: 0.9rem;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+select.game-select:focus,
+.game-select:focus {
+  border-color: var(--accent, #a78bfa);
+  box-shadow: 0 0 12px var(--accent-glow, rgba(167, 139, 250, 0.3));
+}
+
+select.game-select option,
+.game-select option {
+  background: #181825;
+  color: #ffffff;
+  padding: 8px;
+}
+
+/* 2. Переключатель (Toggle Switch) */
+.game-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.game-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.game-switch-slider {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  background-color: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+.game-switch-slider::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #e2e8f0;
+  border-radius: 50%;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.game-switch input:checked + .game-switch-slider {
+  background: var(--game-primary-gradient);
+  border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.6);
+  box-shadow: 0 0 12px var(--accent-glow, rgba(139, 92, 246, 0.4));
+}
+
+.game-switch input:checked + .game-switch-slider::before {
+  transform: translateX(20px);
+  background-color: #fff;
+}
+
+.game-switch:hover .game-switch-slider {
+  border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.5);
+}
+
+.game-switch-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* 3. Чекбоксы (Custom Checkbox) */
+.game-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.game-checkbox input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.game-checkbox-mark {
+  height: 20px;
+  width: 20px;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+.game-checkbox-mark::after {
+  content: "";
+  display: none;
+  width: 5px;
+  height: 9px;
+  border: solid white;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.game-checkbox:hover input ~ .game-checkbox-mark {
+  background-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.5);
+}
+
+.game-checkbox input:checked ~ .game-checkbox-mark {
+  background: var(--game-primary-gradient);
+  border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.6);
+  box-shadow: 0 0 12px var(--accent-glow, rgba(139, 92, 246, 0.4));
+}
+
+.game-checkbox input:checked ~ .game-checkbox-mark::after {
+  display: block;
+}
+
+.game-sync-logs {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--game-radius-sm);
+  padding: 8px 12px;
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: #888;
+  height: 60px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}

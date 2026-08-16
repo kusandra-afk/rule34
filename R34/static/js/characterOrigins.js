@@ -371,8 +371,23 @@ export function resolveCharacterOrigin(tagObj) {
         }
     }
 
-    if (tagObj.copyright && FRANCHISE_DATABASE[tagObj.copyright]) {
-        const res = FRANCHISE_DATABASE[tagObj.copyright];
+    if (tagObj.copyright) {
+        if (FRANCHISE_DATABASE[tagObj.copyright]) {
+            const res = FRANCHISE_DATABASE[tagObj.copyright];
+            localCache.set(normalized, res);
+            return res;
+        } else {
+            const formattedFranchise = tagObj.copyright.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            const res = { franchise: formattedFranchise, media: 'Франшиза', icon: 'tag' };
+            localCache.set(normalized, res);
+            return res;
+        }
+    }
+
+    // Fallback: If this tag itself IS a copyright tag (e.g. from Universes mode)
+    if (tagObj.isCopyright || tagObj.type === 3) {
+        const formattedFranchise = normalized.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const res = { franchise: formattedFranchise, media: 'Франшиза', icon: 'tag' };
         localCache.set(normalized, res);
         return res;
     }
@@ -399,3 +414,4 @@ export function renderOriginBadgeHtml(tagObj) {
         </div>
     `;
 }
+

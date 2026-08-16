@@ -62,7 +62,6 @@ body.r34-low-power-mode *:not(.video-loading-spinner):not(.loading):not(.spinner
   min-width: 0;
   margin: 0 auto;
   background: var(--dark);
-  opacity: var(--card-bg-opacity, 0.55);
   border: var(--card-border-width, 1px) solid var(--card-border-color, var(--glass-border));
   border-radius: var(--media-radius, 20px);
   backdrop-filter: blur(var(--card-bg-blur, 14px));
@@ -71,11 +70,14 @@ body.r34-low-power-mode *:not(.video-loading-spinner):not(.loading):not(.spinner
   overflow: hidden;
   aspect-ratio: var(--media-aspect-ratio, var(--card-aspect, 4/3));
   opacity: 1;
+  transform: translateZ(0);
+  will-change: transform, border-color, box-shadow;
+  backface-visibility: hidden;
   transition: transform var(--card-transition-speed, 0.25s) var(--ease), border-color var(--card-transition-speed, 0.25s) var(--ease), box-shadow var(--card-transition-speed, 0.25s) var(--ease);
 }
 
 .media-container:hover {
-  transform: var(--hover-transform, translateY(-4px));
+  transform: var(--hover-transform, translateY(-4px)) translateZ(0);
   border-color: var(--hover-border-color, var(--accent));
   box-shadow: var(--hover-box-shadow, 0 16px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--accent));
   animation: var(--hover-animation, none);
@@ -278,6 +280,20 @@ body[data-gallery-cols="4"] .media-container.long-truncated .media-content {
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
 }
 
+@media (max-width: 768px), (hover: none) {
+  .sound-control-wrapper:hover {
+    height: 36px !important;
+  }
+  .sound-control-wrapper:hover .sound-volume-slider-container {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(-8px) scale(0.9) !important;
+  }
+  .sound-control-wrapper:hover .sound-toggle-btn {
+    transform: translateY(0) !important;
+  }
+}
+
 /* Контейнер слайдера (располагается в верхней части открытой панели) */
 .sound-volume-slider-container {
   position: absolute;
@@ -436,12 +452,18 @@ body[data-gallery-cols="4"] .media-container.long-truncated .media-content {
   font-size: 0.9rem;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .media-likes {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 /* ---------- Кнопка лайка ---------- */
@@ -450,7 +472,9 @@ body[data-gallery-cols="4"] .media-container.long-truncated .media-content {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 12px;
+  width: 42px;
+  height: 42px;
+  padding: 0;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
@@ -459,6 +483,13 @@ body[data-gallery-cols="4"] .media-container.long-truncated .media-content {
   cursor: pointer;
   overflow: hidden;
   transition: all 0.25s var(--ease);
+  flex-shrink: 0;
+}
+
+.like-btn svg {
+  width: 22px;
+  height: 22px;
+  display: block;
 }
 
 .like-btn:hover {
@@ -473,18 +504,22 @@ body[data-gallery-cols="4"] .media-container.long-truncated .media-content {
 }
 
 .like-btn.liked {
-  background: linear-gradient(135deg, var(--accent-glow) 0%, var(--accent-alt) 100%);
+  background: rgba(var(--accent-rgb), 0.12);
   border-color: var(--accent);
   color: var(--accent);
-  box-shadow: 0 0 15px var(--accent-glow), inset 0 0 10px var(--accent-glow);
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.25);
   animation: likePulse 0.4s var(--ease);
 }
 
+.like-btn.liked svg {
+  filter: drop-shadow(0 0 4px rgba(var(--accent-rgb), 0.5));
+}
+
 .like-btn.liked:hover {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-alt) 100%);
+  background: rgba(var(--accent-rgb), 0.2);
   border-color: var(--accent);
-  color: var(--light);
-  box-shadow: 0 0 15px var(--accent-glow);
+  color: var(--accent-alt);
+  box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.4);
   transform: scale(1.05);
 }
 
@@ -562,7 +597,7 @@ body[data-gallery-cols="4"] .media-container.long-truncated .media-content {
   background: var(--dark);
   opacity: 1;
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg, 22px);
+  border-radius: var(--media-radius, 20px);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   color: var(--light);
@@ -882,28 +917,47 @@ body[data-gallery-cols="4"] .media-container.long-truncated .media-content {
 .r34-source-plain-text-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  gap: 10px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 4px 15px rgba(0, 0, 0, 0.15);
+  transition: border-color 0.25s ease, background-color 0.25s ease;
+}
+
+.r34-source-plain-text-wrapper:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .r34-source-plain-label {
-  color: var(--text-muted, rgba(255, 255, 255, 0.58));
+  display: flex;
+  align-items: center;
+  color: var(--text-muted, rgba(255, 255, 255, 0.5));
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
+}
+
+.r34-source-plain-text-container {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .r34-source-plain-text {
-  color: var(--light, #f4f6fb);
-  font-size: 0.95rem;
-  font-family: var(--site-font);
-  line-height: 1.45;
-  word-break: break-word;
+  color: var(--light, #e2e8f0);
+  font-size: 0.92rem;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  line-height: 1.5;
+  word-break: break-all;
+  letter-spacing: -0.2px;
 }
 
 /* Кнопка-ссылка на источник */

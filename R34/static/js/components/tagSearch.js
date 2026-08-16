@@ -57,6 +57,17 @@ export class TagSearch {
         
         // Оптимизированная выгрузка подсказок с дебаунсом 250мс для предотвращения КД API
         this.tagInput.addEventListener('input', () => {
+            // Автоматическая замена пробелов на нижнее подчеркивание (_)
+            const start = this.tagInput.selectionStart;
+            const end = this.tagInput.selectionEnd;
+            const originalValue = this.tagInput.value;
+            const newValue = originalValue.replace(/ /g, '_');
+            
+            if (originalValue !== newValue) {
+                this.tagInput.value = newValue;
+                this.tagInput.setSelectionRange(start, end);
+            }
+
             if (this._debounceTimer) clearTimeout(this._debounceTimer);
             const val = this.tagInput.value.trim();
             if (!val) {
@@ -101,7 +112,7 @@ export class TagSearch {
     }
 
     addTag() {
-        const tag = this.tagInput.value.trim();
+        const tag = this.tagInput.value.trim().replace(/ /g, '_');
         if (!tag || this.activeTags.some(t => t.value === tag)) {
             this.tagInput.value = '';
             this.hideSuggestions();
@@ -158,156 +169,206 @@ export class TagSearch {
         this._renderFrame = requestAnimationFrame(() => {
             this._renderFrame = null;
             this._persistTags();
-            this.activeTagsContainer.innerHTML = '';
-            
+
             const activeTags = this.activeTags.filter(t => t.active);
             const inactiveTags = this.activeTags.filter(t => !t.active);
-            
+
             if (activeTags.length === 0 && inactiveTags.length === 0) {
+                this.activeTagsContainer.innerHTML = '';
                 return;
             }
 
-            if (inactiveTags.length > 0) {
-                const inactiveWrapper = document.createElement('div');
-                inactiveWrapper.className = 'tags-group-wrapper';
-                
-                const label = document.createElement('div');
-                label.className = 'tags-group-label';
-                
-                const ignoreExcluded = localStorage.getItem('r34_ignore_excluded_tags') === 'true';
-                
-                label.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span class="group-dot inactive-dot"></span>
-                        Исключенные теги
-                        <svg class="tags-group-toggle ${this.excludedTagsCollapsed ? 'collapsed' : ''}" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">Игнорировать</span>
-                        <label class="r34-toggle-switch" style="transform: scale(0.8);">
-                            <input type="checkbox" id="ignoreExcludedToggle" ${ignoreExcluded ? 'checked' : ''}>
-                            <span class="r34-slider"></span>
-                        </label>
-                    </div>
-                `;
-                
-                const toggleCollapse = () => {
-                    this.excludedTagsCollapsed = !this.excludedTagsCollapsed;
-                    localStorage.setItem('r34_excluded_tags_collapsed', this.excludedTagsCollapsed ? 'true' : 'false');
-                    const toggle = label.querySelector('.tags-group-toggle');
-                    const listWrapper = label.nextElementSibling;
-                    if (toggle) toggle.classList.toggle('collapsed', this.excludedTagsCollapsed);
-                    if (listWrapper) listWrapper.classList.toggle('collapsed', this.excludedTagsCollapsed);
-                };
-                
-                label.querySelector('.tags-group-toggle').onclick = (e) => {
-                    e.stopPropagation();
-                    toggleCollapse();
-                };
-                
-                label.onclick = (e) => {
-                    if (e.target.closest('.r34-toggle-switch')) return;
-                    toggleCollapse();
-                };
-                
-                const ignoreToggle = label.querySelector('#ignoreExcludedToggle');
-                ignoreToggle.onclick = (e) => {
-                    e.stopPropagation();
-                    localStorage.setItem('r34_ignore_excluded_tags', ignoreToggle.checked ? 'true' : 'false');
-                    if (this.onTagsChange) this.onTagsChange(this.getTagsQuery());
-                };
-                
-                inactiveWrapper.appendChild(label);
-                
-                const listWrapper = document.createElement('div');
-                listWrapper.className = 'tags-group-list-wrapper' + (this.excludedTagsCollapsed ? ' collapsed' : '');
-                
-                const tagsContainer = document.createElement('div');
-                tagsContainer.className = 'tags-group-list';
-                
-                inactiveTags.forEach((tagObj) => {
-                    const originalIndex = this.activeTags.indexOf(tagObj);
-                    const tagEl = this.createTagDOMElement(tagObj, originalIndex);
-                    tagsContainer.appendChild(tagEl);
+            // Карта всех существующих DOM элементов тегов для повторного использования
+            const existingTagsMap = new Map();
+            this.activeTagsContainer.querySelectorAll('.tag').forEach(el => {
+                if (el.dataset.tagValue) {
+                    existingTagsMap.set(el.dataset.tagValue, el);
+                }
+            });
+
+            // Функция обновления или создания элемента тега
+            const renderTagList = (tagObjs, container) => {
+                tagObjs.forEach(tagObj => {
+                    let tagEl = existingTagsMap.get(tagObj.value);
+                    if (tagEl) {
+                        existingTagsMap.delete(tagObj.value);
+                        
+                        // Обновляем состояние существующего элемента без пересоздания DOM
+                        tagEl.className = 'tag' + (tagObj.active ? '' : ' inactive');
+                        tagEl.style.animation = 'none'; // Отключаем повторную анимацию всплытия
+                        
+                        const iconSpan = tagEl.querySelector('.tag-icon');
+                        if (iconSpan) {
+                            iconSpan.className = 'tag-icon' + (tagObj.active ? ' active-icon' : ' inactive-icon');
+                            iconSpan.innerHTML = tagObj.active ? icon('check', { size: 10, strokeWidth: 3 }) : icon('x', { size: 10, strokeWidth: 3 });
+                        }
+                        
+                        const countSpan = tagEl.querySelector('.tag-count');
+                        if (countSpan) {
+                            const tagCount = this.activeTagsCounts[tagObj.value];
+                            if (tagCount !== undefined) {
+                                countSpan.textContent = formatCount(tagCount);
+                            }
+                        }
+                        container.appendChild(tagEl);
+                    } else {
+                        const originalIndex = this.activeTags.indexOf(tagObj);
+                        tagEl = this.createTagDOMElement(tagObj, originalIndex);
+                        container.appendChild(tagEl);
+                    }
                 });
+            };
+
+            // Группа Исключенные теги
+            let inactiveWrapper = this.activeTagsContainer.querySelector('.tags-group-wrapper-inactive');
+            if (inactiveTags.length > 0) {
+                if (!inactiveWrapper) {
+                    inactiveWrapper = document.createElement('div');
+                    inactiveWrapper.className = 'tags-group-wrapper tags-group-wrapper-inactive';
+                    
+                    const label = document.createElement('div');
+                    label.className = 'tags-group-label';
+                    
+                    const ignoreExcluded = localStorage.getItem('r34_ignore_excluded_tags') === 'true';
+                    
+                    label.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="group-dot inactive-dot"></span>
+                            Исключенные теги
+                            <svg class="tags-group-toggle ${this.excludedTagsCollapsed ? 'collapsed' : ''}" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">Игнорировать</span>
+                            <label class="r34-toggle-switch" style="transform: scale(0.8);">
+                                <input type="checkbox" id="ignoreExcludedToggle" ${ignoreExcluded ? 'checked' : ''}>
+                                <span class="r34-slider"></span>
+                            </label>
+                        </div>
+                    `;
+                    
+                    const toggleCollapse = () => {
+                        this.excludedTagsCollapsed = !this.excludedTagsCollapsed;
+                        localStorage.setItem('r34_excluded_tags_collapsed', this.excludedTagsCollapsed ? 'true' : 'false');
+                        const toggle = label.querySelector('.tags-group-toggle');
+                        const listWrapper = label.nextElementSibling;
+                        if (toggle) toggle.classList.toggle('collapsed', this.excludedTagsCollapsed);
+                        if (listWrapper) listWrapper.classList.toggle('collapsed', this.excludedTagsCollapsed);
+                    };
+                    
+                    label.querySelector('.tags-group-toggle').onclick = (e) => {
+                        e.stopPropagation();
+                        toggleCollapse();
+                    };
+                    
+                    label.onclick = (e) => {
+                        if (e.target.closest('.r34-toggle-switch')) return;
+                        toggleCollapse();
+                    };
+                    
+                    const ignoreToggle = label.querySelector('#ignoreExcludedToggle');
+                    ignoreToggle.onclick = (e) => {
+                        e.stopPropagation();
+                        localStorage.setItem('r34_ignore_excluded_tags', ignoreToggle.checked ? 'true' : 'false');
+                        if (this.onTagsChange) this.onTagsChange(this.getTagsQuery());
+                    };
+                    
+                    inactiveWrapper.appendChild(label);
+                    
+                    const listWrapper = document.createElement('div');
+                    listWrapper.className = 'tags-group-list-wrapper' + (this.excludedTagsCollapsed ? ' collapsed' : '');
+                    
+                    const tagsContainer = document.createElement('div');
+                    tagsContainer.className = 'tags-group-list';
+                    
+                    listWrapper.appendChild(tagsContainer);
+                    inactiveWrapper.appendChild(listWrapper);
+                }
                 
-                listWrapper.appendChild(tagsContainer);
-                inactiveWrapper.appendChild(listWrapper);
+                const tagsContainer = inactiveWrapper.querySelector('.tags-group-list');
+                renderTagList(inactiveTags, tagsContainer);
                 this.activeTagsContainer.appendChild(inactiveWrapper);
+            } else if (inactiveWrapper) {
+                inactiveWrapper.remove();
             }
 
+            // Группа Включенные теги
+            let activeWrapper = this.activeTagsContainer.querySelector('.tags-group-wrapper-active');
             if (activeTags.length > 0) {
-                const activeWrapper = document.createElement('div');
-                activeWrapper.className = 'tags-group-wrapper';
+                if (!activeWrapper) {
+                    activeWrapper = document.createElement('div');
+                    activeWrapper.className = 'tags-group-wrapper tags-group-wrapper-active';
+                    
+                    const label = document.createElement('div');
+                    label.className = 'tags-group-label';
+                    
+                    const ignoreIncluded = localStorage.getItem('r34_ignore_included_tags') === 'true';
+                    
+                    label.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="group-dot active-dot"></span>
+                            Включенные теги
+                            <svg class="tags-group-toggle ${this.includedTagsCollapsed ? 'collapsed' : ''}" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">Игнорировать</span>
+                            <label class="r34-toggle-switch" style="transform: scale(0.8);">
+                                <input type="checkbox" id="ignoreIncludedToggle" ${ignoreIncluded ? 'checked' : ''}>
+                                <span class="r34-slider"></span>
+                            </label>
+                        </div>
+                    `;
+                    
+                    const toggleCollapse = () => {
+                        this.includedTagsCollapsed = !this.includedTagsCollapsed;
+                        localStorage.setItem('r34_included_tags_collapsed', this.includedTagsCollapsed ? 'true' : 'false');
+                        const toggle = label.querySelector('.tags-group-toggle');
+                        const listWrapper = label.nextElementSibling;
+                        if (toggle) toggle.classList.toggle('collapsed', this.includedTagsCollapsed);
+                        if (listWrapper) listWrapper.classList.toggle('collapsed', this.includedTagsCollapsed);
+                    };
+                    
+                    label.querySelector('.tags-group-toggle').onclick = (e) => {
+                        e.stopPropagation();
+                        toggleCollapse();
+                    };
+                    
+                    label.onclick = (e) => {
+                        if (e.target.closest('.r34-toggle-switch')) return;
+                        toggleCollapse();
+                    };
+                    
+                    const ignoreToggle = label.querySelector('#ignoreIncludedToggle');
+                    ignoreToggle.onclick = (e) => {
+                        e.stopPropagation();
+                        localStorage.setItem('r34_ignore_included_tags', ignoreToggle.checked ? 'true' : 'false');
+                        if (this.onTagsChange) this.onTagsChange(this.getTagsQuery());
+                    };
+                    
+                    activeWrapper.appendChild(label);
+                    
+                    const listWrapper = document.createElement('div');
+                    listWrapper.className = 'tags-group-list-wrapper' + (this.includedTagsCollapsed ? ' collapsed' : '');
+                    
+                    const tagsContainer = document.createElement('div');
+                    tagsContainer.className = 'tags-group-list';
+                    
+                    listWrapper.appendChild(tagsContainer);
+                    activeWrapper.appendChild(listWrapper);
+                }
                 
-                const label = document.createElement('div');
-                label.className = 'tags-group-label';
-                
-                const ignoreIncluded = localStorage.getItem('r34_ignore_included_tags') === 'true';
-                
-                label.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span class="group-dot active-dot"></span>
-                        Включенные теги
-                        <svg class="tags-group-toggle ${this.includedTagsCollapsed ? 'collapsed' : ''}" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">Игнорировать</span>
-                        <label class="r34-toggle-switch" style="transform: scale(0.8);">
-                            <input type="checkbox" id="ignoreIncludedToggle" ${ignoreIncluded ? 'checked' : ''}>
-                            <span class="r34-slider"></span>
-                        </label>
-                    </div>
-                `;
-                
-                const toggleCollapse = () => {
-                    this.includedTagsCollapsed = !this.includedTagsCollapsed;
-                    localStorage.setItem('r34_included_tags_collapsed', this.includedTagsCollapsed ? 'true' : 'false');
-                    const toggle = label.querySelector('.tags-group-toggle');
-                    const listWrapper = label.nextElementSibling;
-                    if (toggle) toggle.classList.toggle('collapsed', this.includedTagsCollapsed);
-                    if (listWrapper) listWrapper.classList.toggle('collapsed', this.includedTagsCollapsed);
-                };
-                
-                label.querySelector('.tags-group-toggle').onclick = (e) => {
-                    e.stopPropagation();
-                    toggleCollapse();
-                };
-                
-                label.onclick = (e) => {
-                    if (e.target.closest('.r34-toggle-switch')) return;
-                    toggleCollapse();
-                };
-                
-                const ignoreToggle = label.querySelector('#ignoreIncludedToggle');
-                ignoreToggle.onclick = (e) => {
-                    e.stopPropagation();
-                    localStorage.setItem('r34_ignore_included_tags', ignoreToggle.checked ? 'true' : 'false');
-                    if (this.onTagsChange) this.onTagsChange(this.getTagsQuery());
-                };
-                
-                activeWrapper.appendChild(label);
-                
-                const listWrapper = document.createElement('div');
-                listWrapper.className = 'tags-group-list-wrapper' + (this.includedTagsCollapsed ? ' collapsed' : '');
-                
-                const tagsContainer = document.createElement('div');
-                tagsContainer.className = 'tags-group-list';
-                
-                activeTags.forEach((tagObj) => {
-                    const originalIndex = this.activeTags.indexOf(tagObj);
-                    const tagEl = this.createTagDOMElement(tagObj, originalIndex);
-                    tagsContainer.appendChild(tagEl);
-                });
-                
-                listWrapper.appendChild(tagsContainer);
-                activeWrapper.appendChild(listWrapper);
+                const tagsContainer = activeWrapper.querySelector('.tags-group-list');
+                renderTagList(activeTags, tagsContainer);
                 this.activeTagsContainer.appendChild(activeWrapper);
+            } else if (activeWrapper) {
+                activeWrapper.remove();
             }
+
+            // Удаляем элементы тегов, которых больше нет в списке
+            existingTagsMap.forEach(el => el.remove());
         });
     }
 

@@ -9,6 +9,7 @@ let audioCtx = null;
 let _cachedPerfMode = null;
 
 function playSound(type) {
+    if (window.safeScreen && window.safeScreen.isActive) return;
     if (_cachedPerfMode === null) {
         _cachedPerfMode = localStorage.getItem('r34_low_power_mode') === 'true' || localStorage.getItem('r34_reduced_motion') === 'true' || localStorage.getItem('r34_puzzle_perf_mode') === 'true';
     }
@@ -463,7 +464,7 @@ export class PuzzleGame {
             ratio = post.width / post.height;
         }
         const allowLong = localStorage.getItem('r34_puzzle_allow_long_images') === 'true';
-        this.aspectRatio = allowLong ? Math.max(0.05, Math.min(20.0, ratio)) : Math.max(0.7, Math.min(1.8, ratio));
+        this.aspectRatio = allowLong ? Math.max(0.05, Math.min(20.0, ratio)) : Math.max(0.35, Math.min(1.8, ratio));
         this.updateGridDimensions();
 
         this._cachedTrayGrid = null;
@@ -1000,7 +1001,7 @@ export class PuzzleGame {
                 ratio = post.width / post.height;
             }
             const allowLong = localStorage.getItem('r34_puzzle_allow_long_images') === 'true';
-            this.aspectRatio = allowLong ? Math.max(0.05, Math.min(20.0, ratio)) : Math.max(0.4, Math.min(1.8, ratio));
+            this.aspectRatio = allowLong ? Math.max(0.05, Math.min(20.0, ratio)) : Math.max(0.35, Math.min(1.8, ratio));
             this.updateGridDimensions();
             if (this.boardContainer) {
                 const boardRatio = (this.cols && this.rows) ? (this.cols / this.rows) : this.aspectRatio;
@@ -1614,11 +1615,11 @@ export class PuzzleGame {
             /* // ИЗМЕНЕНО: Новый градиент заголовка */
             .puzzle-title {
                 font-size: 1.35rem; font-weight: 800;
-                background: linear-gradient(135deg, #a78bfa, #ec4899, #f59e0b);
+                background: linear-gradient(135deg, var(--accent, #a78bfa), var(--accent-alt, #ec4899), #f59e0b);
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
                 display: flex; align-items: center; gap: 8px;
-                filter: drop-shadow(0 0 12px rgba(167,139,250,0.3));
+                filter: drop-shadow(0 0 12px var(--accent-glow, rgba(167,139,250,0.3)));
             }
 
             /* // ИЗМЕНЕНО: Конкретные transition вместо all */
@@ -1684,7 +1685,7 @@ export class PuzzleGame {
                 color: rgba(255,255,255,0.9);
                 display: flex; align-items: center; gap: 6px;
             }
-            #puzzle-timer-badge { border-left: 3px solid #8b5cf6; }
+            #puzzle-timer-badge { border-left: 3px solid var(--accent, #8b5cf6); }
             #puzzle-moves-badge { border-left: 3px solid #3b82f6; }
             #puzzle-record-badge { border-left: 3px solid #f59e0b; }
 
@@ -1891,6 +1892,23 @@ export class PuzzleGame {
                 pointer-events: none !important;
             }
 
+            /* // ИЗМЕНЕНО: Стили для заблокированной другим игроком детали в coop режиме */
+            .puzzle-tile.is-remote-locked {
+                cursor: not-allowed !important;
+                pointer-events: none !important;
+            }
+            .puzzle-tile.is-remote-locked .puzzle-tile-outline .stroke-dark,
+            .puzzle-tile.is-remote-locked .puzzle-tile-outline .stroke-light,
+            .puzzle-tile.is-remote-locked .puzzle-tile-outline path {
+                stroke: #f59e0b !important;
+                stroke-width: 3px !important;
+                opacity: 0.9 !important;
+            }
+            .puzzle-tile.is-remote-locked .puzzle-tile-shading {
+                background: linear-gradient(135deg, rgba(245, 158, 11, 0.4) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(245, 158, 11, 0.4) 100%) !important;
+                opacity: 0.8 !important;
+            }
+
             /* // ИЗМЕНЕНО: Flash-анимации оптимизированы для производительности (убраны filter и box-shadow) */
             .puzzle-tile.flash-green {
                 z-index: 50 !important;
@@ -2045,12 +2063,12 @@ export class PuzzleGame {
             .puzzle-loader-spinner {
                 width: 54px; height: 54px;
                 border: 4px solid rgba(255,255,255,0.08);
-                border-left-color: #8b5cf6;
-                border-top-color: #ec4899;
+                border-left-color: var(--accent, #8b5cf6);
+                border-top-color: var(--accent-alt, #ec4899);
                 border-radius: 50%;
                 animation: puzzle-spin 1.2s cubic-bezier(0.5, 0.1, 0.4, 0.9) infinite;
                 margin-bottom: 20px;
-                box-shadow: 0 0 20px rgba(139,92,246,0.2);
+                box-shadow: 0 0 20px var(--accent-glow, rgba(139,92,246,0.2));
             }
             .puzzle-loader-text { color: #fff; font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); letter-spacing: 0.5px; }
             .puzzle-loader-progress-container { width: 220px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.4); }
@@ -2058,7 +2076,7 @@ export class PuzzleGame {
             /* // ИЗМЕНЕНО: Новый градиент прогресс-бара */
             .puzzle-loader-progress-bar {
                 width: 0%; height: 100%;
-                background: linear-gradient(90deg, #8b5cf6, #ec4899, #f59e0b);
+                background: linear-gradient(90deg, var(--accent, #8b5cf6), var(--accent-alt, #ec4899), #f59e0b);
                 background-size: 200% 100%;
                 animation: progress-shine 2s linear infinite;
                 transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -2320,7 +2338,7 @@ export class PuzzleGame {
         idSelector.style.cssText = `display:flex;gap:8px;width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:6px;border-radius:14px;margin-top:8px;margin-bottom:2px;align-items:center;`;
         const idLabel = document.createElement('span');
         idLabel.innerHTML = `${icon('search', { size: 14 })} ID:`;
-        idLabel.style.cssText = `font-size:0.8rem;font-weight:bold;color:#a78bfa;margin-left:4px;white-space:nowrap;`;
+        idLabel.style.cssText = `font-size:0.8rem;font-weight:bold;color:var(--accent,#a78bfa);margin-left:4px;white-space:nowrap;`;
         const idInput = document.createElement('input');
         idInput.type = 'text';
         idInput.className = 'puzzle-id-input';
@@ -2337,7 +2355,7 @@ export class PuzzleGame {
         const idLoadBtn = document.createElement('button');
         idLoadBtn.className = 'puzzle-id-btn';
         idLoadBtn.textContent = 'Открыть';
-        idLoadBtn.style.cssText = `background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#ffffff;border:none;padding:6px 14px;border-radius:8px;font-weight:bold;font-size:0.8rem;cursor:pointer;transition:opacity 0.2s;`;
+        idLoadBtn.style.cssText = `background:linear-gradient(135deg,var(--accent,#a78bfa),var(--accent-alt,#7c3aed));color:var(--btn-primary-color,#ffffff);border:none;padding:6px 14px;border-radius:8px;font-weight:bold;font-size:0.8rem;cursor:pointer;transition:opacity 0.2s;`;
         idLoadBtn.onmouseover = () => idLoadBtn.style.opacity = '0.9';
         idLoadBtn.onmouseout = () => idLoadBtn.style.opacity = '1';
         idInput.onkeydown = (e) => { if (e.key === 'Enter') { idLoadBtn.click(); } };
@@ -2611,7 +2629,21 @@ export class PuzzleGame {
         solveBtn.innerHTML = `<span style="display:flex;align-items:center;justify-content:center;">${icon('bot', { size: 16 })}</span><span>Собрать</span>`;
         solveBtn.onclick = async () => {
             if (this.isOnline && this.onlineManager) {
-                this.onlineManager.requestAction('SOLVE');
+                if (this.onlineMode === 'race') {
+                    let confirmed = false;
+                    const msg = 'Вы действительно хотите запустить автосбор? В соревновательном режиме "Гонка" использование автосбора означает, что вы СДАЕТЕСЬ. Вы закончите сборку автоматически, но в таблице результатов будет указано, что вы сдались.';
+                    if (typeof window.showConfirmModal === 'function') {
+                        confirmed = await window.showConfirmModal('Сдаться и собрать?', msg);
+                    } else {
+                        confirmed = confirm(msg);
+                    }
+                    if (confirmed) {
+                        this.isSurrendered = true;
+                        this.autoSolve();
+                    }
+                } else {
+                    this.onlineManager.requestAction('SOLVE');
+                }
                 return;
             }
             let confirmed = true;
@@ -2824,6 +2856,7 @@ export class PuzzleGame {
     // диагональный разлёт вместо построчного, spring easing
     // ============================================================
     initPuzzle() {
+        this.status = 'preview';
         this.gameId = 'pg_' + Math.random().toString(36).substring(2, 8);
         const currentId = this.gameId;
         this.stopTimer();
@@ -2840,6 +2873,7 @@ export class PuzzleGame {
         this.hasWon = false;
         this.isSolving = false;
         this.wasAutoSolved = false;
+        this.isSurrendered = false;
         this.wasOverlappingLastCheck = false;
         this._trayGridDirty = true;
 
@@ -3022,6 +3056,12 @@ export class PuzzleGame {
     // // ИЗМЕНЕНО: updatePuzzleStatus — улучшенные иконки и прогресс
     // ============================================================
     updatePuzzleStatus(status) {
+        this.status = status;
+        if (status === 'playing' && this.tileElements) {
+            this.tileElements.forEach(el => {
+                el.style.touchAction = 'none';
+            });
+        }
         const statusText = document.getElementById('puzzle-status-text');
         const statusIcon = document.getElementById('puzzle-status-icon');
         const statusBar = document.getElementById('puzzle-progress-bar');
@@ -3165,7 +3205,7 @@ export class PuzzleGame {
             element.className = `puzzle-tile ${this.showNumbersActive ? 'show-num' : ''}`;
             element.dataset.tileId = tile.id;
             element.setAttribute('draggable', 'false');
-            element.style.touchAction = 'none';
+            element.style.touchAction = (this.status === 'playing') ? 'none' : 'auto';
             this.tileElements.set(tile.id, element);
 
             const maxDelay = 1.3;
@@ -3285,7 +3325,9 @@ export class PuzzleGame {
             let lastClickTime = 0;
             element.onclick = (e) => {
                 e.stopPropagation();
+                if (this.status !== 'playing') return;
                 if (this._dragSuppressNextClick) { this._dragSuppressNextClick = false; return; }
+                if (this.isTileRemoteLocked(tile.id)) return;
                 const now = Date.now();
                 if (now - lastClickTime < 300) {
                     if (this.isPlaying && !this.isSolving && !this.isHintActive && tile.id !== tile.currentPos) {
@@ -3313,7 +3355,8 @@ export class PuzzleGame {
 
             // Mouse drag — БЕЗ ИЗМЕНЕНИЙ (слишком длинный, оставляем как есть)
             element.onmousedown = (e) => {
-                if (!this.isPlaying || this.isSolving || this.isHintActive || tile.id === tile.currentPos || e.button !== 0) return;
+                if (this.status !== 'playing') return;
+                if (!this.isPlaying || this.isSolving || this.isHintActive || tile.id === tile.currentPos || e.button !== 0 || this.isTileRemoteLocked(tile.id)) return;
                 e.preventDefault();
                 e.stopPropagation();
                 this._cachedBoardRect = this.board ? this.board.getBoundingClientRect() : null;
@@ -3449,7 +3492,8 @@ export class PuzzleGame {
             // Touch handlers — БЕЗ ИЗМЕНЕНИЙ (слишком длинные)
             let touchStartX = 0, touchStartY = 0, touchMoveStarted = false;
             element.addEventListener('touchstart', (e) => {
-                if (!this.isPlaying || this.isSolving || this.isHintActive || tile.id === tile.currentPos) return;
+                if (this.status !== 'playing') return;
+                if (!this.isPlaying || this.isSolving || this.isHintActive || tile.id === tile.currentPos || this.isTileRemoteLocked(tile.id)) return;
                 if (!e.touches || e.touches.length > 1) return;
                 const touch = e.touches && e.touches[0];
                 if (!touch) return;
@@ -3466,13 +3510,14 @@ export class PuzzleGame {
             }, { passive: true });
 
             element.addEventListener('touchmove', (e) => {
+                if (this.status !== 'playing') return;
                 if (!e.touches || e.touches.length === 0) return;
                 const touch = e.touches && e.touches[0];
                 if (!touch) return;
                 const dx = touch.clientX - touchStartX;
                 const dy = touch.clientY - touchStartY;
                 if (!touchMoveStarted && Math.hypot(dx, dy) > 5) {
-                    if (!this.isPlaying || this.isSolving || this.isHintActive || tile.id === tile.currentPos) return;
+                    if (!this.isPlaying || this.isSolving || this.isHintActive || tile.id === tile.currentPos || this.isTileRemoteLocked(tile.id)) return;
                     touchMoveStarted = true;
                     this._cachedBoardRect = this.board.getBoundingClientRect();
                     this.draggedTileId = tile.id;
@@ -3569,6 +3614,7 @@ export class PuzzleGame {
             }, { passive: false });
 
             element.addEventListener('touchend', (e) => {
+                if (this.status !== 'playing') return;
                 this.stopAutoScroll();
                 this._lastTouchY = null;
                 this._dragStartedInTray = false;
@@ -3611,6 +3657,7 @@ export class PuzzleGame {
             }, { passive: false });
 
             element.addEventListener('touchcancel', () => {
+                if (this.status !== 'playing') return;
                 this.stopAutoScroll();
                 this._dragStartedInTray = false;
                 if (this.draggedTileId === tile.id) {
@@ -3679,7 +3726,8 @@ export class PuzzleGame {
     // checkDragAutoScroll, destroy) — БЕЗ ИЗМЕНЕНИЙ
     // ============================================================
     onTileClick(tileId, e) {
-        if (!this.isPlaying || this.isSolving || this.isHintActive) return;
+        if (this.status !== 'playing') return;
+        if (!this.isPlaying || this.isSolving || this.isHintActive || this.isTileRemoteLocked(tileId)) return;
         if (this._dragSuppressNextClick) { this._dragSuppressNextClick = false; return; }
         const tile = this.tileById.get(tileId) || null;
         const total = this.cols * this.rows;
@@ -3833,7 +3881,7 @@ export class PuzzleGame {
         return result;
     }
 
-    flashGroupTiles(groupTiles, timeout = 1000) {
+    flashGroupTiles(groupTiles, timeout = 600) {
         groupTiles.forEach(gt => {
             const el = this.tileElements.get(gt.id);
             if (el) { 
@@ -4034,14 +4082,25 @@ export class PuzzleGame {
         this.placeGroupComplex(srcTileId, leftPct, topPct, isTrayTarget, targetPos);
         this._isApplyingRemoteMove = false;
         
-        const tile = this.tileById.get(srcTileId);
-        if (tile) {
-            const groupTiles = this.getGroupTiles(tile.groupId);
-            this.flashGroupTiles(groupTiles, 1200);
-        }
         if (this.onlineManager) {
             this.onlineManager.updateOnlineHUD();
         }
+    }
+
+    isTileRemoteLocked(tileId) {
+        if (!this._remoteDrags || this._remoteDrags.size === 0) return false;
+        const tile = this.tileById.get(tileId);
+        for (const remoteDrag of this._remoteDrags.values()) {
+            if (!remoteDrag || !remoteDrag.groupTileIds) continue;
+            if (remoteDrag.groupTileIds.includes(tileId)) return true;
+            if (tile && tile.groupId && remoteDrag.groupTileIds.some(id => {
+                const gt = this.tileById.get(id);
+                return gt && gt.groupId === tile.groupId;
+            })) {
+                return true;
+            }
+        }
+        return false;
     }
 
     handleRemoteCoopDrag(packet) {
@@ -4073,6 +4132,7 @@ export class PuzzleGame {
                 const el = this.tileElements.get(id);
                 if (gt && el) {
                     const clone = el.cloneNode(true);
+                    clone.classList.remove('is-remote-locked', 'selected');
                     clone.style.cssText = `position:absolute;pointer-events:none;opacity:0.6;transition:none;margin:0;transform:scale(1);transform-origin:0 0;filter: brightness(1.2);`;
                     const gtData = this.getTileJigsawShape(gt.correctRow, gt.correctCol);
                     clone.style.width = `${gtData.tileW * F * 100}%`;
@@ -4080,7 +4140,8 @@ export class PuzzleGame {
                     clone.style.left = `${gt.boardX - srcTile.boardX}%`;
                     clone.style.top = `${gt.boardY - srcTile.boardY}%`;
                     groupContainer.appendChild(clone);
-                    el.style.opacity = '0.2';
+                    el.style.opacity = '0.35';
+                    el.classList.add('is-remote-locked');
                 }
             });
             
@@ -4101,7 +4162,10 @@ export class PuzzleGame {
             if (remoteDrag.clone) remoteDrag.clone.remove();
             remoteDrag.groupTileIds.forEach(id => {
                 const el = this.tileElements.get(id);
-                if (el) el.style.opacity = '1';
+                if (el) {
+                    el.style.opacity = '1';
+                    el.classList.remove('is-remote-locked');
+                }
             });
             this._remoteDrags.delete(playerId);
         }
@@ -4604,6 +4668,18 @@ export class PuzzleGame {
 
     stopTimer() { if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; } }
 
+    pauseForSafeScreen() {
+        this.stopTimer();
+        this.isPausedForSafeScreen = true;
+    }
+
+    resumeFromSafeScreen() {
+        this.isPausedForSafeScreen = false;
+        if (this.isPlaying && !this.isSolving) {
+            this.startTimer();
+        }
+    }
+
     async autoSolve() {
         if (!this.isPlaying || this.isSolving) return;
         this.wasAutoSolved = true;
@@ -4682,7 +4758,7 @@ export class PuzzleGame {
         this.hasWon = true;
 
         if (this.isOnline && this.onlineManager) {
-            this.onlineManager.sendWinEvent(this.seconds, this.moves);
+            this.onlineManager.sendWinEvent(this.seconds, this.moves, this.isSurrendered);
         }
         if (this.board) {
             this.board.classList.add('won');
@@ -4727,7 +4803,7 @@ export class PuzzleGame {
         }
 
         const recordNote = isNewRecord ? `<br><span style="color:#fbbf24;font-weight:bold;font-size:0.85rem;">${icon('trophy', { size: 16 })} Новый Рекорд!</span>` : '';
-        const autoSolvedNote = this.wasAutoSolved ? `<br><span style="color:#a78bfa;font-weight:bold;font-size:0.85rem;">${icon('bot', { size: 16 })} Использован автосбор</span>` : '';
+        const autoSolvedNote = this.wasAutoSolved ? `<br><span style="color:var(--accent,#a78bfa);font-weight:bold;font-size:0.85rem;">${icon('bot', { size: 16 })} Использован автосбор</span>` : '';
         this.winText.innerHTML = `<div style="font-size:0.9rem;line-height:1.4;">Вы собрали пазл (${this.cols * this.rows} дет.) за <b>${timeText}</b>!${recordNote}${autoSolvedNote}</div>`;
 
         if (this.trayDiv) {
@@ -4765,6 +4841,9 @@ export class PuzzleGame {
             document.querySelectorAll('.media-container').forEach(container => { window.gallery.observer.observe(container); });
         }
         window.puzzleGameActive = false;
+        if (window.activePuzzleGame === this) {
+            window.activePuzzleGame = null;
+        }
         if (this.trayDiv && window.innerWidth < 900) this.trayDiv.style.overflowY = 'auto';
         if (this._abortController) { this._abortController.abort(); this._abortController = null; }
         if (this._overlapFrame) { cancelAnimationFrame(this._overlapFrame); this._overlapFrame = null; }
