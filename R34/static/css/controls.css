@@ -378,3 +378,109 @@ input.r34-range-gradient::-moz-range-thumb {
 @keyframes r34-spin {
   to { transform: rotate(360deg); }
 }
+
+/* ============================================================
+   АДАПТАЦИЯ ПОД МАЛЫЕ РАЗМЕРЫ (КОНТЕЙНЕРНЫЕ ЗАПРОСЫ)
+   Используется для колончатого режима, когда карточки узкие
+   ============================================================ */
+
+@container (max-width: 280px) {
+  /* Уменьшаем центральную кнопку */
+  .center-play-btn {
+    width: 42px !important;
+    height: 42px !important;
+    max-width: 42px !important;
+    max-height: 42px !important;
+  }
+  .center-play-btn svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  /* Уменьшаем угловые кнопки */
+  .fullscreen-btn, 
+  .sound-control-wrapper {
+    width: 30px !important;
+    height: 30px !important;
+    top: 8px !important;
+  }
+  .fullscreen-btn { left: 8px !important; }
+  .sound-control-wrapper { right: 8px !important; }
+  
+  .fullscreen-btn svg,
+  .sound-toggle-btn svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  /* Панель прогресса */
+  .in-card-controls {
+    padding: 4px 8px !important;
+    gap: 4px !important;
+  }
+  .video-time {
+    font-size: 0.72rem !important;
+  }
+  
+  /* Бейдж длительности */
+  .video-duration-badge {
+    padding: 2px 6px !important;
+    font-size: 0.68rem !important;
+    bottom: 8px !important;
+    right: 8px !important;
+  }
+
+  /* Спиннер загрузки */
+  .video-loading-spinner {
+    width: 38px !important;
+    height: 38px !important;
+    margin: -19px 0 0 -19px !important;
+  }
+}
+
+@container (max-width: 200px) {
+  /* Скрываем время, оставляем только прогресс */
+  .video-time {
+    display: none !important;
+  }
+  
+  /* Еще меньше кнопки */
+  .center-play-btn {
+    width: 34px !important;
+    height: 34px !important;
+    max-width: 34px !important;
+    max-height: 34px !important;
+  }
+  .center-play-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  .fullscreen-btn, 
+  .sound-control-wrapper {
+    width: 26px !important;
+    height: 26px !important;
+    top: 5px !important;
+  }
+  .fullscreen-btn { left: 5px !important; }
+  .sound-control-wrapper { right: 5px !important; }
+  
+  .fullscreen-btn svg,
+  .sound-toggle-btn svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+  
+  /* Скрываем бейдж длительности, если совсем мало места */
+  .video-duration-badge {
+    display: none !important;
+  }
+
+  /* Совсем маленький спиннер */
+  .video-loading-spinner {
+    width: 28px !important;
+    height: 28px !important;
+    margin: -14px 0 0 -14px !important;
+    border-width: 2px !important;
+  }
+}

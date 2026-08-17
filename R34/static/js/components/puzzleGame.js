@@ -1690,7 +1690,7 @@ export class PuzzleGame {
             #puzzle-record-badge { border-left: 3px solid #f59e0b; }
 
             .puzzle-mode-selector {
-                display: flex; gap: 8px;
+                display: flex; gap: 12px;
                 background: var(--glass-bg);
                 border: 1px solid var(--glass-border);
                 padding: 4px; border-radius: var(--radius-md);
@@ -1714,7 +1714,7 @@ export class PuzzleGame {
             }
 
             .puzzle-difficulty-selector, .puzzle-shape-selector {
-                display: flex; flex-wrap: nowrap; justify-content: flex-start; gap: 6px;
+                display: flex; flex-wrap: nowrap; justify-content: flex-start; gap: 10px;
                 background: var(--glass-bg);
                 border: 1px solid var(--glass-border);
                 padding: 6px; border-radius: var(--radius-md);
@@ -2090,7 +2090,7 @@ export class PuzzleGame {
                 .puzzle-title { font-size: 1.15rem; }
                 .puzzle-close { width: 32px; height: 32px; font-size: 1.1rem; }
                 .puzzle-badge { padding: 4px 8px; font-size: 0.75rem; }
-                .puzzle-mode-selector, .puzzle-difficulty-selector, .puzzle-shape-selector { gap: 4px; padding: 2px; border-radius: 10px; }
+                .puzzle-mode-selector, .puzzle-difficulty-selector, .puzzle-shape-selector { gap: 8px; padding: 2px; border-radius: 10px; }
                 .puzzle-mode-btn, .puzzle-diff-btn, .puzzle-shape-btn { padding: 5px 6px; font-size: 0.72rem; border-radius: 8px; min-width: 45px; }
                 .puzzle-controls { grid-template-columns: repeat(2, 1fr); gap: 6px; }
                 .puzzle-btn { padding: 12px 8px; font-size: 0.82rem; min-height: 44px; border-radius: 10px; }

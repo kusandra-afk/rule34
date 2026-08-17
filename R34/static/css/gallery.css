@@ -68,6 +68,7 @@ body.r34-low-power-mode *:not(.video-loading-spinner):not(.loading):not(.spinner
   -webkit-backdrop-filter: blur(var(--card-bg-blur, 14px));
   box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-highlight);
   overflow: hidden;
+  container-type: inline-size;
   aspect-ratio: var(--media-aspect-ratio, var(--card-aspect, 4/3));
   opacity: 1;
   transform: translateZ(0);

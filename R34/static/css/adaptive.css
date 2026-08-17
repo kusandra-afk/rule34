@@ -451,8 +451,8 @@
 
   /* Мягкая подсветка карточек режимов без деформации всей страницы */
   .game-mode-card:active,
-  .hl-mode-card:active,
-  .hl-card:active {
+  .game-mode-card:active,
+  .game-card:active {
     border-color: var(--accent) !important;
     box-shadow: 0 0 24px var(--accent-glow) !important;
     filter: brightness(1.06);
@@ -461,7 +461,7 @@
 
   /* Тактильное нажатие иконки внутри карточки при тапе */
   .game-mode-card:active .game-mode-icon-circle,
-  .hl-mode-card:active .hl-mode-icon-circle {
+  .game-mode-card:active .game-mode-icon-circle {
     transform: scale(0.9) translateZ(0) !important;
     transition: transform 0.08s ease-out !important;
   }
@@ -484,12 +484,10 @@
   .game-create-btn:active,
   .game-back-btn:active,
   .game-tab-btn:active,
-  .hl-close-btn:active,
-  .hl-img-nav-btn:active,
-  .hl-img-cycle-btn:active,
-  .hl-lightbox-btn:active,
-  .hl-btn-higher:active,
-  .hl-btn-lower:active {
+  .game-close-btn:active,
+  .game-img-nav-btn:active,
+  .game-img-cycle-btn:active,
+  .game-lightbox-btn:active {
     transform: scale(0.91) translateZ(0) !important;
     filter: brightness(1.2);
     transition: transform 0.08s ease-out, filter 0.08s ease-out !important;

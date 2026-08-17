@@ -103,6 +103,6 @@ export function makeCustomDropdown(selectEl) {
 }
 
 export function initAllCustomDropdowns(root = document) {
-    const selects = root.querySelectorAll('select.game-select, select.hl-input');
+    const selects = root.querySelectorAll('select.game-select, select.game-input');
     selects.forEach(select => makeCustomDropdown(select));
 }

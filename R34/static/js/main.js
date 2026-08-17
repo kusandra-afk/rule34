@@ -3,7 +3,6 @@ import { Gallery } from './components/gallery.js';
 import { fetchPosts, proxyUrl, fetchTagCount, fetchPuzzleCompleted, savePuzzleCompleted } from './api.js';
 import { setRangeGradient, formatCount, extractHexColor, debounce } from './utils.js';
 import { PuzzleGame } from './components/puzzleGame.js';
-import { HigherLowerGame } from './components/higherLowerGame.js';
 import { tursoSync } from './tursoSync.js';
 import { icon } from './icons.js';
 import { StorageManager } from './storage.js';
@@ -1383,7 +1382,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const showModeMenu = async () => {
             const menuModal = document.createElement('div');
             menuModal.id = 'puzzle-mode-menu-modal';
-            menuModal.className = 'hl-overlay open';
+            menuModal.className = 'game-overlay open';
 
             let solvedCount = 0;
             try {
@@ -1398,58 +1397,50 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             menuModal.innerHTML = `
-                <div class="hl-header">
-                    <div class="hl-title-group">
-                        <div class="hl-logo-icon game-logo-icon game-logo-icon-puzzle">${icon('puzzle', { size: 20 })}</div>
-                        <h2 class="hl-app-title">Пазлы</h2>
+                <div class="game-header">
+                    <div class="game-title-group">
+                        <div class="game-logo-icon game-logo-icon-puzzle">${icon('puzzle', { size: 20 })}</div>
+                        <h2 class="game-app-title">Пазлы</h2>
                     </div>
-                    <button class="hl-close-btn" id="pzMenuCloseBtn" title="Закрыть">&times;</button>
+                    <button class="game-close-btn" id="pzMenuCloseBtn" title="Закрыть">&times;</button>
                 </div>
             `;
 
             const card = document.createElement('div');
-            card.className = 'hl-card';
+            card.className = 'game-card';
 
             card.innerHTML = `
-                <div class="hl-menu-container">
-                    <span class="hl-hero-badge game-badge-gradient-primary">Интерактивная Мини-Игра</span>
-                    <h1 class="hl-menu-title game-menu-title">Соберите картинку из элементов!</h1>
-                    <p class="hl-menu-desc game-menu-desc">
+                <div class="game-menu-container">
+                    <span class="game-hero-badge game-badge-gradient-primary">Интерактивная Мини-Игра</span>
+                    <h1 class="game-menu-title">Соберите картинку из элементов!</h1>
+                    <p class="game-menu-desc">
                         Вы можете собирать пазлы в одиночку, используя любимые арты из галереи, устраивать состязания на скорость в режиме «Гонка» или объединять силы с друзьями в режиме «Совместный сбор»!
                     </p>
 
                     <!-- Выбор режима (Higher/Lower style modes grid) -->
-                    <div class="hl-modes-grid">
-                        <div class="hl-mode-card game-mode-card primary-mode" id="pzStartSoloBtn">
-                            <div class="hl-mode-icon-circle game-mode-icon-circle">
+                    <div class="game-modes-grid">
+                        <div class="game-mode-card primary-mode" id="pzStartSoloBtn">
+                            <div class="game-mode-icon-circle">
                                 ${icon('gamepad', { size: 24 })}
                             </div>
-                            <h3 class="hl-mode-title game-mode-title">Одиночный Режим</h3>
-                            <p class="hl-mode-subtitle game-mode-subtitle">Собирайте пазлы в своём темпе из любого выбранного арта в галерее.</p>
-                            <div class="hl-mode-stat game-mode-stat">Решено пазлов: <span id="pzSolvedCountValue">${solvedCount}</span></div>
+                            <h3 class="game-mode-title">Одиночный Режим</h3>
+                            <p class="game-mode-subtitle">Собирайте пазлы в своём темпе из любого выбранного арта в галерее.</p>
+                            <div class="game-mode-stat">Решено пазлов: <span id="pzSolvedCountValue">${solvedCount}</span></div>
                         </div>
 
-                        <div class="hl-mode-card game-mode-card multiplayer" id="pzStartMultiplayerBtn">
-                            <div class="hl-mode-icon-circle game-mode-icon-circle">
+                        <div class="game-mode-card multiplayer" id="pzStartMultiplayerBtn">
+                            <div class="game-mode-icon-circle">
                                 ${icon('users', { size: 24 })}
                             </div>
-                            <h3 class="hl-mode-title game-mode-title">Онлайн с Друзьями</h3>
-                            <p class="hl-mode-subtitle game-mode-subtitle">Создавайте комнаты и соревнуйтесь в скорости или собирайте вместе в реальном времени.</p>
-                            <div class="hl-mode-stat game-mode-stat" style="color: #fcd34d; background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3);">
+                            <h3 class="game-mode-title">Онлайн с Друзьями <span style="font-size: 0.65em; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; padding: 2px 8px; border-radius: 8px; font-weight: 800; vertical-align: middle; margin-left: 6px;">БЕТА</span></h3>
+                            <p class="game-mode-subtitle">Создавайте комнаты и соревнуйтесь в скорости или собирайте вместе в реальном времени.</p>
+                            <div class="game-mode-stat" style="color: #fcd34d; background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3);">
                                 Мультиплеер (до 15 чел.)
                             </div>
                         </div>
                     </div>
 
                     <div id="pzKeyWarningTag" class="game-warning-tag">ТРЕБУЕТСЯ API КЛЮЧ METERED.CA</div>
-
-                    <div class="hl-howto-box">
-                        <div class="hl-howto-title">${icon('lightbulb', { size: 16 })} Правила игры:</div>
-                        <div class="hl-howto-text">
-                            • <b>Одиночный режим:</b> Выбирайте любые арты из поиска галереи и собирайте пазл в комфортном режиме.<br>
-                            • <b>Онлайн-режим:</b> Создайте комнату, поделитесь кодом с друзьями и играйте вместе в реальном времени!
-                        </div>
-                    </div>
                 </div>
             `;
 
@@ -1516,19 +1507,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const multiBtn = menuModal.querySelector('#pzStartMultiplayerBtn');
             const warningTag = menuModal.querySelector('#pzKeyWarningTag');
             const updateMultiBtnState = () => {
-                const key = localStorage.getItem('hlMeteredKey');
+                const key = localStorage.getItem('gameMeteredKey') || localStorage.getItem('hlMeteredKey');
                 if (!key) {
-                    multiBtn.disabled = true;
                     multiBtn.style.opacity = '0.5';
                     multiBtn.style.filter = 'grayscale(1)';
                     multiBtn.style.cursor = 'not-allowed';
+                    multiBtn.style.pointerEvents = 'none';
                     multiBtn.title = 'Требуется API Ключ (введите в главном меню выбора игры)';
                     if (warningTag) warningTag.style.display = 'block';
                 } else {
-                    multiBtn.disabled = false;
                     multiBtn.style.opacity = '1';
                     multiBtn.style.filter = 'none';
                     multiBtn.style.cursor = 'pointer';
+                    multiBtn.style.pointerEvents = 'auto';
                     multiBtn.title = '';
                     if (warningTag) warningTag.style.display = 'none';
                 }
@@ -1540,6 +1531,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             multiBtn.onclick = (e) => {
+                const key = localStorage.getItem('gameMeteredKey') || localStorage.getItem('hlMeteredKey');
+                if (!key) {
+                    alert('Для онлайн-игры необходимо указать API Ключ Metered.ca в главном меню выбора игр.');
+                    return;
+                }
+                
                 const btn = e.currentTarget;
                 const originalHtml = btn.innerHTML;
                 
@@ -1680,14 +1677,14 @@ document.addEventListener('DOMContentLoaded', () => {
             <h2 style="font-size: 1.6rem; font-weight: 800; margin: 0 0 4px 0; background: var(--title-gradient, linear-gradient(135deg, #fff, #b8b8d1)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Выбор Игры</h2>
             <p style="font-size: 0.85rem; color: rgba(255,255,255,0.65); margin: 0 0 16px 0;">Выберите во что хотите сыграть:</p>
             
-            <div class="custom-scroll" style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 6px; text-align: left; margin-bottom: 4px;">
+            <div class="custom-scroll" style="display: flex; flex-direction: column; gap: 20px; max-height: 420px; overflow-y: auto; padding-right: 6px; text-align: left; margin-bottom: 4px;">
                 
                 <!-- Доступно сейчас -->
-                <div style="font-size: 0.7rem; font-weight: 800; color: var(--accent, #a78bfa); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Доступно сейчас</div>
+                <div style="font-size: 0.7rem; font-weight: 800; color: var(--accent, #a78bfa); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Доступно сейчас</div>
 
                 <!-- API KEY SECTION (Metered.ca) -->
                 <div style="margin: 4px 0 16px 0; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-                    <div id="hlKeyInstructionsBtn" style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px; background: rgba(245, 158, 11, 0.15); border-radius: 12px; border: 1px dashed rgba(245, 158, 11, 0.4); transition: all 0.2s ease;">
+                    <div id="gameKeyInstructionsBtn" style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px; background: rgba(245, 158, 11, 0.15); border-radius: 12px; border: 1px dashed rgba(245, 158, 11, 0.4); transition: all 0.2s ease;">
                         <div style="background: #f59e0b; color: #000; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);">!</div>
                         <div style="flex: 1;">
                             <div style="font-size: 0.65rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #f59e0b;">Обязательно для онлайн-игр</div>
@@ -1697,8 +1694,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     
                     <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <input type="text" id="hlMeteredKeyInput" style="width: 100%; text-align: center; font-size: 0.85rem; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #fff; font-family: monospace; padding: 10px;" placeholder="Вставьте ваш API Key (pk_live_...)" autocomplete="off" spellcheck="false">
-                        <button id="hlCheckMeteredKeyBtn" style="width: 100%; font-size: 0.85rem; padding: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; border-radius: 10px; font-weight: 900; cursor: pointer; transition: all 0.2s ease;">Проверить и сохранить ключ</button>
+                        <input type="text" id="gameMeteredKeyInput" style="width: 100%; text-align: center; font-size: 0.85rem; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #fff; font-family: monospace; padding: 10px;" placeholder="Вставьте ваш API Key (pk_live_...)" autocomplete="off" spellcheck="false">
+                        <button id="gameCheckMeteredKeyBtn" style="width: 100%; font-size: 0.85rem; padding: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; border-radius: 10px; font-weight: 900; cursor: pointer; transition: all 0.2s ease;">Проверить и сохранить ключ</button>
                     </div>
                 </div>
 
@@ -1711,7 +1708,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     cursor: pointer;
                     display: flex;
                     align-items: center;
-                    gap: 12px;
+                    gap: 16px;
                     transition: all 0.2s ease;
                     box-shadow: 0 4px 12px rgba(255, 59, 107, 0.15);
                     width: 100%;
@@ -1723,31 +1720,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </button>
 
-                <button id="selectHigherLowerBtn" style="
-                    padding: 14px 16px;
-                    background: linear-gradient(135deg, rgba(var(--accent-rgb, 167, 139, 250), 0.15) 0%, rgba(var(--accent-rgb, 167, 139, 250), 0.05) 100%);
-                    border: 1px solid var(--accent, #a78bfa);
-                    border-radius: 16px;
-                    color: white;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    transition: all 0.2s ease;
-                    box-shadow: 0 4px 12px var(--accent-glow, rgba(167, 139, 250, 0.15));
-                    position: relative;
-                    width: 100%;
-                ">
-                    <span style="position: absolute; top: -8px; right: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; font-size: 0.6rem; font-weight: 800; padding: 1px 6px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.3px;">Бета</span>
-                    <span style="font-size: 1.6rem;">⚖️</span>
-                    <div style="text-align: left;">
-                        <div style="font-size: 1rem; font-weight: 700;">Больше / Меньше</div>
-                        <div style="font-size: 0.75rem; opacity: 0.75; font-weight: 400; margin-top: 1px;">Угадайте популярность тегов</div>
-                    </div>
-                </button>
-
                 <!-- Другие игры -->
-                <div style="font-size: 0.7rem; font-weight: 800; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; margin: 8px 0 2px 0;">Новые игры (в разработке)</div>
+                <div style="font-size: 0.7rem; font-weight: 800; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 6px 0;">Новые игры (в разработке)</div>
 
                 <button disabled style="
                     padding: 14px 16px;
@@ -1758,7 +1732,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     cursor: not-allowed;
                     display: flex;
                     align-items: center;
-                    gap: 12px;
+                    gap: 16px;
                     position: relative;
                     opacity: 0.6;
                     width: 100%;
@@ -1780,7 +1754,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     cursor: not-allowed;
                     display: flex;
                     align-items: center;
-                    gap: 12px;
+                    gap: 16px;
+                    position: relative;
+                    opacity: 0.6;
+                    width: 100%;
+                ">
+                    <span style="position: absolute; top: -8px; right: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #71717a; font-size: 0.6rem; font-weight: 800; padding: 1px 6px; border-radius: 8px;">ОТЛОЖЕНО</span>
+                    <span style="font-size: 1.6rem; filter: grayscale(1);">⚖️</span>
+                    <div style="text-align: left;">
+                        <div style="font-size: 1rem; font-weight: 700; color: #a1a1aa;">Больше / Меньше</div>
+                        <div style="font-size: 0.75rem; opacity: 0.7; font-weight: 400; margin-top: 1px;">Классическая игра на сравнение популярности тегов</div>
+                    </div>
+                </button>
+
+                <button disabled style="
+                    padding: 14px 16px;
+                    background: rgba(255,255,255,0.02);
+                    border: 1px solid rgba(255,255,255,0.05);
+                    border-radius: 16px;
+                    color: #71717a;
+                    cursor: not-allowed;
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
                     position: relative;
                     opacity: 0.6;
                     width: 100%;
@@ -1802,7 +1798,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     cursor: not-allowed;
                     display: flex;
                     align-items: center;
-                    gap: 12px;
+                    gap: 16px;
                     position: relative;
                     opacity: 0.6;
                     width: 100%;
@@ -1837,19 +1833,12 @@ document.addEventListener('DOMContentLoaded', () => {
             startPuzzleGame();
         };
 
-        modal.querySelector('#selectHigherLowerBtn').onclick = () => {
-            closeModal();
-            if (window.higherLowerGame) {
-                window.higherLowerGame.open();
-            }
-        };
-
         // --- Metered.ca Key Logic ---
-        const keyInput = modal.querySelector('#hlMeteredKeyInput');
-        const checkBtn = modal.querySelector('#hlCheckMeteredKeyBtn');
-        const instrBtn = modal.querySelector('#hlKeyInstructionsBtn');
+        const keyInput = modal.querySelector('#gameMeteredKeyInput');
+        const checkBtn = modal.querySelector('#gameCheckMeteredKeyBtn');
+        const instrBtn = modal.querySelector('#gameKeyInstructionsBtn');
 
-        keyInput.value = localStorage.getItem('hlMeteredKey') || '';
+        keyInput.value = localStorage.getItem('gameMeteredKey') || localStorage.getItem('hlMeteredKey') || '';
 
         instrBtn.onclick = () => {
             const overlay = document.createElement('div');
@@ -1941,6 +1930,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ws.onopen = () => {
                     success = true;
                     ws.close();
+                    localStorage.setItem('gameMeteredKey', key);
                     localStorage.setItem('hlMeteredKey', key);
                     checkBtn.textContent = '✅ Сохранено!';
                     checkBtn.style.background = '#10b981';
@@ -5275,20 +5265,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Режимы: Галерея, Профиль (Избранное) и Игра Больше/Меньше ---
+    // --- Режимы: Галерея и Профиль (Избранное) ---
     const modeGalleryBtn = document.getElementById('modeGalleryBtn');
     const modeProfileBtn = document.getElementById('modeProfileBtn');
-    const modeGameBtn = document.getElementById('modeGameBtn');
-
-    window.higherLowerGame = new HigherLowerGame();
-
-    if (modeGameBtn) {
-        modeGameBtn.addEventListener('click', () => {
-            if (window.higherLowerGame) {
-                window.higherLowerGame.open();
-            }
-        });
-    }
 
     if (modeGalleryBtn && modeProfileBtn) {
         modeGalleryBtn.addEventListener('click', () => {

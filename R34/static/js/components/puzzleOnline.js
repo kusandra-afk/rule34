@@ -47,7 +47,7 @@ export class PuzzleOnlineManager {
         this.pollTimer = null;
 
         // Check for saved Metered key
-        const savedKey = localStorage.getItem('hlMeteredKey') || localStorage.getItem('r34_metered_key');
+        const savedKey = localStorage.getItem('gameMeteredKey') || localStorage.getItem('hlMeteredKey') || localStorage.getItem('r34_metered_key');
         if (savedKey) {
             this.setupMeteredIce(savedKey);
         }
@@ -974,10 +974,10 @@ export class PuzzleOnlineManager {
 
         const modal = document.createElement('div');
         modal.id = 'puzzle-online-modal';
-        modal.className = 'hl-overlay open';
+        modal.className = 'game-overlay open';
 
         const card = document.createElement('div');
-        card.className = 'hl-card';
+        card.className = 'game-card';
         card.style.maxWidth = '580px';
 
         const previewUrl = this.roomData?.postUrl || (this.roomData?.post ? (this.roomData.post.sample_url || this.roomData.post.preview_url || this.roomData.post.file_url) : '') || (this.game.post ? (this.game.post.sample_url || this.game.post.preview_url || this.game.post.file_url) : '');
@@ -1003,38 +1003,35 @@ export class PuzzleOnlineManager {
         const optionsHtml = diffs.map(d => `<option value="${d.target}" style="background:#111;" ${d.target === selectedDiff.target ? 'selected' : ''}>${d.exactPieces} деталей (${d.c}x${d.r})</option>`).join('');
 
         modal.innerHTML = `
-            <div class="hl-header">
-                <div class="hl-title-group">
-                    <div class="hl-logo-icon game-logo-icon game-logo-icon-puzzle">${icon('puzzle', { size: 20 })}</div>
-                    <h2 class="hl-app-title">${this.isHost ? 'Лобби Хоста (Мультиплеер)' : 'Комната Мультиплеера'}</h2>
+            <div class="game-header">
+                <div class="game-title-group">
+                    <div class="game-logo-icon game-logo-icon-puzzle">${icon('puzzle', { size: 20 })}</div>
+                    <h2 class="game-app-title">${this.isHost ? 'Лобби Хоста' : 'Комната Мультиплеера'} <span style="font-size: 0.65em; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; padding: 2px 8px; border-radius: 8px; font-weight: 800; vertical-align: middle; margin-left: 6px;">БЕТА</span></h2>
                 </div>
-                <button class="hl-close-btn" id="pzOnlineCloseBtn" title="Закрыть">&times;</button>
+                <button class="game-close-btn" id="pzOnlineCloseBtn" title="Закрыть">&times;</button>
             </div>
         `;
 
         card.innerHTML = `
-            <div class="hl-menu-container" style="gap: 16px;">
-                <span class="hl-hero-badge game-badge-gradient-secondary">
+            <div class="game-menu-container" style="gap: 16px;">
+                <span class="game-hero-badge game-badge-gradient-secondary">
                     ${this.isHost ? 'Вы — Организатор (Хост)' : 'Вы подключились к комнате'} • ${this.roomData?.mode === 'coop' ? 'Совместный сбор' : 'Гонка на скорость'}
                 </span>
 
-                <h1 class="hl-menu-title game-menu-title" style="font-size: 1.75rem;">${this.isHost ? 'Лобби Комнаты' : 'Подключение к Комнате'}</h1>
-                <p class="hl-menu-desc game-menu-desc" style="font-size: 0.9rem;">
-                    Поделитесь кодом комнаты с друзьями. Игра начнется, когда организатор запустит раунд.
-                </p>
+                <h1 class="game-menu-title" style="font-size: 1.75rem;">${this.isHost ? 'Лобби Комнаты' : 'Подключение к Комнате'}</h1>
 
                 <!-- Код комнаты -->
-                <div class="hl-room-header-card game-room-card" style="width: 100%;">
+                <div class="game-room-header-card game-room-card" style="width: 100%;">
                     <div style="text-align: left;">
                         <div style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.5); font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">КОД КОМНАТЫ:</div>
-                        <div class="hl-room-code-val game-room-code-val" style="color: #fbbf24; margin-top: 2px;">${this.roomId}</div>
+                        <div class="game-room-code-val" style="color: #fbbf24; margin-top: 2px;">${this.roomId}</div>
                     </div>
-                    <button id="pzCopyCodeBtn" class="hl-btn-secondary" style="padding: 8px 16px; font-size: 0.85rem; min-width: auto; gap: 6px;">
+                    <button id="pzCopyCodeBtn" class="game-btn-secondary" style="padding: 8px 16px; font-size: 0.85rem; min-width: auto; gap: 6px;">
                         ${icon('clipboard', { size: 14 })} Копировать
                     </button>
                 </div>
 
-                <div class="hl-form-box game-form-box" style="width: 100%;">
+                <div class="game-form-box" style="width: 100%;">
                     <!-- Превью картинки пазла и настройки (Хост выбирает, все видят) -->
                     <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; text-align: left;">
                         <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); font-weight: bold; width: 100%; display: flex; justify-content: space-between; align-items: center;">
@@ -1050,7 +1047,7 @@ export class PuzzleOnlineManager {
                                 <span style="display:flex; align-items:center; gap:6px;">${icon('image', { size: 14 })} Выбранный пазл:</span>
                             </div>
                             ${this.isHost ? `
-                                <button id="pzSkipPuzzleBtn" class="hl-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; min-width: auto; height: auto;">
+                                <button id="pzSkipPuzzleBtn" class="game-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; min-width: auto; height: auto;">
                                     ${icon('refresh', { size: 12 })} Пропустить
                                 </button>
                             ` : `
@@ -1062,14 +1059,14 @@ export class PuzzleOnlineManager {
                         ${this.isHost ? `
                             <!-- Поиск по ID (для Хоста) -->
                             <div style="display:flex; gap:8px; width:100%; margin-top:4px;">
-                                <input type="text" id="pzHostIdInput" class="hl-input game-input" placeholder="Поиск по ID (например, 10142981)" style="flex:1; font-size:0.85rem; padding:8px 12px; text-align:center;" />
-                                <button id="pzHostIdLoadBtn" class="hl-btn-secondary" style="padding: 8px 16px; font-size: 0.85rem; min-width: auto;">Найти</button>
+                                <input type="text" id="pzHostIdInput" class="game-input" placeholder="Поиск по ID (например, 10142981)" style="flex:1; font-size:0.85rem; padding:8px 12px; text-align:center;" />
+                                <button id="pzHostIdLoadBtn" class="game-btn-secondary" style="padding: 8px 16px; font-size: 0.85rem; min-width: auto;">Найти</button>
                             </div>
 
                             <!-- Деталей в пазле (для Хоста) -->
                             <div style="width: 100%; display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
-                                <label class="hl-form-label game-form-label" style="font-size: 0.8rem;">Количество деталей:</label>
-                                <select id="pzPiecesSelect" class="hl-input game-input" style="font-weight: bold; cursor: pointer; font-size: 0.85rem; padding: 8px 12px; background: rgba(255, 255, 255, 0.06);">
+                                <label class="game-form-label" style="font-size: 0.8rem;">Количество деталей:</label>
+                                <select id="pzPiecesSelect" class="game-input" style="font-weight: bold; cursor: pointer; font-size: 0.85rem; padding: 8px 12px; background: rgba(255, 255, 255, 0.06);">
                                     ${optionsHtml}
                                 </select>
                             </div>
@@ -1080,10 +1077,10 @@ export class PuzzleOnlineManager {
 
                     <!-- Участники -->
                     <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; text-align: left;">
-                        <div class="hl-form-label game-form-label" style="font-size: 0.85rem;">
+                        <div class="game-form-label" style="font-size: 0.85rem;">
                             Участники (<span id="pzPlayerCount">1</span>/${this.roomData.maxPlayers}):
                         </div>
-                        <div id="pzPlayerList" class="hl-leaderboard game-player-list" style="display: flex; flex-direction: column; gap: 6px; width: 100%; max-height: 140px; overflow-y: auto; box-sizing: border-box; padding: 10px;"></div>
+                        <div id="pzPlayerList" class="game-leaderboard game-player-list" style="display: flex; flex-direction: column; gap: 6px; width: 100%; max-height: 140px; overflow-y: auto; box-sizing: border-box; padding: 10px;"></div>
                     </div>
 
                     <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 6px 0;">
@@ -1099,7 +1096,7 @@ export class PuzzleOnlineManager {
                     <!-- Кнопка запуска / Ожидание -->
                     <div style="width: 100%; margin-top: 6px;">
                         ${this.isHost ? `
-                            <button id="pzStartGameBtn" class="hl-btn-primary game-start-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <button id="pzStartGameBtn" class="game-btn-primary game-start-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
                                 ${icon('sparkles', { size: 16 })} НАЧАТЬ ИГРУ
                             </button>
                         ` : `
@@ -1110,7 +1107,7 @@ export class PuzzleOnlineManager {
                     </div>
                 </div>
 
-                <button class="hl-btn-secondary game-back-btn" id="pzLeaveRoomBtn" style="margin-top: 12px; width: 100%;">
+                <button class="game-btn-secondary game-back-btn" id="pzLeaveRoomBtn" style="margin-top: 12px; width: 100%;">
                     ${icon('arrowLeft', { size: 14 })} Выйти из комнаты
                 </button>
             </div>
@@ -1308,70 +1305,75 @@ export class PuzzleOnlineManager {
 
         const modal = document.createElement('div');
         modal.id = 'puzzle-online-modal';
-        modal.className = 'hl-overlay open';
+        modal.className = 'game-overlay open';
 
         const card = document.createElement('div');
-        card.className = 'hl-card game-card-setup';
+        card.className = 'game-card-setup';
 
         modal.innerHTML = `
-            <div class="hl-header">
-                <div class="hl-title-group">
-                    <div class="hl-logo-icon game-logo-icon game-logo-icon-puzzle">${icon('puzzle', { size: 20 })}</div>
-                    <h2 class="hl-app-title">Онлайн Режим <span style="font-size: 0.65em; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; padding: 2px 8px; border-radius: 8px; font-weight: 800; vertical-align: middle; margin-left: 6px;">БЕТА</span></h2>
+            <div class="game-header">
+                <div class="game-title-group">
+                    <div class="game-logo-icon game-logo-icon-puzzle">${icon('puzzle', { size: 20 })}</div>
+                    <h2 class="game-app-title">Онлайн Режим <span style="font-size: 0.65em; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; padding: 2px 8px; border-radius: 8px; font-weight: 800; vertical-align: middle; margin-left: 6px;">БЕТА</span></h2>
                 </div>
-                <button class="hl-close-btn" id="pzSetupCloseBtn" title="Закрыть">&times;</button>
+                <button class="game-close-btn" id="pzSetupCloseBtn" title="Закрыть">&times;</button>
             </div>
         `;
 
         card.innerHTML = `
-            <div class="hl-menu-container game-menu-container-compact">
-                <span class="hl-hero-badge game-badge-gradient-secondary">Интерактивный Онлайн</span>
+            <div class="game-menu-container-compact">
+                <span class="game-hero-badge game-badge-gradient-secondary">Интерактивный Онлайн</span>
 
-                <h1 class="hl-menu-title game-menu-title" style="font-size: 1.75rem;">Мультиплеерные Комнаты</h1>
-                <p class="hl-menu-desc game-menu-desc" style="font-size: 0.9rem;">
-                    Играй с друзьями вне зависимости от устройства. Создай комнату или введи 5-значный код для входа!
-                </p>
+                <h1 class="game-menu-title" style="font-size: 1.75rem;">Мультиплеерные Комнаты</h1>
 
-                <div class="hl-form-box game-form-box">
-                    <div class="hl-form-field game-form-field">
-                        <label class="hl-form-label game-form-label" style="display: flex; align-items: center; gap: 6px;">${icon('user', { size: 14 })} Твое Имя / Никнейм:</label>
-                        <input type="text" id="pzNickInput" class="hl-input game-input" value="${this.playerName}" placeholder="Введите ваш ник..." maxlength="20">
+                <div class="game-form-box">
+                    ${!localStorage.getItem('gameMeteredKey') && !localStorage.getItem('hlMeteredKey') ? `
+                    <div style="background: rgba(245, 158, 11, 0.1); border: 1px dashed rgba(245, 158, 11, 0.4); padding: 12px; border-radius: 12px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px;">
+                        <span style="font-size: 1.2rem;">⚠️</span>
+                        <div style="font-size: 0.8rem; color: #f59e0b; line-height: 1.4; text-align: left;">
+                            <b>Ключ Metered не установлен.</b> Онлайн может работать нестабильно или не работать вовсе. Рекомендуется настроить ключ в главном меню (5 кликов по заголовку).
+                        </div>
+                    </div>
+                    ` : ''}
+                    <div class="game-form-field">
+                        <label class="game-form-label" style="display: flex; align-items: center; gap: 6px;">${icon('user', { size: 14 })} Твое Имя / Никнейм:</label>
+                        <input type="text" id="pzNickInput" class="game-input" value="${this.playerName}" placeholder="Введите ваш ник..." maxlength="20">
                     </div>
 
                     <hr class="game-form-divider">
 
                     <div class="game-form-group">
-                        <label class="hl-form-label game-form-label">Присоединиться к комнате:</label>
+                        <label class="game-form-label">Присоединиться к комнате:</label>
                         <div class="game-form-row">
-                            <input type="text" id="pzJoinCodeInput" class="hl-input game-input game-code-input" placeholder="5-значный код (напр. BFTZK)" maxlength="5">
-                            <button class="hl-btn-primary" id="pzJoinRoomBtn" style="min-width: auto; padding: 10px 18px;">${icon('arrowRight', { size: 16 })} Войти</button>
+                            <input type="text" id="pzJoinCodeInput" class="game-input game-code-input" placeholder="5-значный код (напр. BFTZK)" maxlength="5">
+                            <button class="game-btn-primary" id="pzJoinRoomBtn" style="min-width: auto; padding: 10px 18px;">${icon('arrowRight', { size: 16 })} Войти</button>
                         </div>
                     </div>
 
                     <hr class="game-form-divider">
 
                     <div class="game-form-group">
-                        <label class="hl-form-label game-form-label">Создать новую комнату:</label>
+                        <label class="game-form-label">Создать новую комнату:</label>
                         
                         <div style="display: flex; flex-direction: column; gap: 8px; text-align: left;">
-                            <label class="hl-form-label game-form-label" style="font-size: 0.85rem;">Режим Мультиплеера:</label>
-                            <div class="hl-category-pills" style="width: 100%;">
-                                <div id="pzModeRaceBtn" class="hl-cat-pill game-pills-row active">
+                            <label class="game-form-label" style="font-size: 0.85rem;">Режим Мультиплеера:</label>
+                            <div class="game-category-pills" style="width: 100%;">
+                                <div id="pzModeRaceBtn" class="game-cat-pill game-pills-row active">
                                     ${icon('zap', { size: 14 })} Гонка (Кто быстрее)
                                 </div>
-                                <div id="pzModeCoopBtn" class="hl-cat-pill game-pills-row">
+                                <div id="pzModeCoopBtn" class="game-cat-pill game-pills-row">
                                     ${icon('users', { size: 14 })} Совместный сбор
                                 </div>
                             </div>
                         </div>
 
-                        <button id="pzCreateRoomBtn" class="hl-btn-primary game-create-btn">
+                        <button id="pzCreateRoomBtn" class="game-btn-primary game-create-btn">
                             ${icon('sparkles', { size: 16 })} Создать Комнату
                         </button>
                     </div>
                 </div>
 
-                <button class="hl-btn-secondary game-back-btn" id="pzBackMenuBtn">
+                <button class="game-btn-secondary game-back-btn" id="pzBackMenuBtn">
                     ${icon('arrowLeft', { size: 14 })} Назад в меню
                 </button>
             </div>
@@ -1447,21 +1449,21 @@ export class PuzzleOnlineManager {
 
         const modal = document.createElement('div');
         modal.id = 'puzzle-online-modal';
-        modal.className = 'hl-overlay open';
+        modal.className = 'game-overlay open';
 
         const card = document.createElement('div');
-        card.className = 'hl-card';
+        card.className = 'game-card';
         card.style.maxWidth = '440px';
 
 
 
         card.innerHTML = `
-            <div class="hl-menu-container" style="gap: 20px; padding: 10px;">
+            <div class="game-menu-container" style="gap: 20px; padding: 10px;">
                 <div class="puzzle-loader-spinner" style="width: 48px; height: 48px; margin: 0; border: 4px solid rgba(255, 255, 255, 0.1); border-top: 4px solid var(--accent, #a78bfa); border-radius: 50%; animation: pzSpin 1s linear infinite;"></div>
-                <h2 class="hl-menu-title" style="font-size: 1.5rem; margin: 0;">${title}</h2>
-                <p class="hl-menu-desc" style="font-size: 0.9rem; color: rgba(255,255,255,0.7);">${subtitle}</p>
+                <h2 class="game-menu-title" style="font-size: 1.5rem; margin: 0;">${title}</h2>
+                <p class="game-menu-desc" style="font-size: 0.9rem; color: rgba(255,255,255,0.7);">${subtitle}</p>
                 <div id="puzzle-sync-logs" style="width: 100%; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 10px 14px; font-family: monospace; font-size: 0.72rem; color: #888; height: 80px; overflow-y: auto; text-align: left; box-sizing: border-box;"></div>
-                <button id="pzCancelSyncBtn" class="hl-btn-secondary" style="width: 100%; padding: 10px 16px;">Отмена</button>
+                <button id="pzCancelSyncBtn" class="game-btn-secondary" style="width: 100%; padding: 10px 16px;">Отмена</button>
             </div>
         `;
 
@@ -1480,13 +1482,13 @@ export class PuzzleOnlineManager {
         if (playerCount) playerCount.textContent = players.length;
 
         playerList.innerHTML = players.map(p => `
-            <div class="hl-player-row" style="width: 100%; box-sizing: border-box;">
-                <div class="hl-player-name">
-                    ${p.isHost ? icon('crown', { size: 16, className: 'hl-host-crown' }) : icon('user', { size: 16 })} 
+            <div class="game-player-row" style="width: 100%; box-sizing: border-box;">
+                <div class="game-player-name">
+                    ${p.isHost ? icon('crown', { size: 16, className: 'game-host-crown' }) : icon('user', { size: 16 })} 
                     <span>${p.name}</span> 
                     ${p.id === this.playerId ? '<small style="color: var(--accent, #a78bfa);">(Вы)</small>' : ''}
                 </div>
-                <div class="hl-player-status hl-status-done">
+                <div class="game-player-status game-status-done">
                     Готов
                 </div>
             </div>

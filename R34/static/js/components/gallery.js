@@ -663,6 +663,17 @@ export class Gallery {
                                                 if (placeholder) {
                                                     const idx = parseInt(placeholder.dataset.idx, 10);
                                                     
+                                                    // Update the post in favoritesPosts array with full data
+                                                    if (this.favoritesPosts[idx] && this.favoritesPosts[idx].id == fullPost.id) {
+                                                        this.favoritesPosts[idx] = { ...this.favoritesPosts[idx], ...fullPost };
+                                                    } else {
+                                                        // Fallback find if index is somehow mismatched
+                                                        const findIdx = this.favoritesPosts.findIndex(p => p.id == fullPost.id);
+                                                        if (findIdx !== -1) {
+                                                            this.favoritesPosts[findIdx] = { ...this.favoritesPosts[findIdx], ...fullPost };
+                                                        }
+                                                    }
+                                                    
                                                     // Create real card
                                                     const realCard = this.createCard(fullPost, idx);
                                                     realCard._post = fullPost;
@@ -681,6 +692,9 @@ export class Gallery {
                                                     const extraInfo = this.createExtraInfo(fullPost, idx);
                                                     extraInfo._post = fullPost;
                                                     realCard.extraInfo = extraInfo;
+                                                    
+                                                    // Categorize tags immediately since we have the full data
+                                                    this.categorizeTagsForCard(extraInfo, idx).catch(err => console.error('Failed to categorize tags for fav:', err));
                                                     
                                                     // Replace in DOM
                                                     const parent = placeholder.parentNode;
