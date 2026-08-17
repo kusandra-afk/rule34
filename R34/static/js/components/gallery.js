@@ -26,6 +26,7 @@ export class Gallery {
         this._savedVideoPositions = {};
         this._playbackObserver = null;
         this.favoritesPosts = [];
+        this.favoritesPage = 0;
         this.profileResultsDiv = document.getElementById('profile-results');
         this._lowPowerMode = this.isLowPowerMode();
         this.loadLimitEnabled = localStorage.getItem('r34_load_limit_enabled') === 'true';
@@ -434,7 +435,7 @@ export class Gallery {
         this.updateDeveloperPanel();
     }
 
-    showFavoritesView() {
+    showFavoritesView(resetPage = false) {
         this.isFavoritesActive = true;
         if (this.resultsDiv) this.resultsDiv.style.display = 'none';
         if (!this.profileResultsDiv) {
@@ -442,7 +443,7 @@ export class Gallery {
         }
         if (this.profileResultsDiv) {
             this.profileResultsDiv.style.display = 'block';
-            this.renderProfileFavorites();
+            this.renderProfileFavorites(resetPage);
         }
     }
 
@@ -471,11 +472,16 @@ export class Gallery {
         }
     }
 
-    async renderProfileFavorites() {
+    async renderProfileFavorites(resetPage = false) {
+        if (resetPage) this.favoritesPage = 0;
         if (!this.profileResultsDiv) {
             this.profileResultsDiv = document.getElementById('profile-results');
         }
         if (!this.profileResultsDiv) return;
+
+        const scrollMode = localStorage.getItem('r34_scroll_mode') || 'infinite';
+        const apiLimit = parseInt(localStorage.getItem('r34_api_limit') || '40', 10);
+        const limit = Math.min(Math.max(apiLimit, 1), 1000);
 
         this.profileResultsDiv.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 20px; text-align: center;">
@@ -512,6 +518,10 @@ export class Gallery {
         const refreshBtn = document.getElementById('refreshProfileBtn');
         const container = document.getElementById('profileFavoritesGridContainer');
         const favColsGroup = document.getElementById('favColumnsGroup');
+
+        if (refreshBtn) {
+            refreshBtn.onclick = () => this.renderProfileFavorites(true);
+        }
 
         const activeFavCols = parseInt(localStorage.getItem('r34_favorites_cols'), 10) || 2;
 
@@ -556,10 +566,11 @@ export class Gallery {
             });
         }
 
-        const loadFavs = async () => {
+        async function loadFavs() {
             try {
-                container.innerHTML = `<div style="color: rgba(255,255,255,0.5); padding: 40px; font-size: 1.1rem;">Загрузка избранного...</div>`;
                 const countText = document.getElementById('profileCountText');
+                
+                container.innerHTML = `<div style="color: rgba(255,255,255,0.5); padding: 40px; font-size: 1.1rem;">Загрузка избранного...</div>`;
                 if (countText) {
                     countText.textContent = 'Загрузка...';
                 }
@@ -573,199 +584,219 @@ export class Gallery {
                                 StorageManager.setItem(`liked_${post.id}`, 'true');
                             }
                         });
-                        // Update count text
-                        if (countText) {
-                            countText.textContent = `Всего постов в избранном: ${this.favoritesPosts.length}`;
-                        }
-                        if (this.favoritesPosts.length === 0) {
-                            container.innerHTML = `
-                                <div style="color: rgba(255,255,255,0.4); padding: 40px; font-size: 1.1rem;">
-                                    У вас пока нет сохраненных медиа в избранном. Нажмите <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--accent, #a78bfa)" stroke="none" style="display:inline-block; vertical-align:middle; filter: drop-shadow(0 0 4px var(--accent-glow));"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> на любом посте в галерее, чтобы добавить его сюда!
-                                </div>
-                            `;
-                            if (countText) {
-                                countText.textContent = 'Всего постов в избранном: 0';
-                            }
-                            if (this.r34ResultsCount) this.updateCountDisplay();
-                        } else {
-                            if (this.r34ResultsCount) this.updateCountDisplay();
-                            container.innerHTML = '';
-                            const subGrid = document.createElement('div');
-                            subGrid.style.display = 'grid';
-                            const favCols = this.getDisplayedFavoritesColumns();
-                            subGrid.style.gridTemplateColumns = `repeat(${favCols}, 1fr)`;
-                            subGrid.classList.toggle('multi-cols-mode', favCols >= 2);
-                            subGrid.style.gap = 'var(--media-gap, 16px)';
-                            subGrid.style.width = '100%';
-
-                            if (!this.observer) {
-                                const isMobile = window.innerWidth < 900 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-                                this.observer = new window.IntersectionObserver(this.handleIntersection.bind(this), {
-                                    root: null,
-                                    rootMargin: isMobile ? '120px' : '300px',
-                                    threshold: 0.01
-                                });
-                                
-                                this._playbackObserver = new window.IntersectionObserver(this.handlePlaybackIntersection.bind(this), {
-                                    root: null,
-                                    threshold: 0.7
-                                });
-                            }
-
-                            const fragment = document.createDocumentFragment();
-                            this.favoritesPosts.forEach((post, index) => {
-                                const placeholder = document.createElement('div');
-                                placeholder.id = `fav-card-${post.id}`;
-                                placeholder.className = 'media-container animate-pulse';
-                                placeholder.dataset.idx = index;
-                                placeholder.style.minHeight = '250px';
-                                placeholder.style.background = 'rgba(255,255,255,0.04)';
-                                placeholder.style.border = '1px solid rgba(255,255,255,0.08)';
-                                placeholder.style.borderRadius = 'var(--radius-sm)';
-                                placeholder.style.display = 'flex';
-                                placeholder.style.flexDirection = 'column';
-                                placeholder.style.alignItems = 'center';
-                                placeholder.style.justifyContent = 'center';
-                                if (favCols >= 2) {
-                                    placeholder.classList.add('custom-cols');
-                                }
-                                
-                                const label = document.createElement('div');
-                                label.textContent = `Загрузка #${post.id}...`;
-                                label.style.color = 'rgba(255,255,255,0.3)';
-                                label.style.fontSize = '0.9rem';
-                                label.style.fontWeight = '500';
-                                placeholder.appendChild(label);
-                                
-                                fragment.appendChild(placeholder);
-                            });
-                            subGrid.appendChild(fragment);
-                            container.appendChild(subGrid);
-
-                            // Queue up IDs of favorites that need details
-                            const idsToFetch = this.favoritesPosts.map(p => p.id);
-                            
-                            // Define a batch fetch function
-                            const fetchBatch = async (batchIds) => {
-                                try {
-                                    const response = await fetch('/api/enrich-favorites', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ ids: batchIds })
-                                    });
-                                    if (response.ok) {
-                                        const data = await response.json();
-                                        if (data.ok && Array.isArray(data.posts)) {
-                                            data.posts.forEach(fullPost => {
-                                                if (!fullPost || !fullPost.id) return;
-                                                
-                                                const placeholder = document.getElementById(`fav-card-${fullPost.id}`);
-                                                if (placeholder) {
-                                                    const idx = parseInt(placeholder.dataset.idx, 10);
-                                                    
-                                                    // Update the post in favoritesPosts array with full data
-                                                    if (this.favoritesPosts[idx] && this.favoritesPosts[idx].id == fullPost.id) {
-                                                        this.favoritesPosts[idx] = { ...this.favoritesPosts[idx], ...fullPost };
-                                                    } else {
-                                                        // Fallback find if index is somehow mismatched
-                                                        const findIdx = this.favoritesPosts.findIndex(p => p.id == fullPost.id);
-                                                        if (findIdx !== -1) {
-                                                            this.favoritesPosts[findIdx] = { ...this.favoritesPosts[findIdx], ...fullPost };
-                                                        }
-                                                    }
-                                                    
-                                                    // Create real card
-                                                    const realCard = this.createCard(fullPost, idx);
-                                                    realCard._post = fullPost;
-                                                    realCard._isFavoriteCard = true;
-                                                    if (favCols >= 2) {
-                                                        realCard.classList.add('custom-cols');
-                                                    } else {
-                                                        realCard.classList.remove('custom-cols');
-                                                    }
-                                                    
-                                                    const sourceBlock = this.createSourceBlock(fullPost);
-                                                    if (sourceBlock) {
-                                                        realCard._sourceBlock = sourceBlock;
-                                                    }
-                                                    
-                                                    const extraInfo = this.createExtraInfo(fullPost, idx);
-                                                    extraInfo._post = fullPost;
-                                                    realCard.extraInfo = extraInfo;
-                                                    
-                                                    // Categorize tags immediately since we have the full data
-                                                    this.categorizeTagsForCard(extraInfo, idx).catch(err => console.error('Failed to categorize tags for fav:', err));
-                                                    
-                                                    // Replace in DOM
-                                                    const parent = placeholder.parentNode;
-                                                    if (parent) {
-                                                        // Insert realCard, sourceBlock and extraInfo before the placeholder
-                                                        parent.insertBefore(realCard, placeholder);
-                                                        
-                                                        // Insert extraInfo and sourceBlock after the realCard
-                                                        if (realCard.nextSibling) {
-                                                            parent.insertBefore(extraInfo, realCard.nextSibling);
-                                                            if (sourceBlock) {
-                                                                parent.insertBefore(sourceBlock, extraInfo);
-                                                            }
-                                                        } else {
-                                                            parent.appendChild(extraInfo);
-                                                            if (sourceBlock) {
-                                                                parent.appendChild(sourceBlock);
-                                                            }
-                                                        }
-                                                        
-                                                        // Clean up placeholder
-                                                        parent.removeChild(placeholder);
-                                                        
-                                                        // Observe new realCard
-                                                        this.observer.observe(realCard);
-                                                        if (this._playbackObserver) {
-                                                            this._playbackObserver.observe(realCard);
-                                                        }
-                                                    }
-                                                }
-                                            });
-                                        }
-                                    }
-                                } catch (e) {
-                                    console.error('Failed to fetch batch details:', e);
-                                }
-                            };
-                            
-                            // Process batches: 5 posts every 2 seconds
-                            let batchIndex = 0;
-                            const batchSize = 5;
-                            
-                            const processNextBatch = () => {
-                                // If the container is cleared or replaced, stop processing
-                                if (!document.body.contains(subGrid)) return;
-                                
-                                const start = batchIndex * batchSize;
-                                if (start >= idsToFetch.length) return;
-                                
-                                const batch = idsToFetch.slice(start, start + batchSize);
-                                fetchBatch(batch);
-                                
-                                batchIndex++;
-                                if (batchIndex * batchSize < idsToFetch.length) {
-                                    setTimeout(processNextBatch, 2000);
-                                }
-                            };
-                            
-                            // Run the first batch immediately!
-                            processNextBatch();
-                        }
+                        renderGrid.call(this);
                     }
                 }
             } catch (e) {
                 console.error('Failed to load profile favorites:', e);
                 container.innerHTML = `<div style="color: #ff3b6b; padding: 20px;">Ошибка загрузки избранного</div>`;
             }
-        };
+        }
 
-        if (refreshBtn) refreshBtn.onclick = loadFavs;
-        loadFavs();
+        function renderGrid() {
+            const countText = document.getElementById('profileCountText');
+            // Update count text
+            if (countText) {
+                countText.textContent = `Всего постов в избранном: ${this.favoritesPosts.length}`;
+            }
+            if (this.favoritesPosts.length === 0) {
+                container.innerHTML = `
+                    <div style="color: rgba(255,255,255,0.4); padding: 40px; font-size: 1.1rem;">
+                        У вас пока нет сохраненных медиа в избранном. Нажмите <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--accent, #a78bfa)" stroke="none" style="display:inline-block; vertical-align:middle; filter: drop-shadow(0 0 4px var(--accent-glow));"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> на любом посте в галерее, чтобы добавить его сюда!
+                    </div>
+                `;
+                if (countText) {
+                    countText.textContent = 'Всего постов в избранном: 0';
+                }
+                if (this.r34ResultsCount) this.updateCountDisplay();
+            } else {
+                if (this.r34ResultsCount) this.updateCountDisplay();
+                container.innerHTML = '';
+                const subGrid = document.createElement('div');
+                subGrid.style.display = 'grid';
+                const favCols = this.getDisplayedFavoritesColumns();
+                subGrid.style.gridTemplateColumns = `repeat(${favCols}, 1fr)`;
+                subGrid.classList.toggle('multi-cols-mode', favCols >= 2);
+                subGrid.style.gap = 'var(--media-gap, 16px)';
+                subGrid.style.width = '100%';
+
+                if (!this.observer) {
+                    const isMobile = window.innerWidth < 900 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+                    this.observer = new window.IntersectionObserver(this.handleIntersection.bind(this), {
+                        root: null,
+                        rootMargin: isMobile ? '120px' : '300px',
+                        threshold: 0.01
+                    });
+                    
+                    this._playbackObserver = new window.IntersectionObserver(this.handlePlaybackIntersection.bind(this), {
+                        root: null,
+                        threshold: 0.7
+                    });
+                }
+
+                const paginationContainer = document.getElementById('pagination-container');
+                if (paginationContainer) {
+                    if (scrollMode === 'pagination' && this.favoritesPosts.length > limit) {
+                        paginationContainer.style.display = 'flex';
+                        this.renderFavoritesPagination(this.favoritesPosts.length, limit);
+                    } else {
+                        paginationContainer.style.display = 'none';
+                    }
+                }
+
+                const start = scrollMode === 'pagination' ? (this.favoritesPage * limit) : 0;
+                const end = scrollMode === 'pagination' ? (start + limit) : this.favoritesPosts.length;
+                const pagePosts = this.favoritesPosts.slice(start, end);
+
+                const fragment = document.createDocumentFragment();
+                pagePosts.forEach((post, pIdx) => {
+                    const index = start + pIdx;
+                    const placeholder = document.createElement('div');
+                    placeholder.id = `fav-card-${post.id}`;
+                    placeholder.className = 'media-container animate-pulse';
+                    placeholder.dataset.idx = index;
+                    placeholder.style.minHeight = '250px';
+                    placeholder.style.background = 'rgba(255,255,255,0.04)';
+                    placeholder.style.border = '1px solid rgba(255,255,255,0.08)';
+                    placeholder.style.borderRadius = 'var(--radius-sm)';
+                    placeholder.style.display = 'flex';
+                    placeholder.style.flexDirection = 'column';
+                    placeholder.style.alignItems = 'center';
+                    placeholder.style.justifyContent = 'center';
+                    if (favCols >= 2) {
+                        placeholder.classList.add('custom-cols');
+                    }
+                    
+                    const label = document.createElement('div');
+                    label.textContent = `Загрузка #${post.id}...`;
+                    label.style.color = 'rgba(255,255,255,0.3)';
+                    label.style.fontSize = '0.9rem';
+                    label.style.fontWeight = '500';
+                    placeholder.appendChild(label);
+                    
+                    fragment.appendChild(placeholder);
+                });
+                subGrid.appendChild(fragment);
+                container.appendChild(subGrid);
+
+                // Queue up IDs of favorites that need details
+                const idsToFetch = pagePosts.map(p => p.id);
+                
+                // Define a batch fetch function
+                const fetchBatch = async (batchIds) => {
+                    try {
+                        const response = await fetch('/api/enrich-favorites', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ids: batchIds })
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.ok && Array.isArray(data.posts)) {
+                                data.posts.forEach(fullPost => {
+                                    if (!fullPost || !fullPost.id) return;
+                                    
+                                    const placeholder = document.getElementById(`fav-card-${fullPost.id}`);
+                                    if (placeholder) {
+                                        const idx = parseInt(placeholder.dataset.idx, 10);
+                                        
+                                        // Update the post in favoritesPosts array with full data
+                                        if (this.favoritesPosts[idx] && this.favoritesPosts[idx].id == fullPost.id) {
+                                            this.favoritesPosts[idx] = { ...this.favoritesPosts[idx], ...fullPost };
+                                        } else {
+                                            // Fallback find if index is somehow mismatched
+                                            const findIdx = this.favoritesPosts.findIndex(p => p.id == fullPost.id);
+                                            if (findIdx !== -1) {
+                                                this.favoritesPosts[findIdx] = { ...this.favoritesPosts[findIdx], ...fullPost };
+                                            }
+                                        }
+                                        
+                                        // Create real card
+                                        const realCard = this.createCard(fullPost, idx);
+                                        realCard._post = fullPost;
+                                        realCard._isFavoriteCard = true;
+                                        if (favCols >= 2) {
+                                            realCard.classList.add('custom-cols');
+                                        } else {
+                                            realCard.classList.remove('custom-cols');
+                                        }
+                                        
+                                        const sourceBlock = this.createSourceBlock(fullPost);
+                                        if (sourceBlock) {
+                                            realCard._sourceBlock = sourceBlock;
+                                        }
+                                        
+                                        const extraInfo = this.createExtraInfo(fullPost, idx);
+                                        extraInfo._post = fullPost;
+                                        realCard.extraInfo = extraInfo;
+                                        
+                                        // Categorize tags immediately since we have the full data
+                                        this.categorizeTagsForCard(extraInfo, idx).catch(err => console.error('Failed to categorize tags for fav:', err));
+                                        
+                                        // Replace in DOM
+                                        const parent = placeholder.parentNode;
+                                        if (parent) {
+                                            // Insert realCard, sourceBlock and extraInfo before the placeholder
+                                            parent.insertBefore(realCard, placeholder);
+                                            
+                                            // Insert extraInfo and sourceBlock after the realCard
+                                            if (realCard.nextSibling) {
+                                                parent.insertBefore(extraInfo, realCard.nextSibling);
+                                                if (sourceBlock) {
+                                                    parent.insertBefore(sourceBlock, extraInfo);
+                                                }
+                                            } else {
+                                                parent.appendChild(extraInfo);
+                                                if (sourceBlock) {
+                                                    parent.appendChild(sourceBlock);
+                                                }
+                                            }
+                                            
+                                            // Clean up placeholder
+                                            parent.removeChild(placeholder);
+                                            
+                                            // Observe new realCard
+                                            this.observer.observe(realCard);
+                                            if (this._playbackObserver) {
+                                                this._playbackObserver.observe(realCard);
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch batch details:', e);
+                    }
+                };
+                
+                // Process batches: 5 posts every 2 seconds
+                let batchIndex = 0;
+                const batchSize = 5;
+                
+                const processNextBatch = () => {
+                    // If the container is cleared or replaced, stop processing
+                    if (!document.body.contains(subGrid)) return;
+                    
+                    const start = batchIndex * batchSize;
+                    if (start >= idsToFetch.length) return;
+                    
+                    const batch = idsToFetch.slice(start, start + batchSize);
+                    fetchBatch(batch);
+                    
+                    batchIndex++;
+                    if (batchIndex * batchSize < idsToFetch.length) {
+                        setTimeout(processNextBatch, 2000);
+                    }
+                };
+                
+                // Run the first batch immediately!
+                processNextBatch();
+            }
+        }
+
+        if (refreshBtn) refreshBtn.onclick = () => loadFavs.call(this);
+        loadFavs.call(this);
     }
 
     appendResults(posts, realCount) {
@@ -955,6 +986,66 @@ export class Gallery {
             placeholder.className = 'media-placeholder';
             placeholder.innerHTML = isVideo ? '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>' : '';
             container.insertBefore(placeholder, container.firstChild);
+        }
+    }
+
+    renderFavoritesPagination(totalCount, limit) {
+        const paginationContainer = document.getElementById('pagination-container');
+        if (!paginationContainer || !totalCount || totalCount <= limit) {
+            if (paginationContainer) paginationContainer.innerHTML = '';
+            return;
+        }
+
+        const totalPages = Math.ceil(totalCount / limit);
+        const currentPage = this.favoritesPage;
+        paginationContainer.innerHTML = '';
+
+        const createPageBtn = (pageNum, label, isActive = false) => {
+            const btn = document.createElement('button');
+            btn.className = isActive ? 'r34-pagination-btn active' : 'r34-pagination-btn';
+            btn.textContent = label;
+            btn.onclick = () => {
+                if (this.favoritesPage === pageNum) return;
+                this.favoritesPage = pageNum;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                this.renderProfileFavorites();
+            };
+            return btn;
+        };
+
+        if (currentPage > 0) {
+            paginationContainer.appendChild(createPageBtn(currentPage - 1, '«'));
+        }
+
+        let startPage = Math.max(0, currentPage - 2);
+        let endPage = Math.min(totalPages - 1, currentPage + 2);
+
+        if (startPage > 0) {
+            paginationContainer.appendChild(createPageBtn(0, '1'));
+            if (startPage > 1) {
+                const dot = document.createElement('span');
+                dot.textContent = '...';
+                dot.className = 'r34-pagination-dots';
+                paginationContainer.appendChild(dot);
+            }
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            paginationContainer.appendChild(createPageBtn(i, i + 1, i === currentPage));
+        }
+
+        if (endPage < totalPages - 1) {
+            if (endPage < totalPages - 2) {
+                const dot = document.createElement('span');
+                dot.textContent = '...';
+                dot.className = 'r34-pagination-dots';
+                paginationContainer.appendChild(dot);
+            }
+            paginationContainer.appendChild(createPageBtn(totalPages - 1, totalPages));
+        }
+
+        if (currentPage < totalPages - 1) {
+            paginationContainer.appendChild(createPageBtn(currentPage + 1, '»'));
         }
     }
 

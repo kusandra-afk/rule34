@@ -1413,9 +1413,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="game-menu-container">
                     <span class="game-hero-badge game-badge-gradient-primary">Интерактивная Мини-Игра</span>
                     <h1 class="game-menu-title">Соберите картинку из элементов!</h1>
-                    <p class="game-menu-desc">
-                        Вы можете собирать пазлы в одиночку, используя любимые арты из галереи, устраивать состязания на скорость в режиме «Гонка» или объединять силы с друзьями в режиме «Совместный сбор»!
-                    </p>
 
                     <!-- Выбор режима (Higher/Lower style modes grid) -->
                     <div class="game-modes-grid">
@@ -1432,7 +1429,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="game-mode-icon-circle">
                                 ${icon('users', { size: 24 })}
                             </div>
-                            <h3 class="game-mode-title">Онлайн с Друзьями <span style="font-size: 0.65em; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; padding: 2px 8px; border-radius: 8px; font-weight: 800; vertical-align: middle; margin-left: 6px;">БЕТА</span></h3>
+                            <h3 class="game-mode-title">Онлайн Бета</h3>
                             <p class="game-mode-subtitle">Создавайте комнаты и соревнуйтесь в скорости или собирайте вместе в реальном времени.</p>
                             <div class="game-mode-stat" style="color: #fcd34d; background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3);">
                                 Мультиплеер (до 15 чел.)
@@ -5103,14 +5100,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const value = settingsScrollModeSelect.value || 'infinite';
             localStorage.setItem('r34_scroll_mode', value);
             
-            const paginationContainer = document.getElementById('pagination-container');
-            const endOfResults = document.getElementById('end-of-results');
-            if (paginationContainer) {
-                if (value === 'pagination' && endOfResults && endOfResults.style.display === 'none') {
-                    paginationContainer.style.display = 'flex';
-                } else {
-                    paginationContainer.style.display = 'none';
+            // Сбрасываем страницы при смене режима
+            page = 0; 
+            if (window.gallery) window.gallery.favoritesPage = 0;
+
+            const modeProfileBtn = document.getElementById('modeProfileBtn');
+            const isProfileActive = modeProfileBtn && modeProfileBtn.classList.contains('active');
+
+            if (isProfileActive) {
+                if (window.gallery && typeof window.gallery.renderProfileFavorites === 'function') {
+                    window.gallery.renderProfileFavorites();
                 }
+            } else {
+                immediateLoadPosts(tagSearch.getTagsQuery(), false);
             }
         });
     }
@@ -5319,9 +5321,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (searchContainer) searchContainer.style.display = 'none';
             if (gallery) {
                 if (typeof gallery.showFavoritesView === 'function') {
-                    gallery.showFavoritesView();
+                    gallery.showFavoritesView(true);
                 } else if (typeof gallery.renderProfileFavorites === 'function') {
-                    gallery.renderProfileFavorites();
+                    gallery.renderProfileFavorites(true);
                 }
             }
         });
