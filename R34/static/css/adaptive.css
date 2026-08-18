@@ -137,7 +137,7 @@
 
   .r34-select {
     width: 100% !important;
-    height: 38px !important;
+    height: 44px !important;
     padding: 8px 12px !important;
     padding-right: 28px !important;
     font-size: 0.85rem !important;
@@ -146,17 +146,19 @@
 
   /* Строка поиска */
   .r34-search-row {
+    min-height: 48px;
     border-radius: 14px;
   }
 
   .r34-search-input {
-    font-size: 0.95rem;
-    padding: 12px 14px;
+    font-size: 16px; /* Предотвращает авто-зум в iOS Safari */
+    padding: 0 14px;
+    height: 46px;
   }
 
   .r34-search-arrow-btn {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     margin-right: 4px;
     border-radius: 10px;
   }
@@ -167,8 +169,8 @@
   }
 
   .r34-tag-mode-btn {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     margin-left: 4px;
     margin-right: 4px;
     border-radius: 10px;
@@ -180,8 +182,8 @@
   }
 
   .r34-settings-btn {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     margin-right: 4px;
     border-radius: 10px;
   }
@@ -277,18 +279,34 @@
   }
 
   .settings-option {
+    padding: 12px 14px !important;
+    border-radius: var(--radius-sm, 10px) !important;
     gap: 10px !important;
   }
 
   .columns-selector {
-    gap: 6px !important;
+    gap: 4px !important;
+    padding: 3px !important;
   }
 
   .col-btn {
-    min-width: 36px !important;
-    height: 38px !important;
-    padding: 8px 10px !important;
+    min-width: 0 !important;
+    height: 42px !important;
+    padding: 0 !important;
+    font-size: 0.9rem !important;
+  }
+
+  #favColumnsGroup .fav-col-btn {
+    height: 32px !important;
+    min-width: 30px !important;
     font-size: 0.85rem !important;
+    padding: 0 4px !important;
+  }
+
+  .fav-cols-wrapper {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    padding: 6px 10px !important;
   }
 
   /* HD-кнопка — всплывает над панелью контролов */
@@ -319,9 +337,9 @@
 }
 
 /* ============================================================
-   МАЛЕНЬКИЕ ТЕЛЕФОНЫ (≤ 400px)
+   МАЛЕНЬКИЕ ТЕЛЕФОНЫ (≤ 520px)
    ============================================================ */
-@media (max-width: 400px) {
+@media (max-width: 520px) {
   .search-container {
     padding: 0 10px;
   }
@@ -351,13 +369,13 @@
   .r34-search-arrow-btn,
   .r34-settings-btn,
   .r34-tag-mode-btn {
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
   }
 
   #results {
     grid-template-columns: 1fr !important;
-    gap: 12px !important;
+    gap: var(--media-gap, 12px) !important;
     padding: 10px !important;
   }
 
@@ -378,8 +396,8 @@
 
   .app-mode-tabs {
     width: calc(100% - 20px) !important;
-    margin-right: 0 !important;
-    margin-left: 0 !important;
+    margin: 0 auto !important;
+    
   }
 
   .app-mode-btn {
@@ -442,12 +460,6 @@
    ============================================================ */
 @media (hover: none) and (pointer: coarse) {
   /* Плавный визуальный отклик и анимации при касании (:active) с сохранением свечений */
-  .media-container:active {
-    transform: scale(0.982) translateZ(0) !important;
-    border-color: rgba(var(--accent-rgb), 0.6) !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px var(--accent-glow) !important;
-    transition: transform 0.12s ease-out, border-color 0.12s ease-out, box-shadow 0.12s ease-out !important;
-  }
 
   /* Мягкая подсветка карточек режимов без деформации всей страницы */
   .game-mode-card:active,
@@ -526,5 +538,48 @@
     border-color: var(--accent) !important;
     box-shadow: 0 0 16px var(--accent-glow) !important;
     transition: transform 0.08s ease-out !important;
+  }
+}
+  .r34-btn-secondary, .r34-btn-primary, .confirm-btn, .keep-btn {
+    min-height: 44px !important;
+  }
+
+  .app-mode-tabs {
+    margin-bottom: 24px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  /* Полностью убираем сжатие и эффект вдавливания карточки при касании */
+  body:not(.can-hover) .media-container:active {
+    transform: none !important;
+    border-color: var(--glass-border) !important;
+    box-shadow: none !important;
+  }
+  
+  /* Теги всегда видны на мобильных устройствах, потому что hover невозможен */
+  .r34-tags-hover-only .media-extra-info .media-tags-list {
+    opacity: 1 !important;
+    max-height: none !important;
+    transform: none !important;
+  }
+  
+  .r34-tags-hover-only .media-extra-info .media-tags-title {
+    opacity: 1 !important;
+  }
+}
+
+@media (max-width: 520px) {
+  /* Плавное возвращение кнопок и инпутов из состояния :active */
+  button, a, .r34-btn-primary, .r34-btn-secondary, .r34-btn-danger, .tag, .r34-input, .r34-select {
+    transition: transform 0.3s ease-out, background-color 0.3s ease-out, border-color 0.3s ease-out, box-shadow 0.3s ease-out !important;
+  }
+  
+  body:not(.can-hover) button:active,
+  body:not(.can-hover) a:active,
+  body:not(.can-hover) .r34-btn-primary:active,
+  body:not(.can-hover) .r34-btn-secondary:active,
+  body:not(.can-hover) .tag:active {
+    transition: transform 0.05s, background-color 0.05s, border-color 0.05s, box-shadow 0.05s !important;
   }
 }

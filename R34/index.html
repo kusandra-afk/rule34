@@ -2,16 +2,16 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
 <title>Rule34 Gallery</title>
-<link rel="stylesheet" href="static/css/base.css">
-<link rel="stylesheet" href="static/css/search.css">
-<link rel="stylesheet" href="static/css/gallery.css">
-<link rel="stylesheet" href="static/css/fullscreen.css">
-<link rel="stylesheet" href="static/css/controls.css">
-<link rel="stylesheet" href="static/css/adaptive.css">
-<link rel="stylesheet" href="static/css/ui.css">
-<link rel="stylesheet" href="static/css/lobby.css">
+<link rel="stylesheet" href="static/css/base.css?v=2.0.1">
+<link rel="stylesheet" href="static/css/search.css?v=2.0.1">
+<link rel="stylesheet" href="static/css/gallery.css?v=2.0.1">
+<link rel="stylesheet" href="static/css/fullscreen.css?v=2.0.1">
+<link rel="stylesheet" href="static/css/controls.css?v=2.0.1">
+<link rel="stylesheet" href="static/css/adaptive.css?v=2.0.1">
+<link rel="stylesheet" href="static/css/ui.css?v=2.0.1">
+<link rel="stylesheet" href="static/css/lobby.css?v=2.0.1">
 </head>
 <body>
 
@@ -310,22 +310,7 @@
           </div>
         </div>
 
-        <!-- Включать звук при наведении (скрыто) -->
-        <div class="settings-option" style="display: none;">
-          <div class="settings-row">
-            <div class="settings-label-group">
-              <label class="settings-label">Включать звук при наведении</label>
-              <button class="info-btn" data-info="hover-sound" title="Инструкция">!</button>
-            </div>
-            <label class="r34-toggle-switch">
-              <input type="checkbox" id="settingsHoverSoundCheckbox">
-              <span class="r34-slider"></span>
-            </label>
-          </div>
-          <div class="info-help-box" id="info-hover-sound" style="display: none;">
-            При наведении курсора на видео звук автоматически включается (unmute).
-          </div>
-        </div>
+
 
         <!-- Начальный уровень громкости -->
         <div class="settings-option settings-option--divided-top">
@@ -910,7 +895,7 @@
   <!-- Эффект при наведении -->
   <div class="settings-option settings-option--divided-top">
     <div class="settings-label-group">
-      <label class="settings-label">Эффект при наведении на медиа</label>
+      <label class="settings-label">Эффект при наведении на медиа <span class="pc-only-badge">(Только для ПК)</span></label>
       <button class="info-btn" data-info="hover" title="Инструкция">!</button>
     </div>
     <div class="info-help-box" id="info-hover" style="display: none;">
@@ -936,7 +921,7 @@
   <div class="settings-option settings-option--divided-top">
     <div class="settings-row">
       <div class="settings-label-group">
-        <label class="settings-label">Интенсивность свечения (Shadow)</label>
+        <label class="settings-label">Интенсивность свечения (Shadow) <span class="pc-only-badge">(Только для ПК)</span></label>
         <button class="info-btn" data-info="card-glow-intensity" title="Инструкция">!</button>
       </div>
       <div class="settings-control-group">
@@ -954,7 +939,7 @@
   <div class="settings-option settings-option--divided-top">
     <div class="settings-row">
       <div class="settings-label-group">
-        <label class="settings-label">Скорость анимации карточек</label>
+        <label class="settings-label">Скорость анимации карточек <span class="pc-only-badge">(Только для ПК)</span></label>
         <button class="info-btn" data-info="card-transition-speed" title="Инструкция">!</button>
       </div>
       <div class="settings-control-group">
@@ -996,7 +981,7 @@
   <div class="settings-option settings-option--divided-top">
     <div class="settings-row">
       <div class="settings-label-group">
-        <label class="settings-label">Скрывать теги до наведения</label>
+        <label class="settings-label">Скрывать теги до наведения <span class="pc-only-badge">(Только для ПК)</span></label>
         <button class="info-btn" data-info="tags-hover-only" title="Инструкция">!</button>
       </div>
       <label class="r34-toggle-switch">
@@ -1579,7 +1564,7 @@
 <!-- PeerJS for fully serverless P2P multiplayer -->
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
-<script type="module" src="static/js/main.js?v=1.0.3"></script>
+<script type="module" src="static/js/main.js?v=2.0.1"></script>
 
 <button id="scrollToTopBtn" class="scroll-to-top-btn" title="Наверх">
   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

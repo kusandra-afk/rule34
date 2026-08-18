@@ -102,8 +102,9 @@
   fill: #fff;
 }
 
-.video-btn:hover,
-.sound-btn:hover {
+body.can-hover .video-btn:hover,
+body:not(.can-hover) .video-btn:active,
+body.can-hover .sound-btn:hover, body:not(.can-hover) .sound-btn:active {
   background: rgba(var(--accent-rgb), 0.2);
   border-color: rgba(var(--accent-rgb), 0.4);
 }
@@ -130,9 +131,11 @@ input.r34-range-gradient {
   transition: background 0.05s linear;
 }
 
-input.video-progress:hover,
-input.photo-progress:hover,
-input.r34-range-gradient:hover {
+body.can-hover input.video-progress:hover,
+body:not(.can-hover) input.video-progress:active,
+body.can-hover input.photo-progress:hover,
+body:not(.can-hover) input.photo-progress:active,
+body.can-hover input.r34-range-gradient:hover, body:not(.can-hover) input.r34-range-gradient:active {
   background: rgba(255, 255, 255, 0.18);
 }
 
@@ -169,9 +172,11 @@ input.r34-range-gradient::-webkit-slider-thumb {
   transition: transform 0.12s ease;
 }
 
-input.video-progress:hover::-webkit-slider-thumb,
-input.photo-progress:hover::-webkit-slider-thumb,
-input.r34-range-gradient:hover::-webkit-slider-thumb {
+body.can-hover input.video-progress:hover::-webkit-slider-thumb,
+body:not(.can-hover) input.video-progress:active::-webkit-slider-thumb,
+body.can-hover input.photo-progress:hover::-webkit-slider-thumb,
+body:not(.can-hover) input.photo-progress:active::-webkit-slider-thumb,
+body.can-hover input.r34-range-gradient:hover::-webkit-slider-thumb, body:not(.can-hover) input.r34-range-gradient:active::-webkit-slider-thumb {
   transform: scale(1.25);
 }
 
@@ -230,7 +235,7 @@ input.r34-range-gradient::-moz-range-thumb {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.2);
 }
 
-.center-play-btn:hover {
+body.can-hover .center-play-btn:hover, body:not(.can-hover) .center-play-btn:active {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(var(--accent-rgb), 0.6);
   transform: translate(-50%, -50%) scale(1.06);
@@ -308,8 +313,9 @@ input.r34-range-gradient::-moz-range-thumb {
   transition: all 0.2s ease;
 }
 
-.hd-btn:hover,
-.video-bottom-hd-btn:hover {
+body.can-hover .hd-btn:hover,
+body:not(.can-hover) .hd-btn:active,
+body.can-hover .video-bottom-hd-btn:hover, body:not(.can-hover) .video-bottom-hd-btn:active {
   background: rgba(var(--accent-rgb), 0.25);
   border-color: rgba(var(--accent-rgb), 0.6);
   color: #fff;
@@ -406,11 +412,22 @@ input.r34-range-gradient::-moz-range-thumb {
   }
   .fullscreen-btn { left: 8px !important; }
   .sound-control-wrapper { right: 8px !important; }
+
+  .sound-toggle-btn {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 30px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
   
   .fullscreen-btn svg,
   .sound-toggle-btn svg {
     width: 15px !important;
     height: 15px !important;
+    margin: auto !important;
+    display: block !important;
   }
 
   /* Панель прогресса */
@@ -464,11 +481,22 @@ input.r34-range-gradient::-moz-range-thumb {
   }
   .fullscreen-btn { left: 5px !important; }
   .sound-control-wrapper { right: 5px !important; }
+
+  .sound-toggle-btn {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 26px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
   
   .fullscreen-btn svg,
   .sound-toggle-btn svg {
     width: 13px !important;
     height: 13px !important;
+    margin: auto !important;
+    display: block !important;
   }
   
   /* Скрываем бейдж длительности, если совсем мало места */

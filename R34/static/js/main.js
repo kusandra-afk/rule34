@@ -8,6 +8,12 @@ import { icon } from './icons.js';
 import { StorageManager } from './storage.js';
 import { SafeScreen } from './components/safeScreen.js';
 
+
+function escapeHTML(str) {
+    if (typeof str !== 'string') return str;
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize SafeScreen
     window.safeScreen = new SafeScreen();
@@ -962,150 +968,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let autoplayObserver = null;
     let mutObserver = null;
     let autoplayScrollTimer = null;
-    function setupAutoplayObserver() {
-        if (autoplayObserver) {
-            autoplayObserver.disconnect();
-            autoplayObserver = null;
-        }
-        if (mutObserver) {
-            mutObserver.disconnect();
-            mutObserver = null;
-        }
-
-        // Clean up previous listeners
-        if (window._onAutoplayScrollOrResize) {
-            window.removeEventListener('scroll', window._onAutoplayScrollOrResize);
-            window.removeEventListener('resize', window._onAutoplayScrollOrResize);
-            window._onAutoplayScrollOrResize = null;
-        }
-
-        const lowPowerMode = localStorage.getItem('r34_low_power_mode') === 'true';
-        const reducedMotion = localStorage.getItem('r34_reduced_motion') === 'true' || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-        const videoAutoplayEnabled = !lowPowerMode && !reducedMotion && localStorage.getItem('r34_video_autoplay') === 'true';
-        const gifAutoplayEnabled = !lowPowerMode && !reducedMotion && localStorage.getItem('r34_gif_autoplay') === 'true';
-
-        // Pause things that are disabled
-        if (!videoAutoplayEnabled) {
-            document.querySelectorAll('#results video.media-content, #profile-results video.media-content').forEach(v => {
-                try {
-                    v.pause();
-                } catch(e) {}
-            });
-        }
-        if (!gifAutoplayEnabled) {
-            document.querySelectorAll('#results img[data-is-gif="true"], #profile-results img[data-is-gif="true"]').forEach(img => {
-                try {
-                    if (typeof img.pauseGif === 'function') {
-                        img.pauseGif();
-                    }
-                } catch(e) {}
-            });
-        }
-
-        // If both are disabled, we don't need to observe anything
-        if (!videoAutoplayEnabled && !gifAutoplayEnabled) {
-            return;
-        }
-
-        const runCenterAutoplay = () => {
-            const mediaElements = Array.from(document.querySelectorAll('#results video.media-content, #results img[data-is-gif="true"], #profile-results video.media-content, #profile-results img[data-is-gif="true"]'));
-            if (mediaElements.length === 0) return;
-
-            let closestMedia = null;
-            let minDistance = Infinity;
-            const centerY = window.innerHeight / 2;
-
-            mediaElements.forEach(media => {
-                const rect = media.getBoundingClientRect();
-                const isVisible = rect.bottom > 0 && rect.top < window.innerHeight;
-                if (isVisible) {
-                    const mediaCenterY = rect.top + rect.height / 2;
-                    const distance = Math.abs(mediaCenterY - centerY);
-                    if (distance < minDistance) {
-                        minDistance = distance;
-                        closestMedia = media;
-                    }
-                }
-            });
-
-            mediaElements.forEach(media => {
-                const isVideo = media.tagName === 'VIDEO';
-                const isGif = media.tagName === 'IMG' && media.dataset.isGif === 'true';
-
-                if (media === closestMedia) {
-                    if (isVideo && videoAutoplayEnabled) {
-                        if (media.paused && media.dataset.manuallyPaused !== 'true') {
-                            media.muted = false;
-                            const container = media.closest('.media-container');
-                            if (container && container._soundToggleBtn) {
-                                container._soundToggleBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
-                                container._soundToggleBtn.title = 'Выключить звук';
-                            }
-                            media.play().catch(() => {
-                                media.muted = true;
-                                if (container && container._soundToggleBtn) {
-                                    container._soundToggleBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>`;
-                                    container._soundToggleBtn.title = 'Включить звук';
-                                }
-                                media.play().catch(() => {});
-                            });
-                            if (container) {
-                                const playBtn = container.querySelector('.center-play-btn');
-                                if (playBtn) {
-                                    playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="#fff"/></svg>`;
-                                }
-                            }
-                        }
-                    } else if (isGif && gifAutoplayEnabled) {
-                        if (typeof media.playGif === 'function') {
-                            media.playGif();
-                        }
-                    }
-                } else {
-                    if (isVideo) {
-                        if (!media.paused) {
-                            try { media.pause(); } catch(e) {}
-                            const container = media.closest('.media-container');
-                            if (container) {
-                                const playBtn = container.querySelector('.center-play-btn');
-                                if (playBtn) {
-                                    playBtn.innerHTML = `<svg viewBox="0 0 24 24" style="margin-left: 3px;"><path d="M8 5v14l11-7z" fill="#fff"/></svg>`;
-                                }
-                            }
-                        }
-                        delete media.dataset.manuallyPaused;
-                    } else if (isGif) {
-                        if (typeof media.pauseGif === 'function') {
-                            media.pauseGif();
-                        }
-                    }
-                }
-            });
-        };
-
-        const onScrollOrResize = () => {
-            if (autoplayScrollTimer) cancelAnimationFrame(autoplayScrollTimer);
-            autoplayScrollTimer = requestAnimationFrame(runCenterAutoplay);
-        };
-
-        window._onAutoplayScrollOrResize = onScrollOrResize;
-        window.addEventListener('scroll', onScrollOrResize, { passive: true });
-        window.addEventListener('resize', onScrollOrResize, { passive: true });
-
-        // Run immediately and after a short delay
-        runCenterAutoplay();
-        setTimeout(runCenterAutoplay, 150);
-        setTimeout(runCenterAutoplay, 500);
-
-        const resultsEl = document.getElementById('results');
-        if (resultsEl) {
-            mutObserver = new MutationObserver(() => {
-                runCenterAutoplay();
-            });
-            mutObserver.observe(resultsEl, { childList: true, subtree: true });
-        }
-    };
-
+    function setupAutoplayObserver() {}
     setupAutoplayObserver();
 
     // Инициализация Turso Sync
@@ -1718,7 +1581,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </button>
 
                 <!-- Другие игры -->
-                <div style="font-size: 0.7rem; font-weight: 800; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 6px 0;">Новые игры (в разработке)</div>
+                <div style="font-size: 0.7rem; font-weight: 800; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 6px 0;">Новые игры (планируется)</div>
 
                 <button disabled style="
                     padding: 14px 16px;
@@ -1734,7 +1597,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     opacity: 0.6;
                     width: 100%;
                 ">
-                    <span style="position: absolute; top: -8px; right: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #71717a; font-size: 0.6rem; font-weight: 800; padding: 1px 6px; border-radius: 8px;">СКОРО</span>
                     <span style="font-size: 1.6rem; filter: grayscale(1);">❓</span>
                     <div style="text-align: left;">
                         <div style="font-size: 1rem; font-weight: 700; color: #a1a1aa;">Угадай тег / Персонажа</div>
@@ -1756,7 +1618,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     opacity: 0.6;
                     width: 100%;
                 ">
-                    <span style="position: absolute; top: -8px; right: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #71717a; font-size: 0.6rem; font-weight: 800; padding: 1px 6px; border-radius: 8px;">ОТЛОЖЕНО</span>
                     <span style="font-size: 1.6rem; filter: grayscale(1);">⚖️</span>
                     <div style="text-align: left;">
                         <div style="font-size: 1rem; font-weight: 700; color: #a1a1aa;">Больше / Меньше</div>
@@ -1778,7 +1639,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     opacity: 0.6;
                     width: 100%;
                 ">
-                    <span style="position: absolute; top: -8px; right: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #71717a; font-size: 0.6rem; font-weight: 800; padding: 1px 6px; border-radius: 8px;">СКОРО</span>
                     <span style="font-size: 1.6rem; filter: grayscale(1);">🔍</span>
                     <div style="text-align: left;">
                         <div style="font-size: 1rem; font-weight: 700; color: #a1a1aa;">Детектив: Найди фрагмент</div>
@@ -1800,7 +1660,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     opacity: 0.6;
                     width: 100%;
                 ">
-                    <span style="position: absolute; top: -8px; right: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #71717a; font-size: 0.6rem; font-weight: 800; padding: 1px 6px; border-radius: 8px;">СКОРО</span>
                     <span style="font-size: 1.6rem; filter: grayscale(1);">🎴</span>
                     <div style="text-align: left;">
                         <div style="font-size: 1rem; font-weight: 700; color: #a1a1aa;">Рейтинг / Драфт артов</div>
@@ -1829,6 +1688,8 @@ document.addEventListener('DOMContentLoaded', () => {
             closeModal();
             startPuzzleGame();
         };
+
+
 
         // --- Metered.ca Key Logic ---
         const keyInput = modal.querySelector('#gameMeteredKeyInput');
@@ -1988,6 +1849,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsColumnsGroup = document.getElementById('settingsColumnsGroup');
     
     const settingsHdCheckbox = document.getElementById('settingsHdCheckbox');
+
     const settingsOnlyGifsCheckbox = document.getElementById('settingsOnlyGifsCheckbox');
     const settingsAutoSlideCheckbox = document.getElementById('settingsAutoSlideCheckbox');
     const settingsAutoVideoSlideCheckbox = document.getElementById('settingsAutoVideoSlideCheckbox');
@@ -2151,6 +2013,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (settingsDeveloperModeCheckbox) {
                 settingsDeveloperModeCheckbox.checked = localStorage.getItem('r34_dev_mode') === 'true';
             }
+
 
             // Turso sync settings
             const settingsTursoSyncCheckbox = document.getElementById('settingsTursoSyncCheckbox');
@@ -5127,6 +4990,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+
     // Кнопка выхода из аккаунта
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
@@ -5657,27 +5521,30 @@ document.addEventListener('DOMContentLoaded', () => {
         immediateLoadPosts(tagSearch.getTagsQuery(), false);
     });
 
-    window.addEventListener('scroll', () => {
-        if (loading || reachedEnd) return;
-        const scrollMode = localStorage.getItem('r34_scroll_mode') || 'infinite';
-        if (scrollMode !== 'infinite') return;
-        
-        const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop;
-        const windowHeight = window.innerHeight || document.documentElement.clientHeight;
-        const docHeight = Math.max(
-            document.body.scrollHeight, 
-            document.documentElement.scrollHeight,
-            document.body.offsetHeight, 
-            document.documentElement.offsetHeight,
-            document.body.clientHeight, 
-            document.documentElement.clientHeight
-        );
-        const threshold = (gallery && gallery.preloadMode === 'page') ? windowHeight * 2 : ((gallery && gallery.preloadMode === 'near') ? windowHeight : 400);
-        if (scrollY + windowHeight >= docHeight - threshold) {
+    const sentinel = document.createElement('div');
+    sentinel.id = 'infinite-scroll-sentinel';
+    sentinel.style.height = '1px';
+    document.body.appendChild(sentinel);
+
+    const scrollObserver = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+            if (loading || reachedEnd) return;
+            const scrollMode = localStorage.getItem('r34_scroll_mode') || 'infinite';
+            if (scrollMode !== 'infinite') return;
             page++;
             immediateLoadPosts(tagSearch.getTagsQuery(), true);
         }
-    });
+    }, { rootMargin: '800px' });
+    
+    scrollObserver.observe(sentinel);
+    
+    // We need to keep the sentinel at the very bottom
+    setInterval(() => {
+        const results = document.getElementById('results');
+        if (results && sentinel.parentElement !== results.parentElement) {
+            results.parentElement.appendChild(sentinel);
+        }
+    }, 1000);
 
     function renderPagination(totalCount, limit) {
         const paginationContainer = document.getElementById('pagination-container');
@@ -5817,7 +5684,7 @@ document.addEventListener('DOMContentLoaded', () => {
         infoBar.className = 'preview-zoom-info';
         infoBar.innerHTML = `
             <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; gap: 20px; font-size: 0.9rem;">
-                <span style="color: #ff3b6b; font-weight: bold;">Score: ${post.score}</span>
+                <span style="color: #ff3b6b; font-weight: bold;">Score: ${escapeHTML(String(post.score))}</span>
                 <span style="color: rgba(255,255,255,0.6);">ID: ${post.id}</span>
                 <a href="${post.file_url}" target="_blank" style="color: #2dd4bf; text-decoration: none;">Источник ↗</a>
             </div>
@@ -5843,7 +5710,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const typesMap = {};
                     const uncached = [];
                     for (const tag of tagNames) {
-                        const cached = localStorage.getItem(`r34_tagtype_${tag}`);
+                        const cached = localStorage.getItem(`r34_tagtype_${escapeHTML(tag)}`);
                         if (cached !== null) {
                             typesMap[tag] = cached;
                         } else {
@@ -6049,7 +5916,7 @@ document.addEventListener('DOMContentLoaded', () => {
         previewLoading = true;
 
         if (previewPage === 0) {
-            titleEl.textContent = `Загрузка примеров для #${tag}...`;
+            titleEl.textContent = `Загрузка примеров для #${escapeHTML(tag)}...`;
         }
 
         try {
@@ -6078,10 +5945,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         itemContainer.style.cursor = 'pointer';
 
                         const img = document.createElement('img');
+                        img.loading = 'lazy';
                         img.className = 'modal-preview-img';
                         img.src = proxyUrl(post.preview_url || post.sample_url || post.file_url);
                         img.alt = tag;
-                        img.title = `Score: ${post.score}`;
+                        img.title = `Score: ${escapeHTML(String(post.score))}`;
 
                         const ext = (post.file_url?.split('.').pop() || '').toLowerCase();
                         const isVideo = ['mp4', 'webm', 'mov'].includes(ext);
@@ -6109,17 +5977,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
-                titleEl.textContent = `Примеры для #${tag} (${previewPostsList.length}):`;
+                titleEl.textContent = `Примеры для #${escapeHTML(tag)} (${previewPostsList.length}):`;
             } else {
                 previewReachedEnd = true;
                 if (previewPage === 0) {
-                    titleEl.textContent = `Нет медиа с тегом #${tag}`;
+                    titleEl.textContent = `Нет медиа с тегом #${escapeHTML(tag)}`;
                 }
             }
         } catch (e) {
             console.error('Error fetching preview:', e);
             if (previewPage === 0) {
-                titleEl.textContent = `Не удалось загрузить превью для #${tag}`;
+                titleEl.textContent = `Не удалось загрузить превью для #${escapeHTML(tag)}`;
             }
         } finally {
             previewLoading = false;
@@ -6215,11 +6083,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             tagEl.innerHTML = `
                 <div class="tag-click-area" style="display: flex; align-items: center; gap: 8px; flex: 1; cursor: pointer;">
-                    <div class="tag-click-area" style="display: flex; align-items: center; gap: 8px; flex: 1
-                    <span class="tag-name" style="${isExcluded ? 'text-decoration: line-through; opacity: 0.6;' : ''}">${tag}</span>
+                    <span class="tag-name" style="${isExcluded ? 'text-decoration: line-through; opacity: 0.6;' : ''}">${escapeHTML(tag)}</span>
                     <span class="tag-count" style="margin-left: auto; margin-right: 8px; font-size: 0.8em; opacity: 0.5;">...</span>
                 </div>
-                <button class="delete-custom-tag-btn" data-tag="${tag}" style="background: none; border: none; color: rgba(255,255,255,0.4); font-size: 1.1em; cursor: pointer; padding: 2px 6px; hover:color: #ef4444; margin-left: 0; z-index: 10;">×</button>
+                <button class="delete-custom-tag-btn" data-tag="${escapeHTML(tag)}" style="background: none; border: none; color: rgba(255,255,255,0.4); font-size: 1.1em; cursor: pointer; padding: 2px 6px; hover:color: #ef4444; margin-left: 0; z-index: 10;">×</button>
             `;
             tagEl.style.display = 'flex';
             tagEl.style.alignItems = 'center';
@@ -7418,3 +7285,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+// Fix for sticky hovers on touch devices
+document.body.classList.add('can-hover');
+document.addEventListener('touchstart', function removeHover() {
+    document.body.classList.remove('can-hover');
+    document.removeEventListener('touchstart', removeHover, false);
+}, { passive: true });

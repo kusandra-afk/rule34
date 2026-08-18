@@ -102,8 +102,9 @@
     padding: 0;
     flex-shrink: 0;
 }
-.video-bottom-play-btn:hover,
-.photo-bottom-play-btn:hover {
+body.can-hover .video-bottom-play-btn:hover,
+body:not(.can-hover) .video-bottom-play-btn:active,
+body.can-hover .photo-bottom-play-btn:hover, body:not(.can-hover) .photo-bottom-play-btn:active {
     color: var(--light);
     background: var(--glass-bg);
     transform: scale(1.1);
@@ -131,7 +132,7 @@
     padding: 0;
     flex-shrink: 0;
 }
-.video-bottom-sound-btn:hover {
+body.can-hover .video-bottom-sound-btn:hover, body:not(.can-hover) .video-bottom-sound-btn:active {
     color: var(--light);
     background: var(--glass-bg);
     transform: scale(1.1);
@@ -156,9 +157,11 @@
     margin: 0;
     flex-shrink: 0;
 }
-.gallery-video-controls-wrapper:hover .video-bottom-volume,
-.video-bottom-volume:hover,
-.video-bottom-sound-btn:hover + .video-bottom-volume {
+body.can-hover .gallery-video-controls-wrapper:hover .video-bottom-volume,
+body:not(.can-hover) .gallery-video-controls-wrapper:active .video-bottom-volume,
+body.can-hover .video-bottom-volume:hover,
+body:not(.can-hover) .video-bottom-volume:active,
+body.can-hover .video-bottom-sound-btn:hover + .video-bottom-volume, body:not(.can-hover) .video-bottom-sound-btn:active + .video-bottom-volume {
     width: 70px;
     opacity: 1;
     margin-left: 4px;
@@ -183,8 +186,9 @@
   background: var(--glass-bg-strong);
 }
 
-.media-slide .video-progress:hover,
-.media-slide .photo-progress:hover {
+body.can-hover .media-slide .video-progress:hover,
+body:not(.can-hover) .media-slide .video-progress:active,
+body.can-hover .media-slide .photo-progress:hover, body:not(.can-hover) .media-slide .photo-progress:active {
   height: 6px;
 }
 
@@ -218,8 +222,9 @@
   transition: transform 0.1s ease;
 }
 
-.media-slide .video-progress:hover::-webkit-slider-thumb,
-.media-slide .photo-progress:hover::-webkit-slider-thumb {
+body.can-hover .media-slide .video-progress:hover::-webkit-slider-thumb,
+body:not(.can-hover) .media-slide .video-progress:active::-webkit-slider-thumb,
+body.can-hover .media-slide .photo-progress:hover::-webkit-slider-thumb, body:not(.can-hover) .media-slide .photo-progress:active::-webkit-slider-thumb {
   transform: scale(1.35);
 }
 
@@ -285,7 +290,7 @@
     outline: none;
     box-shadow: var(--shadow-sm);
 }
-.fullscreen-close-btn:hover {
+body.can-hover .fullscreen-close-btn:hover, body:not(.can-hover) .fullscreen-close-btn:active {
     background: var(--glass-bg-strong);
     border-color: var(--accent);
     color: var(--light);
@@ -325,7 +330,7 @@
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     font-size: 1.25rem;
 }
-.fullscreen-puzzle-btn:hover {
+body.can-hover .fullscreen-puzzle-btn:hover, body:not(.can-hover) .fullscreen-puzzle-btn:active {
     background: rgba(255, 255, 255, 0.18);
     border-color: var(--accent, #ff3b6b);
     color: #fff;
@@ -352,7 +357,7 @@
     justify-content: center;
     flex-shrink: 0;
 }
-.fullscreen-hd-btn:hover {
+body.can-hover .fullscreen-hd-btn:hover, body:not(.can-hover) .fullscreen-hd-btn:active {
     background: rgba(255, 255, 255, 0.18);
     border-color: var(--accent, #ff3b6b);
     color: #fff;
@@ -393,7 +398,7 @@
     outline: none;
     box-shadow: var(--shadow-sm, 0 4px 12px rgba(0,0,0,0.3));
 }
-.fullscreen-info-toggle-btn:hover {
+body.can-hover .fullscreen-info-toggle-btn:hover, body:not(.can-hover) .fullscreen-info-toggle-btn:active {
     background: var(--glass-bg-strong, rgba(255, 255, 255, 0.18));
     border-color: var(--accent, #ff3b6b);
     color: var(--light, #fff);
@@ -477,7 +482,7 @@
     transition: all 0.2s ease;
 }
 
-.fullscreen-info-close:hover {
+body.can-hover .fullscreen-info-close:hover, body:not(.can-hover) .fullscreen-info-close:active {
     background: rgba(255, 255, 255, 0.15);
     color: #fff;
     border-color: var(--accent, #ff3b6b);
@@ -527,21 +532,21 @@
     .fullscreen-close-btn {
         top: 15px;
         left: 15px;
-        width: 36px;
-        height: 36px;
+        width: 44px;
+        height: 44px;
     }
     .fullscreen-puzzle-btn {
         top: 15px;
-        left: 59px;
-        width: 36px;
-        height: 36px;
+        left: 67px;
+        width: 44px;
+        height: 44px;
         font-size: 1rem;
     }
     .fullscreen-info-toggle-btn {
         top: 15px;
         right: 15px;
-        width: 36px;
-        height: 36px;
+        width: 44px;
+        height: 44px;
     }
     .fullscreen-info-toggle-btn svg {
         width: 16px;

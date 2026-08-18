@@ -125,7 +125,7 @@
   overflow: hidden;
 }
 
-.game-mode-card:hover {
+body.can-hover .game-mode-card:hover, body:not(.can-hover) .game-mode-card:active {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.5);
   transform: translateY(-4px) translateZ(0);
@@ -137,7 +137,7 @@
   border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.3);
 }
 
-.game-mode-card.primary-mode:hover {
+body.can-hover .game-mode-card.primary-mode:hover, body:not(.can-hover) .game-mode-card.primary-mode:active {
   border-color: var(--accent, #a78bfa);
   box-shadow: 0 16px 40px var(--accent-glow, rgba(139, 92, 246, 0.3));
 }
@@ -147,7 +147,7 @@
   border-color: rgba(var(--accent-rgb, 245, 158, 11), 0.3);
 }
 
-.game-mode-card.multiplayer:hover {
+body.can-hover .game-mode-card.multiplayer:hover, body:not(.can-hover) .game-mode-card.multiplayer:active {
   border-color: var(--accent, #f59e0b);
   box-shadow: 0 16px 40px var(--accent-glow, rgba(245, 158, 11, 0.3));
 }
@@ -289,7 +289,7 @@
   transition: background 0.2s ease;
 }
 
-.game-player-row:hover {
+body.can-hover .game-player-row:hover, body:not(.can-hover) .game-player-row:active {
   background: rgba(255, 255, 255, 0.07);
 }
 
@@ -311,7 +311,7 @@
   box-shadow: 0 8px 24px rgba(16, 185, 129, 0.35);
 }
 
-.game-start-btn:hover {
+body.can-hover .game-start-btn:hover, body:not(.can-hover) .game-start-btn:active {
   box-shadow: 0 12px 30px rgba(16, 185, 129, 0.5);
   transform: translateY(-2px);
 }
@@ -477,7 +477,7 @@
   text-align: left;
 }
 
-.game-custom-dropdown-trigger:hover {
+body.can-hover .game-custom-dropdown-trigger:hover, body:not(.can-hover) .game-custom-dropdown-trigger:active {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(167, 139, 250, 0.5);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
@@ -544,7 +544,7 @@
   transition: all 0.15s ease;
 }
 
-.game-custom-dropdown-item:hover {
+body.can-hover .game-custom-dropdown-item:hover, body:not(.can-hover) .game-custom-dropdown-item:active {
   background: rgba(167, 139, 250, 0.15);
   color: #fff;
   transform: translateX(2px);
@@ -645,7 +645,7 @@ select.game-select option,
   background-color: #fff;
 }
 
-.game-switch:hover .game-switch-slider {
+body.can-hover .game-switch:hover .game-switch-slider, body:not(.can-hover) .game-switch:active .game-switch-slider {
   border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.5);
 }
 
@@ -698,7 +698,7 @@ select.game-select option,
   transform: rotate(45deg) translate(-1px, -1px);
 }
 
-.game-checkbox:hover input ~ .game-checkbox-mark {
+body.can-hover .game-checkbox:hover input ~ .game-checkbox-mark, body:not(.can-hover) .game-checkbox:active input ~ .game-checkbox-mark {
   background-color: rgba(255, 255, 255, 0.14);
   border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.5);
 }
@@ -831,7 +831,7 @@ select.game-select option,
   transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.game-close-btn:hover {
+body.can-hover .game-close-btn:hover, body:not(.can-hover) .game-close-btn:active {
   background: rgba(244, 63, 94, 0.2);
   border-color: rgba(244, 63, 94, 0.4);
   transform: rotate(90deg);
@@ -912,7 +912,7 @@ select.game-select option,
   user-select: none;
 }
 
-.game-btn-primary:hover {
+body.can-hover .game-btn-primary:hover, body:not(.can-hover) .game-btn-primary:active {
   transform: translateY(-2px);
   box-shadow: 0 12px 28px rgba(124, 58, 237, 0.45);
   filter: brightness(1.1);
@@ -939,7 +939,7 @@ select.game-select option,
   user-select: none;
 }
 
-.game-btn-secondary:hover {
+body.can-hover .game-btn-secondary:hover, body:not(.can-hover) .game-btn-secondary:active {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.2);
   transform: translateY(-1px);
@@ -953,6 +953,9 @@ select.game-select option,
 
 .game-cat-pill {
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 12px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -960,12 +963,13 @@ select.game-select option,
   color: rgba(255, 255, 255, 0.6);
   font-weight: 600;
   font-size: 0.9rem;
+  line-height: 1.2;
   cursor: pointer;
   text-align: center;
   transition: all 0.2s ease;
 }
 
-.game-cat-pill:hover {
+body.can-hover .game-cat-pill:hover, body:not(.can-hover) .game-cat-pill:active {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.15);
   color: #fff;
@@ -1023,7 +1027,7 @@ select.game-select option,
   transition: background 0.2s ease;
 }
 
-.game-player-row:hover {
+body.can-hover .game-player-row:hover, body:not(.can-hover) .game-player-row:active {
   background: rgba(255, 255, 255, 0.03);
 }
 
