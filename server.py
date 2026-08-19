@@ -7,8 +7,6 @@ import time
 import re
 import argparse
 import requests
-import threading
-import queue
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -30,11 +28,14 @@ def is_allowed_origin(origin):
         return False
     parsed = urlparse(origin)
     host = (parsed.hostname or '').lower()
-    return (host in {'localhost', '127.0.0.1'} or 
-            host.endswith('.localhost') or 
-            host.endswith('.run.app') or 
-            host.endswith('google.com') or 
-            'aistudio' in host)
+    # Разрешаем только локальный доступ и устройства в той же локальной сети
+    # (проект локальный, наружу в интернет не публикуется)
+    if host in {'localhost', '127.0.0.1'} or host.endswith('.localhost'):
+        return True
+    # Частные диапазоны IPv4 для доступа с других устройств в той же Wi-Fi/LAN сети
+    if re.match(r'^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)', host):
+        return True
+    return False
 
 
 def is_allowed_target_url(target_url):
@@ -57,11 +58,6 @@ def add_cors_headers(response):
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Range'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
         response.headers['Vary'] = 'Origin'
-    # Prevent stale browser caching of CSS/JS/HTML during development
-    if request.path.endswith(('.html', '.css', '.js', '/')) or request.path.startswith('/static/'):
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
     return response
 
 # Configure session with retries and connection pooling for maximum throughput and low latency
@@ -125,38 +121,17 @@ def save_turso_puzzles(puzzles):
     """Save puzzles to Turso"""
     return turso_handler.save_turso_puzzles(puzzles, session, load_settings, load_turso_config)
 
-import threading
-import functools
-
-CACHE_LOCK = threading.RLock()
-FILE_LOCK = threading.RLock()
-
-def with_file_lock(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        with FILE_LOCK:
-            return func(*args, **kwargs)
-    return wrapper
-
 def set_validated_key(key, is_valid):
-    with CACHE_LOCK:
-        if len(validated_keys_cache) >= 500:
-            try:
-                oldest = next(iter(validated_keys_cache))
-                validated_keys_cache.pop(oldest, None)
-            except Exception:
-                pass
-        validated_keys_cache[key] = (is_valid, time.time())
+    if len(validated_keys_cache) >= 500:
+        oldest = next(iter(validated_keys_cache))
+        validated_keys_cache.pop(oldest, None)
+    validated_keys_cache[key] = (is_valid, time.time())
 
 def set_favorite_cache(key, is_fav):
-    with CACHE_LOCK:
-        if len(favorite_cache) >= 1000:
-            try:
-                oldest = next(iter(favorite_cache))
-                favorite_cache.pop(oldest, None)
-            except Exception:
-                pass
-        favorite_cache[key] = (is_fav, time.time())
+    if len(favorite_cache) >= 1000:
+        oldest = next(iter(favorite_cache))
+        favorite_cache.pop(oldest, None)
+    favorite_cache[key] = (is_fav, time.time())
 
 
 def invalidate_caches():
@@ -180,7 +155,6 @@ def get_encryption_key():
         return f.read()
 
 
-@with_file_lock
 def get_saved_api_key():
     if os.path.exists(API_KEY_FILE):
         try:
@@ -228,7 +202,6 @@ def get_saved_api_key():
     return None, None
 
 
-@with_file_lock
 def save_api_creds(user_id, api_key):
     try:
         os.makedirs(os.path.dirname(API_KEY_FILE), exist_ok=True)
@@ -258,7 +231,6 @@ def save_api_creds(user_id, api_key):
             pass
     except Exception as e:
         print('Error saving API creds:', e)
-@with_file_lock
 def clear_creds():
     validated_keys_cache.clear()
     invalidate_caches()
@@ -446,7 +418,6 @@ def proxy():
     except Exception as e:
         return f"Proxy error: {str(e)}", 500
 
-@with_file_lock
 def load_my_favorites():
     try:
         if os.path.exists(MY_FAVORITES_FILE):
@@ -472,7 +443,6 @@ def load_my_favorites():
         print('Error loading my_favorites.json:', e)
     return []
 
-@with_file_lock
 def convert_favorites_to_optimized(old_favorites):
     """Convert old favorites format to new optimized format"""
     optimized = []
@@ -488,7 +458,6 @@ def convert_favorites_to_optimized(old_favorites):
     save_my_favorites_optimized(optimized)
     return optimized
 
-@with_file_lock
 def save_my_favorites(favorites):
     """Save favorites in new optimized format"""
     try:
@@ -498,7 +467,6 @@ def save_my_favorites(favorites):
     except Exception as e:
         print('Error saving my_favorites.json:', e)
 
-@with_file_lock
 def save_my_favorites_optimized(favorites):
     """Save favorites in optimized format (only ID and change)"""
     try:
@@ -552,7 +520,6 @@ def enrich_favorites_with_post_data(optimized_favorites):
             enriched.append(fav)
     return enriched
 
-@with_file_lock
 def load_excluded_tags():
     try:
         print(f'Loading excluded tags from: {EXCLUDED_TAGS_FILE}')
@@ -571,7 +538,6 @@ def load_excluded_tags():
     print('Returning empty list for excluded tags')
     return []
 
-@with_file_lock
 def save_excluded_tags(tags):
     try:
         os.makedirs(os.path.dirname(EXCLUDED_TAGS_FILE), exist_ok=True)
@@ -580,7 +546,6 @@ def save_excluded_tags(tags):
     except Exception as e:
         print('Error saving excluded_tags.json:', e)
 
-@with_file_lock
 def load_turso_config():
     try:
         if os.path.exists(TURSO_CONFIG_FILE):
@@ -608,7 +573,6 @@ def load_turso_config():
         print('Error loading turso_config.json:', e)
     return {'turso_url': '', 'turso_token': ''}
 
-@with_file_lock
 def save_turso_config(config):
     try:
         os.makedirs(os.path.dirname(TURSO_CONFIG_FILE), exist_ok=True)
@@ -640,7 +604,6 @@ def save_turso_config(config):
     except Exception as e:
         print('Error saving turso_config.json:', e)
 
-@with_file_lock
 def load_settings():
     try:
         if os.path.exists(SETTINGS_FILE):
@@ -684,7 +647,6 @@ def sanitize_settings(settings):
     return {key: value for key, value in settings.items() if is_valid_settings_key(key)}
 
 
-@with_file_lock
 def save_settings(settings):
     try:
         os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
@@ -694,7 +656,6 @@ def save_settings(settings):
         print('Error saving settings.json:', e)
 
 
-@with_file_lock
 def load_puzzle_completed():
     try:
         if os.path.exists(PUZZLE_COMPLETED_FILE):
@@ -743,7 +704,6 @@ def optimize_puzzles(puzzles):
                 })
     return optimized
 
-@with_file_lock
 def convert_puzzles_to_optimized(old_puzzles):
     """Convert old puzzle format to new optimized format"""
     optimized = optimize_puzzles(old_puzzles)
@@ -751,7 +711,6 @@ def convert_puzzles_to_optimized(old_puzzles):
     save_puzzle_completed_optimized(optimized)
     return optimized
 
-@with_file_lock
 def save_puzzle_completed(puzzles):
     """Save puzzles in new optimized format"""
     try:
@@ -762,7 +721,6 @@ def save_puzzle_completed(puzzles):
     except Exception as e:
         print('Error saving puzzle_completed.json:', e)
 
-@with_file_lock
 def save_puzzle_completed_optimized(puzzles):
     """Save puzzles in optimized format (only ID and metadata)"""
     try:
@@ -958,6 +916,8 @@ def api_my_favorites_handler():
         data = request.json or {}
         post_id = data.get('postId')
         action = data.get('action')
+        post_data = data.get('postData')
+
         if not post_id or not action:
             return jsonify({'ok': False, 'error': 'Missing postId or action'}), 400
 
@@ -1225,7 +1185,7 @@ def api_puzzle_completed():
                             l_update = p.get('lastUpdated', '')
                             if l_update > t_update:
                                 merged_map[pid] = p
-                        except Exception:
+                        except:
                             pass
                 
                 merged_puzzles = list(merged_map.values())
@@ -1260,7 +1220,7 @@ def api_puzzle_completed():
             # Sync to Turso as well if available
             try:
                 save_turso_puzzles(optimized_puzzles)
-            except Exception:
+            except:
                 pass
             return jsonify({'ok': True})
     except Exception as e:
@@ -1353,6 +1313,8 @@ def api_safe_screen_delete():
 # ==============================================================================
 # ROOM SIGNALING & MULTIPLAYER RELAY HUB
 # ==============================================================================
+import threading
+import queue
 
 ROOM_LOCK = threading.Lock()
 ACTIVE_ROOMS = {}
@@ -1732,7 +1694,7 @@ if __name__ == '__main__':
                             l_update = p.get('lastUpdated', '')
                             if l_update > t_update:
                                 merged_map[pid] = p
-                        except Exception:
+                        except:
                             pass
                 
                 merged_puzzles = list(merged_map.values())
