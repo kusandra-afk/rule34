@@ -567,8 +567,16 @@ body.can-hover .duration-preset-btn:hover, body:not(.can-hover) .duration-preset
 }
 
 .confirm-modal-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.2);
 }
 
 .confirm-modal-title {

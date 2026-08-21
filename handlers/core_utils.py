@@ -3,7 +3,6 @@ import json
 import time
 import re
 import base64
-import queue
 import threading
 import functools
 import requests
@@ -36,10 +35,16 @@ FAVORITES_PURGE_DAYS = 20
 SAFE_SCREEN_DIR = os.path.join(BASE_DIR, 'safe_screen')
 os.makedirs(SAFE_SCREEN_DIR, exist_ok=True)
 
+# Не секрет — просто локальный кэш результатов классификации персонаж/франшиза
+# (см. handlers/game_routes.py), чтобы не дёргать AniList/Wikidata повторно
+# для одних и тех же тегов на каждую игру.
+GAME_DATA_DIR = os.path.join(BASE_DIR, 'game_data')
+os.makedirs(GAME_DATA_DIR, exist_ok=True)
+CHARACTER_FRANCHISE_CACHE_FILE = os.path.join(GAME_DATA_DIR, 'character_franchise_cache.json')
+
 # Locks
 CACHE_LOCK = threading.RLock()
 FILE_LOCK = threading.RLock()
-ROOM_LOCK = threading.Lock()
 
 # In-memory caches for performance
 validated_keys_cache = {}  # key -> (is_valid, timestamp)
@@ -47,9 +52,6 @@ VALIDATION_CACHE_TTL = 3600  # 1 hour TTL
 
 favorite_cache = {}  # key -> (is_fav, timestamp)
 FAVORITE_CACHE_TTL = 30  # 30 seconds TTL
-
-# Multiplayer rooms state
-ACTIVE_ROOMS = {}
 
 # Requests Session
 session = requests.Session()
@@ -530,6 +532,27 @@ def save_settings(settings):
         print('Error saving settings.json:', e)
 
 @with_file_lock
+def load_character_franchise_cache():
+    try:
+        if os.path.exists(CHARACTER_FRANCHISE_CACHE_FILE):
+            with open(CHARACTER_FRANCHISE_CACHE_FILE, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if content:
+                    data = json.loads(content)
+                    if isinstance(data, dict):
+                        return data
+    except Exception as e:
+        print('Error loading character_franchise_cache.json:', e)
+    return {}
+
+@with_file_lock
+def save_character_franchise_cache(cache):
+    try:
+        with open(CHARACTER_FRANCHISE_CACHE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(cache, f, ensure_ascii=False, indent=2, sort_keys=True)
+    except Exception as e:
+        print('Error saving character_franchise_cache.json:', e)
+
 def load_puzzle_completed():
     try:
         if os.path.exists(PUZZLE_COMPLETED_FILE):
@@ -726,19 +749,3 @@ def get_turso_puzzles():
 def save_turso_puzzles(puzzles):
     return turso_handler.save_turso_puzzles(puzzles, session, load_settings, load_turso_config)
 
-# NOTE: this function does NOT acquire ROOM_LOCK itself. Every current caller
-# (api_room_create, api_room_join in room_routes.py) already holds ROOM_LOCK
-# when calling this, and ROOM_LOCK is a plain threading.Lock() (non-reentrant),
-# so acquiring it again here would deadlock the calling thread forever.
-# If you add a new caller, make sure it already holds ROOM_LOCK before calling
-# this, or acquire the lock at that call site instead of inside this function.
-def cleanup_stale_rooms():
-    now = time.time()
-    stale_ids = []
-    for r_id, r in ACTIVE_ROOMS.items():
-        if now - r.get('last_active', 0) > 7200:
-            stale_ids.append(r_id)
-        elif len(r.get('players', {})) == 0 and (now - r.get('last_active', 0) > 180):
-            stale_ids.append(r_id)
-    for s_id in stale_ids:
-        ACTIVE_ROOMS.pop(s_id, None)

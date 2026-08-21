@@ -14,7 +14,7 @@ from handlers.auth_routes import auth_bp
 from handlers.proxy_routes import proxy_bp
 from handlers.user_routes import user_bp
 from handlers.safescreen_routes import safescreen_bp
-from handlers.room_routes import room_bp
+from handlers.game_routes import game_bp
 
 # Initialize Flask App
 app = Flask(__name__, static_folder=os.path.join(BASE_DIR, 'R34', 'static'), static_url_path='/static')
@@ -28,7 +28,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(proxy_bp)
 app.register_blueprint(user_bp)
 app.register_blueprint(safescreen_bp)
-app.register_blueprint(room_bp)
+app.register_blueprint(game_bp)
 
 @app.after_request
 def add_cors_headers(response):
@@ -136,9 +136,4 @@ if __name__ == '__main__':
         print('Turso sync is disabled or not configured')
 
     print(f"Server Rule34 Gallery started at http://{args.host}:{args.port}")
-    # threaded=True is required: /api/room/events keeps a connection open for the
-    # entire lifetime of a multiplayer room (Server-Sent Events). Without it, Flask's
-    # dev server handles one request at a time, so a single open room would block
-    # every other request on the server (including creating/joining new rooms) until
-    # that connection closes.
     app.run(host=args.host, port=args.port, threaded=True)

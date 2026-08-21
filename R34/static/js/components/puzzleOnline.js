@@ -25,6 +25,21 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
             OnlineSync.handleClientReceivedMessage(this, packet);
         });
 
+        // Хост уже показывает свой тост join/leave напрямую в
+        // handleHostReceivedMessage — эти два события (эмитятся
+        // BaseOnlineEngine при получении ROOM_DATA) нужны только гостю,
+        // у которого раньше такого уведомления не было вовсе.
+        this.on('playerJoined', (player) => {
+            if (this.isHost) return;
+            const actionStr = this.inGame ? 'подключился к игре' : 'вошел в лобби';
+            this.showToast(`Игрок "${player.name}" ${actionStr}`, 'info', 'user');
+        });
+        this.on('playerLeft', (id, player) => {
+            if (this.isHost || !player) return;
+            const actionStr = this.inGame ? 'вышел из игры' : 'покинул лобби';
+            this.showToast(`Игрок "${player.name}" ${actionStr}`, 'danger', 'logOut');
+        });
+
         this.on('syncLog', (msg) => {
             const logsEl = document.getElementById('puzzle-sync-logs');
             if (logsEl) {
@@ -122,11 +137,26 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
             this.game.aspectRatio = initialAspectRatio;
         }
 
+        // ntfy.sh молча превращает сообщение в файл-вложение, если тело
+        // превышает ~4096 байт, а наш парсер такое вложение не читает
+        // (JSON.parse падает на тексте "You received a file..."). Полный
+        // объект поста с rule34 (особенно tag_info — по записи на каждый
+        // тег) легко перебивает этот лимит, поэтому в roomData уходит
+        // только то, что реально нужно для рендера пазла на другой стороне.
+        const minimalPost = initialPost ? {
+            id: initialPost.id,
+            width: initialPost.width,
+            height: initialPost.height,
+            sample_url: initialPost.sample_url,
+            preview_url: initialPost.preview_url,
+            file_url: initialPost.file_url
+        } : null;
+
         const roomData = {
             mode: this.gameMode,
             targetPieces: options.targetPieces || 36,
             maxPlayers: options.maxPlayers || 8,
-            post: initialPost,
+            post: minimalPost,
             postUrl: initialPost ? (initialPost.sample_url || initialPost.preview_url || initialPost.file_url) : '',
             aspectRatio: initialAspectRatio,
             seamsSeed: Math.floor(Math.random() * 1000000000)
@@ -240,7 +270,7 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
             const targetPieces = roomData.targetPieces;
             const seamsSeed = roomData.seamsSeed;
             
-            this.showToast(`🚀 Игра началась! Режим: ${roomData.mode === 'race' ? 'Гонка на скорость' : 'Совместный сбор'}`, 'success');
+            this.showToast(`Игра началась! Режим: ${roomData.mode === 'race' ? 'Гонка на скорость' : 'Совместный сбор'}`, 'success', 'play');
             this.game.seamsSeed = seamsSeed;
             
             if (post) {
@@ -327,19 +357,19 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
         if (this.gameMode === 'race') {
             if (isSelf) {
                 if (packet.isSurrendered) {
-                    this.showToast(`🏳️ Вы сдались (использован автосбор)`, 'danger');
+                    this.showToast(`Вы сдались (использован автосбор)`, 'danger', 'flag');
                 } else {
-                    this.showToast(`🥇 ПОБЕДА! Вы первым собрали пазл за ${this.game.formatTime(packet.time)}!`, 'success');
+                    this.showToast(`ПОБЕДА! Вы первым собрали пазл за ${this.game.formatTime(packet.time)}!`, 'success', 'trophy');
                 }
             } else {
                 if (packet.isSurrendered) {
-                    this.showToast(`🏳️ Игрок "${packet.winnerName}" сдался (автосбор)`, 'info');
+                    this.showToast(`Игрок "${packet.winnerName}" сдался (автосбор)`, 'info', 'flag');
                 } else {
-                    this.showToast(`🏆 Игрок "${packet.winnerName}" первым собрал пазл!`, 'info');
+                    this.showToast(`Игрок "${packet.winnerName}" первым собрал пазл!`, 'info', 'trophy');
                 }
             }
         } else {
-            this.showToast(`🎉 Пазл полностью собран всей командой!`, 'success');
+            this.showToast(`Пазл полностью собран всей командой!`, 'success', 'partyPopper');
         }
         
         this.renderLeaderboardModal(packet);
@@ -371,7 +401,7 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
         
         if (votes >= totalPlayers) {
             this.broadcast({ type: 'EXECUTE_ACTION', actionType: this.currentVote.actionType });
-            this.showToast(`✅ Действие ${this.currentVote.actionType === 'RESTART' ? 'перезапуск' : 'автосбор'} одобрено всеми!`, 'success');
+            this.showToast(`Действие ${this.currentVote.actionType === 'RESTART' ? 'перезапуск' : 'автосбор'} одобрено всеми!`, 'success', 'check');
             this.executeAction(this.currentVote.actionType);
             this.currentVote = null;
         } else if (Object.values(this.currentVote.votes).filter(v => v === false).length > 0) {
@@ -416,13 +446,6 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
         const wasHost = this.isHost;
         const prevRoomId = this.roomId;
 
-        if (this.roomId) {
-            fetch('/api/room/leave', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ roomId: this.roomId, playerId: this.playerId })
-            }).catch(() => {});
-        }
         this.broadcast({ type: 'LEAVE', playerId: this.playerId });
         
         super.leaveRoom();
@@ -445,9 +468,9 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
 
         if (prevRoomId) {
             if (wasHost) {
-                this.showToast(`🚪 Комната ${prevRoomId} закрыта. Соединение отключено.`, 'info');
+                this.showToast(`Комната ${prevRoomId} закрыта. Соединение отключено.`, 'info', 'ban');
             } else {
-                this.showToast(`🚪 Вы покинули комнату ${prevRoomId}. Соединение отключено.`, 'info');
+                this.showToast(`Вы покинули комнату ${prevRoomId}. Соединение отключено.`, 'info', 'logOut');
             }
         }
     }

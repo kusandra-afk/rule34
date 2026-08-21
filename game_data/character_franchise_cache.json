@@ -1,0 +1,122 @@
+{
+  "2b_(nier)": {
+    "source": "wikidata",
+    "title": "NieR: Automata",
+    "type": "game"
+  },
+  "aardie_(aardwolferowo)": {
+    "source": "tag",
+    "title": null,
+    "type": "original"
+  },
+  "akande_ogundimu": {
+    "source": "none",
+    "title": null,
+    "type": "unknown"
+  },
+  "android_18": {
+    "source": "anilist_character",
+    "title": "Dragon Ball Z",
+    "type": "anime"
+  },
+  "angelina_(arknights)": {
+    "source": "wikidata",
+    "title": "Arknights",
+    "type": "game"
+  },
+  "byleth_(summer)_(fire_emblem)_(female)": {
+    "source": "wikidata",
+    "title": "Fire Emblem",
+    "type": "game"
+  },
+  "doomfist": {
+    "source": "none",
+    "title": null,
+    "type": "unknown"
+  },
+  "emma_frost_(marvel_rivals)": {
+    "source": "anilist_media",
+    "title": "Final Fantasy: The Spirits Within",
+    "type": "anime"
+  },
+  "eve_(bible)": {
+    "source": "none",
+    "title": null,
+    "type": "unknown"
+  },
+  "evil_eye_(dandadan)": {
+    "source": "anilist_character",
+    "title": "Dandadan",
+    "type": "manga"
+  },
+  "guts_(berserk)": {
+    "source": "wikidata",
+    "title": "Berserk",
+    "type": "manga"
+  },
+  "human_(world_of_warcraft)": {
+    "source": "wikidata",
+    "title": "World of Warcraft",
+    "type": "game"
+  },
+  "inoue_orihime": {
+    "source": "wikidata",
+    "title": "Bleach",
+    "type": "franchise"
+  },
+  "kanon_(umineko)": {
+    "source": "anilist_character",
+    "title": "Umineko: When They Cry",
+    "type": "anime"
+  },
+  "kochou_shinobu": {
+    "source": "wikidata",
+    "title": "Demon Slayer",
+    "type": "game"
+  },
+  "mogador_(azur_lane)": {
+    "source": "anilist_character",
+    "title": "Azur Lane: 8 Shuunen Kinen Anime PV",
+    "type": "anime"
+  },
+  "nami_(one_piece)": {
+    "source": "anilist_character",
+    "title": "ONE PIECE",
+    "type": "anime"
+  },
+  "pokemon": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "pokemon_(species)": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "raiden_shogun_(genshin_impact)": {
+    "source": "wikidata",
+    "title": "Genshin Impact",
+    "type": "game"
+  },
+  "sylvain_jose_gautier": {
+    "source": "wikidata",
+    "title": "Fire Emblem",
+    "type": "game"
+  },
+  "teo_minh": {
+    "source": "none",
+    "title": null,
+    "type": "unknown"
+  },
+  "walrider": {
+    "source": "wikidata",
+    "title": "Elden Ring",
+    "type": "game"
+  },
+  "zero_two_(darling_in_the_franxx)": {
+    "source": "wikidata",
+    "title": "Darling in the Franxx",
+    "type": "anime"
+  }
+}

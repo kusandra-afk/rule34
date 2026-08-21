@@ -9,10 +9,11 @@ export class OnlineSync {
             onlineMgr.roomData.players[clientPlayerId] = packet.player;
             if (!alreadyExists) {
                 const actionStr = onlineMgr.inGame ? 'подключился к игре' : 'вошел в лобби';
-                onlineMgr.showToast(`👤 Игрок "${packet.player.name}" ${actionStr}`, 'info');
+                onlineMgr.showToast(`Игрок "${packet.player.name}" ${actionStr}`, 'info', 'user');
             }
             onlineMgr.addSyncLog(`Игрок ${packet.player.name} вошел в лобби`);
             onlineMgr.broadcastRoomData();
+            if (!onlineMgr.inGame) onlineMgr.updateLobbyPlayerList();
         } else if (packet.type === 'RACE_PROGRESS') {
             if (onlineMgr.roomData.players[clientPlayerId]) {
                 Object.assign(onlineMgr.roomData.players[clientPlayerId], packet);
@@ -44,10 +45,11 @@ export class OnlineSync {
             const oldPlayer = onlineMgr.roomData?.players?.[clientPlayerId];
             if (oldPlayer) {
                 const actionStr = onlineMgr.inGame ? 'вышел из игры' : 'покинул лобби';
-                onlineMgr.showToast(`🚪 Игрок "${oldPlayer.name}" ${actionStr}`, 'danger');
+                onlineMgr.showToast(`Игрок "${oldPlayer.name}" ${actionStr}`, 'danger', 'logOut');
             }
             delete onlineMgr.roomData.players[clientPlayerId];
             onlineMgr.broadcastRoomData();
+            if (!onlineMgr.inGame) onlineMgr.updateLobbyPlayerList();
         } else if (packet.type === 'ACTION_REQUEST') {
             if (onlineMgr.currentVote) {
                 onlineMgr.addSyncLog(`Уже идет голосование за ${onlineMgr.currentVote.actionType}`);
@@ -79,21 +81,15 @@ export class OnlineSync {
 
     static handleClientReceivedMessage(onlineMgr, packet) {
         if (packet.type === 'ROOM_DATA') {
-            const oldPlayers = onlineMgr.roomData?.players || {};
-            const newPlayers = packet.roomData.players || {};
-            for (const id in newPlayers) {
-                if (id !== onlineMgr.playerId && !oldPlayers[id]) {
-                    const actionStr = onlineMgr.inGame ? 'подключился к игре' : 'вошел в лобби';
-                    onlineMgr.showToast(`👤 Игрок "${newPlayers[id].name}" ${actionStr}`, 'info');
-                }
-            }
-            for (const id in oldPlayers) {
-                if (id !== onlineMgr.playerId && !newPlayers[id]) {
-                    const actionStr = onlineMgr.inGame ? 'вышел из игры' : 'покинул лобби';
-                    onlineMgr.showToast(`🚪 Игрок "${oldPlayers[id].name}" ${actionStr}`, 'danger');
-                }
-            }
-
+            // Уведомления "игрок вошёл/вышел" на стороне клиента теперь
+            // приходят через события playerJoined/playerLeft (см. конструктор
+            // PuzzleOnlineManager) — их эмитит сам BaseOnlineEngine при
+            // получении ROOM_DATA, сравнивая список игроков ДО перезаписи
+            // onlineMgr.roomData. Раньше та же diff-логика стояла прямо тут,
+            // но onlineMgr.roomData на этот момент уже указывал на тот же
+            // объект, что и packet.roomData (базовый класс успевал
+            // перезаписать его раньше), так что сравнение всегда находило
+            // отсутствие разницы и тост никогда не показывался клиенту.
             onlineMgr.roomData = packet.roomData;
             onlineMgr.gameMode = packet.roomData.mode;
             if (!onlineMgr.inGame) {
@@ -155,9 +151,9 @@ export class OnlineSync {
         } else if (packet.type === 'LEAVE' || packet.type === 'ROOM_CLOSED') {
             if (onlineMgr.roomData && (packet.playerId === onlineMgr.roomData.hostId || packet.type === 'ROOM_CLOSED')) {
                 if (onlineMgr.active) {
-                    onlineMgr.showToast('🛑 Комната закрыта организатором. Соединение разорвано.', 'danger');
+                    onlineMgr.showToast('Комната закрыта организатором. Соединение разорвано.', 'danger', 'ban');
                     if (typeof window.showConfirmModal === 'function') {
-                        window.showConfirmModal('Комната закрыта', '🛑 Организатор закрыл комнату. Соединение отключено.', { hideCancel: true }).then(() => {
+                        window.showConfirmModal('Комната закрыта', 'Организатор закрыл комнату. Соединение отключено.', { hideCancel: true, confirmLabel: 'Понятно' }).then(() => {
                             onlineMgr.leaveRoom();
                         });
                     } else {
@@ -168,7 +164,7 @@ export class OnlineSync {
                 const oldPlayer = onlineMgr.roomData.players[packet.playerId];
                 if (oldPlayer) {
                     const actionStr = onlineMgr.inGame ? 'вышел из игры' : 'покинул лобби';
-                    onlineMgr.showToast(`🚪 Игрок "${oldPlayer.name}" ${actionStr}`, 'danger');
+                    onlineMgr.showToast(`Игрок "${oldPlayer.name}" ${actionStr}`, 'danger', 'logOut');
                 }
                 delete onlineMgr.roomData.players[packet.playerId];
                 if (onlineMgr.game && typeof onlineMgr.game.clearRemoteDrag === 'function') {
@@ -182,7 +178,7 @@ export class OnlineSync {
                 onlineMgr.showVoteDialog(packet.actionType, packet.requesterId, packet.requesterName);
             }
         } else if (packet.type === 'EXECUTE_ACTION') {
-            onlineMgr.showToast(`✅ Действие ${packet.actionType === 'RESTART' ? 'перезапуск' : 'автосбор'} одобрено командой!`, 'success');
+            onlineMgr.showToast(`Действие ${packet.actionType === 'RESTART' ? 'перезапуск' : 'автосбор'} одобрено командой!`, 'success', 'check');
             onlineMgr.executeAction(packet.actionType);
         } else if (packet.type === 'VOTING_REJECTED') {
             onlineMgr.showToast('Команда отклонила действие!', 'danger');

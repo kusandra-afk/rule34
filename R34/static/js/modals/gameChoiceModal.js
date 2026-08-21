@@ -38,7 +38,7 @@ export function openGameChoiceModal(onStartPuzzle) {
                 </div>
                 
                 <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <input type="text" id="gameMeteredKeyInput" class="game-choice-input" placeholder="Вставьте ваш API Key (pk_live_...)" autocomplete="off" spellcheck="false">
+                    <input type="text" id="gameMeteredKeyInput" class="game-choice-input" placeholder="имяПриложения.apiKey" autocomplete="off" spellcheck="false">
                     <button id="gameCheckMeteredKeyBtn" class="game-choice-check-btn">Проверить и сохранить ключ</button>
                 </div>
             </div>
@@ -51,6 +51,14 @@ export function openGameChoiceModal(onStartPuzzle) {
                 </div>
             </button>
 
+            <button id="selectGuessBtn" class="game-choice-btn">
+                <span class="game-choice-btn-icon">⚖️</span>
+                <div style="text-align: left;">
+                    <div class="game-choice-btn-text">Больше / Меньше <span style="font-size: 0.65em; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; padding: 2px 8px; border-radius: 8px; font-weight: 800; vertical-align: middle; margin-left: 4px;">В разработке</span></div>
+                    <div class="game-choice-btn-sub">Угадай, у какого персонажа больше постов</div>
+                </div>
+            </button>
+
             <!-- Другие игры -->
             <div class="game-choice-section-title muted">Новые игры (планируется)</div>
 
@@ -59,14 +67,6 @@ export function openGameChoiceModal(onStartPuzzle) {
                 <div style="text-align: left;">
                     <div class="game-choice-btn-text game-choice-btn-text-muted">Угадай тег / Персонажа</div>
                     <div class="game-choice-btn-sub">Викторина на знание тегов наперегонки</div>
-                </div>
-            </button>
-
-            <button disabled class="game-choice-btn-disabled">
-                <span class="game-choice-btn-icon disabled">⚖️</span>
-                <div style="text-align: left;">
-                    <div class="game-choice-btn-text game-choice-btn-text-muted">Больше / Меньше</div>
-                    <div class="game-choice-btn-sub">Классическая игра на сравнение популярности тегов</div>
                 </div>
             </button>
 
@@ -116,6 +116,15 @@ export function openGameChoiceModal(onStartPuzzle) {
         }
     };
 
+    modal.querySelector('#selectGuessBtn').onclick = () => {
+        closeModal();
+        if (typeof window.startGuessGame === 'function') {
+            window.startGuessGame();
+        } else {
+            console.error('[GameChoiceModal] Guess game launcher function not found on window.');
+        }
+    };
+
     // --- Metered.ca Key Logic ---
     const keyInput = modal.querySelector('#gameMeteredKeyInput');
     const checkBtn = modal.querySelector('#gameCheckMeteredKeyBtn');
@@ -142,28 +151,19 @@ export function openGameChoiceModal(onStartPuzzle) {
                     <div class="instr-modal-steps-box">
                         <ol class="instr-modal-ol">
                             <li class="instr-modal-li">
-                                <b>Регистрация:</b> Перейдите на сайт в окно регистрации по ссылке <a href="https://dashboard.metered.ca/signup" target="_blank" class="instr-modal-link">dashboard.metered.ca/signup</a>. Введите ник, почту и пароль, остальное заполнять <b>не обязательно</b>.
+                                <b>Регистрация:</b> Перейдите по ссылке <a href="https://dashboard.metered.ca/signup?tool=turnserver" target="_blank" class="instr-modal-link">dashboard.metered.ca/signup?tool=turnserver</a> — это регистрация именно в TURN-сервере (не в чате). Введите ник, почту и пароль, остальное заполнять <b>не обязательно</b>.
                             </li>
                             <li class="instr-modal-li">
-                                <b>Создание приложения:</b> Далее вас попросит создать новое приложение. В поле ввода домена (Domain) вводите <b>что угодно</b> (любое слово на английском) и нажимайте <b>Create App</b>.
+                                <b>TURN Credentials:</b> В личном кабинете откройте раздел <b>TURN Credentials</b> и нажмите <b>Add Credential</b> — появится строка с готовыми <b>Username</b> и <b>Password</b>.
                             </li>
                             <li class="instr-modal-li">
-                                <b>Активация чата:</b> После этого на левой панели найдите вкладку <b>Realtime Messaging</b> и перейдите в неё. Там выберите пункт <b>Real-time chat</b> и нажмите кнопку <b>Enable Realtime Messaging</b>.
-                            </li>
-                            <li class="instr-modal-li">
-                                <b>Генерация ключа:</b> После этого нажмите на правую кнопку <b>Create key</b>. В открывшемся окне в поле <b>Key type</b> обязательно выберите <b>Publishable key</b>, затем промотайте в самый низ и нажмите кнопку <b>Create key</b>.
-                            </li>
-                            <li class="instr-modal-li">
-                                <b>Копирование:</b> После этого копируйте полученный <b>API Key</b> (он выглядит как <code class="instr-modal-code">pk_live_..........</code>).
-                            </li>
-                            <li class="instr-modal-li">
-                                <b>Запуск игры:</b> Вставляйте этот ключ в поле ввода на главном экране игры, нажимайте <b>Проверить</b>, и если пишет, что ключ верный — можете начинать играть!
+                                <b>Запуск игры:</b> В поле ввода на главном экране игры вставляйте <b>Username</b>, точку, и сразу за ней <b>Password</b> без пробелов — например <code class="instr-modal-code">865d628f128429b0eef16fe6.ZIkbOwetcPHjrqR4</code>. Нажимайте <b>Проверить</b>, и если пишет, что ключ верный — можете начинать играть!
                             </li>
                         </ol>
                     </div>
 
                     <div class="instr-modal-warning">
-                        <p class="instr-modal-warning-p">💡 <b>Важное упоминание:</b> У каждого игрока в идеале должен быть зарегистрирован свой ключ, но можно сделать и так, что кто-то один создаст его и просто даст код ключа остальным игрокам — он будет работать у всех!</p>
+                        <p class="instr-modal-warning-p">💡 <b>Важное упоминание:</b> У каждого игрока в идеале должен быть зарегистрирован свой ключ, но можно сделать и так, что кто-то один создаст его и просто даст код ключа остальным игрокам — он будет работать у всех! Бесплатного тарифа (20 ГБ TURN-трафика в месяц) с запасом хватает для игры с друзьями.</p>
                     </div>
 
                     <div class="instr-modal-footer-note">
@@ -196,25 +196,48 @@ export function openGameChoiceModal(onStartPuzzle) {
         if (!key) return;
 
         if (/^[0-9a-fA-F]{32,120}$/.test(key)) {
-            alert('⚠️ Вы вставили API-ключ от Rule34! Требуется ключ Metered.ca (нач. на "pk_live_").');
+            alert('⚠️ Вы вставили API-ключ от Rule34! Требуется пара Username.Password из Metered TURN Credentials.');
             return;
         }
 
-        if (!key.startsWith('pk_') && !key.startsWith('sk_')) {
-            alert('⚠️ Введённый ключ не похож на ключ Metered.ca.');
+        const dotIdx = key.indexOf('.');
+        if (dotIdx === -1 || dotIdx === 0 || dotIdx === key.length - 1) {
+            alert('⚠️ Неверный формат. Нужно "Username.Password" — из таблицы TURN Credentials, через точку, без пробелов.');
             return;
         }
+
+        const username = key.slice(0, dotIdx);
+        const credential = key.slice(dotIdx + 1);
 
         const originalText = checkBtn.textContent;
         checkBtn.textContent = 'Проверка...';
         checkBtn.disabled = true;
 
+        // Настоящей REST-проверки для статичной пары username/credential нет —
+        // проверяем по-честному: пробуем реально собрать ICE-кандидат типа
+        // "relay" через TURN с этими данными (если сервер их не принял,
+        // relay-кандидат просто не появится).
         try {
-            const ws = new WebSocket(`wss://rms.metered.ca/v1?key=${key}`);
-            let success = false;
-            ws.onopen = () => {
-                success = true;
-                ws.close();
+            const ok = await new Promise((resolve) => {
+                const pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'turn:global.relay.metered.ca:80', username, credential }]
+                });
+                let done = false;
+                const finish = (result) => {
+                    if (done) return;
+                    done = true;
+                    try { pc.close(); } catch (e) {}
+                    resolve(result);
+                };
+                pc.onicecandidate = (e) => {
+                    if (e.candidate && e.candidate.type === 'relay') finish(true);
+                };
+                pc.createDataChannel('test');
+                pc.createOffer().then(offer => pc.setLocalDescription(offer)).catch(() => finish(false));
+                setTimeout(() => finish(false), 7000);
+            });
+
+            if (ok) {
                 localStorage.setItem('gameMeteredKey', key);
                 localStorage.setItem('hlMeteredKey', key);
                 checkBtn.textContent = '✅ Сохранено!';
@@ -224,22 +247,15 @@ export function openGameChoiceModal(onStartPuzzle) {
                     checkBtn.style.background = '';
                     checkBtn.disabled = false;
                 }, 3000);
-            };
-            ws.onerror = () => {
-                if (success) return;
+            } else {
                 checkBtn.disabled = false;
                 checkBtn.textContent = originalText;
-                alert('❌ Ошибка: Не удалось подключиться. Проверьте правильность ключа.');
-            };
-            setTimeout(() => {
-                if (!success && checkBtn.disabled) {
-                    checkBtn.disabled = false;
-                    checkBtn.textContent = originalText;
-                }
-            }, 7000);
+                alert('❌ Не удалось получить TURN-соединение с этими данными. Проверьте Username/Password в TURN Credentials.');
+            }
         } catch (e) {
             checkBtn.disabled = false;
             checkBtn.textContent = originalText;
+            alert('❌ Не удалось подключиться к Metered.ca. Проверьте интернет-соединение.');
         }
     };
 }

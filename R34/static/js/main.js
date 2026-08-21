@@ -8,6 +8,7 @@ import { initTutorialModal, checkAndRemoveModalOpenClass } from './modals/tutori
 import { showConfirmModal } from './modals/confirmModal.js';
 import { openGameChoiceModal } from './modals/gameChoiceModal.js';
 import { startPuzzleGame } from './components/puzzleLauncher.js';
+import { GuessUI } from './components/guessUI.js';
 import { initSettingsModal } from './modals/settingsModal.js';
 import { initR34SelectDropdowns } from './components/customDropdown.js';
 import { ApiSettingsManager } from './settings/apiSettings.js';
@@ -39,6 +40,7 @@ window.showConfirmModal = showConfirmModal;
 window.openGameChoiceModal = openGameChoiceModal;
 window.startPuzzleGame = startPuzzleGame;
 window.openPuzzleMenu = startPuzzleGame;
+window.startGuessGame = () => GuessUI.open();
 window.getSavedExcludedTags = getSavedExcludedTags;
 window.saveSavedExcludedTags = saveSavedExcludedTags;
 

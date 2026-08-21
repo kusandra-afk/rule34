@@ -2,7 +2,7 @@
  * Reusable Promise-based confirmation modal
  */
 
-export function showConfirmModal(title, message) {
+export function showConfirmModal(title, message, options = {}) {
     return new Promise((resolve) => {
         const modal = document.getElementById('confirm-modal');
         if (!modal) {
@@ -17,6 +17,11 @@ export function showConfirmModal(title, message) {
 
         if (titleEl) titleEl.textContent = title;
         if (messageEl) messageEl.textContent = message;
+        // Модалка одна на всё приложение — сбрасываем display/текст кнопок
+        // на дефолт при каждом вызове, иначе состояние от hideCancel одного
+        // вызывающего протечёт в следующий, никак не связанный, вызов.
+        if (cancelBtn) cancelBtn.style.display = options.hideCancel ? 'none' : '';
+        if (confirmBtn) confirmBtn.textContent = options.confirmLabel || 'Подтвердить';
 
         modal.classList.add('open');
 

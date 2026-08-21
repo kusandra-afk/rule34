@@ -28,6 +28,9 @@ export class Gallery {
         this._autoSlidePausedByUser = false;
         this.realCount = undefined;
         this._playingGridVideos = new Set();
+        this._pendingDurationHides = [];
+        this._durationHideFlushTimer = null;
+        this._virtualTransitionAt = new Map();
         this._savedVideoPositions = {};
         this._playbackObserver = null;
         this.favoritesPosts = [];
@@ -636,6 +639,19 @@ export class Gallery {
         // это единственная карточка, чьи соседние блоки реально на виду.
         if (idx === this.openedInfoIndex) return;
 
+        // Гистерезис против дребезга: подмена карточка<->заглушка чуть меняет
+        // итоговую высоту (заглушке высоту фиксирует JS-снимок, а у настоящей
+        // карточки её задаёт CSS aspect-ratio) — этого хватает, чтобы для
+        // карточек прямо на границе rootMargin наблюдатель тут же увидел
+        // повторное пересечение и запустил обратный переход, а тот снова
+        // прямой, и так сотни раз в секунду. Не даём одному и тому же idx
+        // переключаться туда-обратно чаще, чем раз в 400мс — цикл рвётся, а
+        // на настоящий скролл это не влияет (человек столько не успевает).
+        const nowTs = performance.now();
+        const lastTs = this._virtualTransitionAt.get(idx) || 0;
+        if (nowTs - lastTs < 400) return;
+        this._virtualTransitionAt.set(idx, nowTs);
+
         const height = precomputedHeight != null ? precomputedHeight : container.getBoundingClientRect().height;
 
         if (container.dataset.loaded === '1') {
@@ -663,6 +679,12 @@ export class Gallery {
 
     _hydrateCard(placeholder) {
         const idx = parseInt(placeholder.dataset.idx, 10);
+        // Тот же гистерезис, что и в _virtualizeCard — см. комментарий там.
+        const nowTs = performance.now();
+        const lastTs = this._virtualTransitionAt.get(idx) || 0;
+        if (nowTs - lastTs < 400) return;
+        this._virtualTransitionAt.set(idx, nowTs);
+
         const post = this.currentPosts[idx];
         if (!post) return;
 
@@ -1035,6 +1057,30 @@ export class Gallery {
         }
     }
 
+    // Каждое видео в гриде грузит свои метаданные независимо и в свой момент
+    // времени — если сразу прятать карточку, как только ЕЁ ОДНОЙ видео не
+    // прошло фильтр по длительности, сетка перестраивается заново на каждое
+    // такое видео по отдельности, и соседние карточки одна за другой дёргано
+    // прыгают вверх, пока догружаются остальные. Вместо немедленного
+    // display:none копим такие карточки и прячем все разом одним пакетом —
+    // одна перестройка сетки вместо десятка дёрганых.
+    _scheduleHideCard(container, extraInfo) {
+        this._pendingDurationHides.push({ container, extraInfo });
+        if (this._durationHideFlushTimer) return;
+        this._durationHideFlushTimer = setTimeout(() => {
+            const batch = this._pendingDurationHides;
+            this._pendingDurationHides = [];
+            this._durationHideFlushTimer = null;
+            batch.forEach(({ container, extraInfo }) => {
+                container.style.display = 'none';
+                if (extraInfo) {
+                    extraInfo.style.display = 'none';
+                    extraInfo.setAttribute('hidden', 'true');
+                }
+            });
+        }, 250);
+    }
+
     loadMedia(container, post, index) {
         if (!post) return;
         const isVideo = ['mp4', 'webm', 'mov'].includes((post.file_url?.split('.').pop() || '').toLowerCase());
@@ -1116,26 +1162,47 @@ export class Gallery {
             video.addEventListener('volumechange', updateSoundBtnUI);
             updateSoundBtnUI();
 
-            // Filter by minimum video duration & store cached duration
-            const checkVideoDuration = () => {
-                const duration = video.duration;
-                if (!isNaN(duration) && duration > 0) {
-                    localStorage.setItem(`r34_duration_${post.id}`, duration.toString());
-                    const enabled = localStorage.getItem('r34_min_duration_enabled') === 'true';
-                    const minDuration = enabled ? (parseInt(localStorage.getItem('r34_min_duration'), 10) || 30) : 0;
-                    if (minDuration > 0 && duration < minDuration) {
-                        container.style.display = 'none';
-                        if (container.extraInfo) {
-                            container.extraInfo.style.display = 'none';
-                            container.extraInfo.setAttribute('hidden', 'true');
+            // Filter by minimum video duration & store cached duration.
+            // Карточки виртуализируются на скролле — каждый повторный вход в
+            // вьюпорт заново создаёт <video> и заново вешает все эти
+            // слушатели, даже если длительность уже давно измерена и лежит в
+            // кэше. При быстром скролле по галерее с видео это означает
+            // лишние localStorage.setItem на каждый повторный показ каждой
+            // карточки — заметный вклад в подтормаживание. Если длительность
+            // уже в кэше, замер вообще не нужен: сразу решаем, прятать
+            // карточку или нет, и слушатели не вешаем.
+            const alreadyCachedDuration = parseFloat(localStorage.getItem(`r34_duration_${post.id}`));
+            if (!isNaN(alreadyCachedDuration) && alreadyCachedDuration > 0) {
+                const enabledNow = localStorage.getItem('r34_min_duration_enabled') === 'true';
+                const minDurationNow = enabledNow ? (parseInt(localStorage.getItem('r34_min_duration'), 10) || 30) : 0;
+                if (minDurationNow > 0 && alreadyCachedDuration < minDurationNow) {
+                    this._scheduleHideCard(container, container.extraInfo);
+                }
+            } else {
+                // Слушатели снимаются после первого успешного замера — дальше
+                // событие может сработать ещё несколько раз за то же самое
+                // видео, но повторно писать в localStorage и пересчитывать
+                // уже незачем.
+                const checkVideoDuration = () => {
+                    const duration = video.duration;
+                    if (!isNaN(duration) && duration > 0) {
+                        video.removeEventListener('loadedmetadata', checkVideoDuration);
+                        video.removeEventListener('durationchange', checkVideoDuration);
+                        video.removeEventListener('loadeddata', checkVideoDuration);
+                        video.removeEventListener('canplay', checkVideoDuration);
+                        localStorage.setItem(`r34_duration_${post.id}`, duration.toString());
+                        const enabled = localStorage.getItem('r34_min_duration_enabled') === 'true';
+                        const minDuration = enabled ? (parseInt(localStorage.getItem('r34_min_duration'), 10) || 30) : 0;
+                        if (minDuration > 0 && duration < minDuration) {
+                            this._scheduleHideCard(container, container.extraInfo);
                         }
                     }
-                }
-            };
-            video.addEventListener('loadedmetadata', checkVideoDuration);
-            video.addEventListener('durationchange', checkVideoDuration);
-            video.addEventListener('loadeddata', checkVideoDuration);
-            video.addEventListener('canplay', checkVideoDuration);
+                };
+                video.addEventListener('loadedmetadata', checkVideoDuration);
+                video.addEventListener('durationchange', checkVideoDuration);
+                video.addEventListener('loadeddata', checkVideoDuration);
+                video.addEventListener('canplay', checkVideoDuration);
+            }
             
             const prefVideoQuality = localStorage.getItem('r34_video_quality') || 'hd';
             let initialVideoSrc = post.file_url;

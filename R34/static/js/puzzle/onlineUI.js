@@ -2,24 +2,47 @@ import { icon } from '../icons.js';
 import { makeCustomDropdown } from '../components/customDropdown.js';
 import { fetchPostById } from '../api.js';
 
+// ntfy.sh молча превращает сообщение в файл-вложение, если тело превышает
+// ~4096 байт, а клиент такое вложение не читает (JSON.parse падает на тексте
+// "You received a file..."). Полный объект поста с rule34 (особенно
+// tag_info — по записи на каждый тег) легко перебивает этот лимит, поэтому
+// в roomData.post уходит только то, что реально нужно для рендера пазла.
+function toMinimalPost(post) {
+    if (!post) return null;
+    return {
+        id: post.id,
+        width: post.width,
+        height: post.height,
+        sample_url: post.sample_url,
+        preview_url: post.preview_url,
+        file_url: post.file_url
+    };
+}
+
+const TOAST_DEFAULT_ICONS = { success: 'check', danger: 'ban', info: 'info', warning: 'warning' };
+
 export class OnlineUI {
-    static showToast(msg, type = 'info') {
+    // iconName выбирает SVG из icons.js (см. TOAST_DEFAULT_ICONS для дефолта
+    // по типу) — вызывающий код должен передавать конкретную иконку под
+    // смысл события (user/logOut/trophy/flag/...), а не полагаться только
+    // на цвет типа, иначе разные события одного типа (уход игрока vs сдача
+    // партии, оба 'danger') визуально неотличимы друг от друга.
+    static showToast(msg, type = 'info', iconName = null) {
         if (window.safeScreen && window.safeScreen.isActive) return;
-        const colors = { success: '#10b981', danger: '#ef4444', info: '#3b82f6' };
         const toast = document.createElement('div');
-        toast.style.cssText = `
-            position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
-            background: ${colors[type] || '#3b82f6'}; color: #fff; font-weight: bold;
-            padding: 12px 24px; border-radius: 12px; z-index: 10000000;
-            box-shadow: 0 12px 32px rgba(0,0,0,0.5); font-size: 0.95rem;
-            opacity: 1; transition: all 0.3s ease;
-            pointer-events: none; text-align: center;
+        toast.className = `r34-toast r34-toast-${type}`;
+        toast.innerHTML = `
+            <span class="r34-toast-icon">${icon(iconName || TOAST_DEFAULT_ICONS[type] || 'info', { size: 18 })}</span>
+            <span class="r34-toast-text"></span>
         `;
-        toast.textContent = msg;
+        toast.querySelector('.r34-toast-text').textContent = msg;
         document.body.appendChild(toast);
+        // setTimeout, а не requestAnimationFrame — rAF не срабатывает вовсе,
+        // пока вкладка в фоне (не в фокусе), и тост так и остаётся невидимым
+        // (opacity:0) до самого удаления по таймауту ниже.
+        setTimeout(() => toast.classList.add('show'), 10);
         setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translate(-50%, -15px)';
+            toast.classList.remove('show');
             setTimeout(() => toast.remove(), 300);
         }, 3500);
     }
@@ -270,7 +293,7 @@ export class OnlineUI {
                     }
 
                     const nextPost = unsolved[Math.floor(Math.random() * unsolved.length)];
-                    onlineMgr.roomData.post = nextPost;
+                    onlineMgr.roomData.post = toMinimalPost(nextPost);
                     let ratio = 1.0;
                     if (nextPost.width && nextPost.height && nextPost.width > 0 && nextPost.height > 0) {
                         ratio = nextPost.width / nextPost.height;
@@ -311,7 +334,7 @@ export class OnlineUI {
                                 OnlineUI.showToast('Это видео (нельзя для пазла)!', 'danger');
                                 return;
                             }
-                            onlineMgr.roomData.post = post;
+                            onlineMgr.roomData.post = toMinimalPost(post);
                             const newPreviewUrl = post.sample_url || post.preview_url || post.file_url;
                             onlineMgr.roomData.postUrl = newPreviewUrl;
                             onlineMgr.roomData.seamsSeed = Math.floor(Math.random() * 1000000000);
