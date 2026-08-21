@@ -140,9 +140,11 @@ export class GalleryController {
 
             const originalLength = posts.length;
 
-            // Excluded tags client-side filter
+            // Excluded tags client-side filter (skipped when the "Игнорировать"
+            // toggle for excluded tags is on — see tagSearch.js, r34_ignore_excluded_tags)
+            const ignoreExcludedTags = localStorage.getItem('r34_ignore_excluded_tags') === 'true';
             const excludedTagsRaw = localStorage.getItem('r34_excluded_tags');
-            const excludedTags = excludedTagsRaw ? JSON.parse(excludedTagsRaw) : [];
+            const excludedTags = ignoreExcludedTags ? [] : (excludedTagsRaw ? JSON.parse(excludedTagsRaw) : []);
             if (excludedTags.length > 0) {
                 const excludedSet = new Set(excludedTags.map(t => t.toLowerCase()));
                 posts = posts.filter(post => {
@@ -187,7 +189,23 @@ export class GalleryController {
                 this.isInitialLoad = false;
             }
 
-            const realCount = totalCount || (append ? (this.gallery?.realCount || posts.length) : posts.length);
+            const apiLimit = parseInt(localStorage.getItem('r34_api_limit') || '40', 10);
+            const limit = Math.min(Math.max(apiLimit, 1), 1000);
+
+            // Если API отдал меньше постов, чем лимит страницы (или вообще ничего),
+            // это последняя партия — дальше подгружать нечего. В этом случае
+            // показываем реальное количество постов ПОСЛЕ клиентской фильтрации
+            // (исключённые теги / только GIF / мин. длительность), а не сырое
+            // totalCount из отдельного API-запроса, которое ничего не знает об этой
+            // фильтрации — иначе счётчик может показывать "1 результат" при пустой
+            // галерее, если единственный найденный пост попал под исключённый тег.
+            const isLastBatch = originalLength === 0 || originalLength < limit;
+            let realCount;
+            if (isLastBatch) {
+                realCount = append ? ((this.gallery?.currentPosts?.length || 0) + posts.length) : posts.length;
+            } else {
+                realCount = totalCount || (append ? (this.gallery?.realCount || posts.length) : posts.length);
+            }
 
             if (this.gallery) {
                 if (typeof this.gallery.preloadTagTypes === 'function') {
@@ -201,14 +219,11 @@ export class GalleryController {
                 }
             }
 
-            const apiLimit = parseInt(localStorage.getItem('r34_api_limit') || '40', 10);
-            const limit = Math.min(Math.max(apiLimit, 1), 1000);
-
             const endOfResults = document.getElementById('end-of-results');
             const paginationContainer = document.getElementById('pagination-container');
             const scrollMode = localStorage.getItem('r34_scroll_mode') || 'infinite';
 
-            if (originalLength === 0 || originalLength < limit) {
+            if (isLastBatch) {
                 this.reachedEnd = true;
                 if (endOfResults) endOfResults.style.display = 'flex';
                 if (paginationContainer && scrollMode === 'pagination') {

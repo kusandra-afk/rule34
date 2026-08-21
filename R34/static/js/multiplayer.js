@@ -156,11 +156,12 @@ export class BaseOnlineEngine {
     }
 
     // --- ROOM CREATION & JOINING ---
-    async createRoom(customInitialData = {}) {
+    async createRoom(customInitialData = {}, password = '') {
         this.roomId = this.generateRoomCode();
         this.isHost = true;
         this.active = true;
-        
+        this.roomPassword = (password || '').trim();
+
         this.roomData = {
             id: this.roomId,
             hostId: this.playerId,
@@ -188,7 +189,8 @@ export class BaseOnlineEngine {
                     playerId: this.playerId,
                     playerName: this.playerName,
                     gameType: this.gameType,
-                    roomData: this.roomData
+                    roomData: this.roomData,
+                    password: this.roomPassword
                 })
             });
             
@@ -209,10 +211,11 @@ export class BaseOnlineEngine {
         }
     }
 
-    async joinRoom(code) {
+    async joinRoom(code, password = '') {
         this.roomId = code.trim().toUpperCase();
         this.isHost = false;
         this.active = true;
+        this.roomPassword = (password || '').trim();
 
         const myPlayerObj = {
             id: this.playerId,
@@ -230,7 +233,8 @@ export class BaseOnlineEngine {
                     roomId: this.roomId,
                     playerId: this.playerId,
                     playerName: this.playerName,
-                    playerInfo: myPlayerObj
+                    playerInfo: myPlayerObj,
+                    password: this.roomPassword
                 })
             });
 

@@ -282,28 +282,40 @@ export function applyThemeSettings() {
     const activeDark = document.documentElement.style.getPropertyValue('--dark').trim() || '#0a0b10';
     const activeBodyBg = document.documentElement.style.getPropertyValue('--body-bg').trim() || activeDark;
 
+    // Разбор #hex / rgb(a)(...) в компоненты RGB, с запасным значением по умолчанию
+    const parseColorToRgb = (str, fallback) => {
+        let [r, g, b] = fallback;
+        if (!str) return [r, g, b];
+        if (str.startsWith('#')) {
+            const hex = str.replace('#', '');
+            if (hex.length === 3) {
+                r = parseInt(hex[0] + hex[0], 16) || 0;
+                g = parseInt(hex[1] + hex[1], 16) || 0;
+                b = parseInt(hex[2] + hex[2], 16) || 0;
+            } else if (hex.length === 6) {
+                r = parseInt(hex.substring(0, 2), 16) || 0;
+                g = parseInt(hex.substring(2, 4), 16) || 0;
+                b = parseInt(hex.substring(4, 6), 16) || 0;
+            }
+        } else {
+            const rgbMatch = str.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+            if (rgbMatch) {
+                r = parseInt(rgbMatch[1], 10) || 0;
+                g = parseInt(rgbMatch[2], 10) || 0;
+                b = parseInt(rgbMatch[3], 10) || 0;
+            }
+        }
+        return [r, g, b];
+    };
+
     // Accent RGB parsing
-    let ar = 255, ag = 59, ab = 107;
-    if (activeAccent.startsWith('#')) {
-        const hex = activeAccent.replace('#', '');
-        if (hex.length === 3) {
-            ar = parseInt(hex[0] + hex[0], 16) || 0;
-            ag = parseInt(hex[1] + hex[1], 16) || 0;
-            ab = parseInt(hex[2] + hex[2], 16) || 0;
-        } else if (hex.length === 6) {
-            ar = parseInt(hex.substring(0, 2), 16) || 0;
-            ag = parseInt(hex.substring(2, 4), 16) || 0;
-            ab = parseInt(hex.substring(4, 6), 16) || 0;
-        }
-    } else {
-        const rgbMatch = activeAccent.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
-        if (rgbMatch) {
-            ar = parseInt(rgbMatch[1], 10) || 0;
-            ag = parseInt(rgbMatch[2], 10) || 0;
-            ab = parseInt(rgbMatch[3], 10) || 0;
-        }
-    }
+    const [ar, ag, ab] = parseColorToRgb(activeAccent, [255, 59, 107]);
     document.documentElement.style.setProperty('--accent-rgb', `${ar}, ${ag}, ${ab}`);
+
+    // RGB фона темы — чтобы фон модалок/подсказок был оттенком темы, а не
+    // нейтральным серым (иначе модалки визуально выпадают из цветовой схемы
+    // выбранной пользователем темы, см. --modal-bg / --suggestion-bg ниже)
+    const [dr, dg, db] = parseColorToRgb(activeDark, [4, 5, 9]);
 
     // Background luminance check
     const lum = getBgLuminance(activeBodyBg);
@@ -342,13 +354,13 @@ export function applyThemeSettings() {
         }
     } else {
         if (!localStorage.getItem('r34_expert_--modal-bg')) {
-            document.documentElement.style.setProperty('--modal-bg', 'rgba(4, 5, 9, 0.72)');
+            document.documentElement.style.setProperty('--modal-bg', `rgba(${dr}, ${dg}, ${db}, 0.82)`);
         }
         if (!localStorage.getItem('r34_expert_--tag-bg')) {
             document.documentElement.style.setProperty('--tag-bg', 'rgba(255, 255, 255, 0.05)');
         }
         if (!localStorage.getItem('r34_expert_--suggestion-bg')) {
-            document.documentElement.style.setProperty('--suggestion-bg', 'rgba(13, 15, 22, 0.94)');
+            document.documentElement.style.setProperty('--suggestion-bg', `rgba(${dr}, ${dg}, ${db}, 0.96)`);
         }
         if (!localStorage.getItem('r34_expert_--glass')) {
             document.documentElement.style.setProperty('--glass', 'rgba(255, 255, 255, 0.05)');

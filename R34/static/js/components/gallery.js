@@ -303,7 +303,7 @@ export class Gallery {
             const cols = this.getDisplayedColumns();
             const currentCols = this.resultsDiv.style.getPropertyValue('--gallery-cols');
             if (currentCols !== `${cols}`) {
-                this.resultsDiv.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+                this.resultsDiv.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
                 this.resultsDiv.style.setProperty('--gallery-cols', `${cols}`);
                 // Set attribute on body for CSS targeting
                 document.body.setAttribute('data-gallery-cols', cols);

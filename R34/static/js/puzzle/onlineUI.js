@@ -403,6 +403,7 @@ export class OnlineUI {
                             <input type="text" id="pzJoinCodeInput" class="game-input game-code-input" placeholder="5-значный код (напр. BFTZK)" maxlength="5">
                             <button class="game-btn-primary" id="pzJoinRoomBtn" style="min-width: auto; padding: 10px 18px;">${icon('arrowRight', { size: 16 })} Войти</button>
                         </div>
+                        <input type="password" id="pzJoinPasswordInput" class="game-input" placeholder="Пароль комнаты (если задан)" style="margin-top: 8px;" autocomplete="new-password">
                     </div>
 
                     <hr class="game-form-divider">
@@ -421,6 +422,8 @@ export class OnlineUI {
                                 </div>
                             </div>
                         </div>
+
+                        <input type="password" id="pzCreatePasswordInput" class="game-input" placeholder="Пароль комнаты (необязательно)" autocomplete="new-password">
 
                         <button id="pzCreateRoomBtn" class="game-btn-primary game-create-btn">
                             ${icon('sparkles', { size: 16 })} Создать Комнату
@@ -482,16 +485,18 @@ export class OnlineUI {
         document.getElementById('pzSetupCloseBtn').onclick = closeSetup;
 
         document.getElementById('pzCreateRoomBtn').onclick = () => {
-            onlineMgr.createRoom({ mode: selectedMode, targetPieces: 36, maxPlayers: 8 });
+            const password = document.getElementById('pzCreatePasswordInput').value;
+            onlineMgr.createRoom({ mode: selectedMode, targetPieces: 36, maxPlayers: 8, password });
         };
 
         document.getElementById('pzJoinRoomBtn').onclick = () => {
             const code = document.getElementById('pzJoinCodeInput').value.trim();
+            const password = document.getElementById('pzJoinPasswordInput').value;
             if (!code) {
                 OnlineUI.showToast('Введите код комнаты!', 'danger');
                 return;
             }
-            onlineMgr.joinRoom(code);
+            onlineMgr.joinRoom(code, password);
         };
     }
 

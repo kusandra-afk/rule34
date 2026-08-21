@@ -2,6 +2,7 @@ import time
 import queue
 import json
 from flask import Blueprint, request, jsonify, Response, stream_with_context
+from werkzeug.security import generate_password_hash, check_password_hash
 from handlers.core_utils import (
     ROOM_LOCK, ACTIVE_ROOMS, cleanup_stale_rooms
 )
@@ -19,10 +20,11 @@ def api_room_create():
         player_name = data.get('playerName') or data.get('hostName') or 'Игрок'
         room_data = data.get('roomData')
         game_type = data.get('gameType', 'generic')
-        
+        password = str(data.get('password') or '').strip()
+
         if not room_id or not player_id:
             return jsonify({'ok': False, 'error': 'roomId and playerId are required'}), 400
-            
+
         with ROOM_LOCK:
             cleanup_stale_rooms()
             p_queue = queue.Queue(maxsize=500)
@@ -30,6 +32,7 @@ def api_room_create():
                 'id': room_id,
                 'host_id': player_id,
                 'game_type': game_type,
+                'password_hash': generate_password_hash(password) if password else None,
                 'created_at': time.time(),
                 'last_active': time.time(),
                 'players': {
@@ -59,16 +62,27 @@ def api_room_join():
         player_id = str(data.get('playerId', '')).strip()
         player_name = data.get('playerName', 'Игрок')
         player_info = data.get('playerInfo', {})
-        
+        password = str(data.get('password') or '').strip()
+
         if not room_id or not player_id:
             return jsonify({'ok': False, 'error': 'roomId and playerId are required'}), 400
-            
+
         with ROOM_LOCK:
             cleanup_stale_rooms()
             if room_id not in ACTIVE_ROOMS:
                 return jsonify({'ok': False, 'error': 'room_not_found', 'message': 'Комната не найдена!'}), 404
-            
+
             room = ACTIVE_ROOMS[room_id]
+
+            # Комнату уже создал игрок, повторный "join" хоста (например, после
+            # переподключения) не должен требовать пароль повторно
+            password_hash = room.get('password_hash')
+            if password_hash and player_id != room['host_id']:
+                if not password:
+                    return jsonify({'ok': False, 'error': 'password_required', 'message': 'Комната защищена паролем'}), 401
+                if not check_password_hash(password_hash, password):
+                    return jsonify({'ok': False, 'error': 'invalid_password', 'message': 'Неверный пароль'}), 403
+
             room['last_active'] = time.time()
             if player_id not in room['queues']:
                 room['queues'][player_id] = queue.Queue(maxsize=500)
@@ -129,8 +143,13 @@ def api_room_signal():
         with ROOM_LOCK:
             if room_id not in ACTIVE_ROOMS:
                 return jsonify({'ok': False, 'error': 'room_not_found'}), 404
-            
+
             room = ACTIVE_ROOMS[room_id]
+            # Отправлять пакеты может только тот, кто реально прошёл /api/room/join
+            # (и, соответственно, проверку пароля) — иначе пароль комнаты можно
+            # было бы обойти, просто угадав чужой playerId и слав пакеты напрямую.
+            if sender_id not in room['players']:
+                return jsonify({'ok': False, 'error': 'not_joined'}), 403
             room['last_active'] = time.time()
             if sender_id in room['players']:
                 room['players'][sender_id]['last_seen'] = time.time()
@@ -177,6 +196,10 @@ def api_room_events():
         if room_id not in ACTIVE_ROOMS:
             return jsonify({'ok': False, 'error': 'room_not_found'}), 404
         room = ACTIVE_ROOMS[room_id]
+        # Как и в /signal — только уже присоединившийся игрок (прошедший
+        # проверку пароля в /join) может слушать события комнаты.
+        if player_id not in room['players']:
+            return jsonify({'ok': False, 'error': 'not_joined'}), 403
         if player_id not in room['queues']:
             room['queues'][player_id] = queue.Queue(maxsize=500)
         player_queue = room['queues'][player_id]
@@ -223,6 +246,8 @@ def api_room_poll():
         with ROOM_LOCK:
             if room_id in ACTIVE_ROOMS:
                 room = ACTIVE_ROOMS[room_id]
+                if player_id not in room['players']:
+                    return jsonify({'ok': False, 'error': 'not_joined'}), 403
                 room['last_active'] = time.time()
                 if player_id in room['queues']:
                     q = room['queues'][player_id]

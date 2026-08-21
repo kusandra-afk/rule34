@@ -133,7 +133,7 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
         };
 
         try {
-            const success = await super.createRoom(roomData);
+            const success = await super.createRoom(roomData, options.password || '');
             if (success) {
                 this.renderLobbyUI();
             } else {
@@ -148,17 +148,21 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
         }
     }
 
-    async joinRoom(code) {
+    async joinRoom(code, password = '') {
         this.renderSyncScreen('Подключение...', `Подключаемся к комнате ${code}...`);
         try {
-            const success = await super.joinRoom(code);
+            const success = await super.joinRoom(code, password);
             if (!success) {
                 this.showToast('Не удалось подключиться к комнате.', 'danger');
                 this.renderLobbySetupUI();
             }
         } catch (err) {
             console.error('[PuzzleOnline] Room join failed:', err);
-            const friendlyMsg = (err instanceof TypeError) ? 'Не удалось подключиться. Проверьте соединение.' : ((err && err.message) || 'Комната не найдена или недоступна.');
+            const errCode = err && err.message;
+            const friendlyMsg = errCode === 'password_required' ? 'Комната защищена паролем — введите его.'
+                : errCode === 'invalid_password' ? 'Неверный пароль комнаты.'
+                : (err instanceof TypeError) ? 'Не удалось подключиться. Проверьте соединение.'
+                : (errCode || 'Комната не найдена или недоступна.');
             this.showToast(friendlyMsg, 'danger');
             this.renderLobbySetupUI();
         }

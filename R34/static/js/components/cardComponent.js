@@ -105,6 +105,15 @@ export class CardComponent {
             container.appendChild(expandBtn);
         }
 
+        // Панорамные изображения (комиксы, широкие сцены) — --card-aspect выше
+        // зажат до 2.2, чтобы не ломать грид, но при таком зажиме object-fit:
+        // cover обрезает картинку по бокам. Вместо обрезки даём прокрутить
+        // карточку по горизонтали, чтобы её можно было посмотреть целиком.
+        const isWide = (post.width && post.height && (post.width / post.height > 2.8));
+        if (isWide && !isVideo) {
+            container.classList.add('wide-media');
+        }
+
         const placeholder = document.createElement('div');
         placeholder.className = 'media-placeholder';
         placeholder.innerHTML = isVideo ? '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>' : '';

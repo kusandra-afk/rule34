@@ -22,7 +22,7 @@
 body[data-gallery-cols="2"] #results,
 body[data-gallery-cols="3"] #results,
 body[data-gallery-cols="4"] #results {
-  grid-template-columns: repeat(var(--gallery-cols, 2), 1fr) !important;
+  grid-template-columns: repeat(var(--gallery-cols, 2), minmax(0, 1fr)) !important;
 }
 
 /* Режим низкой мощности (включает снижение анимаций и быстрое открытие) */
@@ -198,6 +198,24 @@ body.can-hover .media-container.custom-cols:hover, body:not(.can-hover) .media-c
   height: 100px;
   background: linear-gradient(to bottom, transparent, var(--dark));
   pointer-events: none;
+}
+
+/* Обрезка панорамных изображений — вместо cover даём прокрутить по горизонтали */
+.media-container.wide-media {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+}
+
+.media-container.wide-media .media-content {
+  width: auto !important;
+  max-width: none !important;
+  height: 100% !important;
+  flex-shrink: 0;
+  align-self: flex-start;
+  object-fit: cover !important;
 }
 
 /* ---------- Контент карточки ---------- */
@@ -1031,6 +1049,7 @@ body.can-hover .r34-source-plain-text-wrapper:hover, body:not(.can-hover) .r34-s
   align-items: center;
   gap: 12px;
   width: 100%;
+  min-width: 0;
   padding: 11px 18px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--card-border-color, rgba(255, 255, 255, 0.08));
@@ -1095,12 +1114,18 @@ body.can-hover .r34-source-link-btn:hover svg.link-icon, body:not(.can-hover) .r
 
 .r34-source-action-label {
   opacity: 0.95;
+  min-width: 0;
   transition: color var(--card-transition-speed, 300ms) ease;
 }
 
 /* Бейдж домена */
 .r34-domain-badge {
   margin-left: auto;
+  min-width: 0;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   padding: 3px 12px;
   background: rgba(6, 7, 12, 0.75);
   border: 1px solid var(--card-border-color, rgba(255, 255, 255, 0.08));

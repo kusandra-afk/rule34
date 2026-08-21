@@ -183,7 +183,7 @@ export class FavoritesManager {
                     const subGrid = container.querySelector('div[style*="display: grid"]');
                     if (subGrid) {
                         const favCols = FavoritesManager.getDisplayedFavoritesColumns(gallery);
-                        subGrid.style.gridTemplateColumns = `repeat(${favCols}, 1fr)`;
+                        subGrid.style.gridTemplateColumns = `repeat(${favCols}, minmax(0, 1fr))`;
                         subGrid.classList.toggle('multi-cols-mode', favCols >= 2);
                         subGrid.querySelectorAll('.media-container').forEach(card => {
                             if (favCols >= 2) {
@@ -246,7 +246,7 @@ export class FavoritesManager {
                 const subGrid = document.createElement('div');
                 subGrid.style.display = 'grid';
                 const favCols = FavoritesManager.getDisplayedFavoritesColumns(gallery);
-                subGrid.style.gridTemplateColumns = `repeat(${favCols}, 1fr)`;
+                subGrid.style.gridTemplateColumns = `repeat(${favCols}, minmax(0, 1fr))`;
                 subGrid.classList.toggle('multi-cols-mode', favCols >= 2);
                 subGrid.style.gap = 'var(--media-gap, 16px)';
                 subGrid.style.width = '100%';
