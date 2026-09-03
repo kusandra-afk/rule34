@@ -975,6 +975,23 @@ export class ExpertStylesEditor {
                     infoBtn.classList.toggle('active', isHidden);
                 });
 
+                // На ПК подсказка раскрывается уже при наведении — клик
+                // остаётся единственным способом на тач-устройствах.
+                infoBtn.addEventListener('mouseenter', () => {
+                    if (!document.body.classList.contains('can-hover')) return;
+                    helpBox.style.display = 'block';
+                    infoBtn.classList.add('active');
+                });
+                const hideExpertHelpUnlessMovingBetweenBoth = (e) => {
+                    if (!document.body.classList.contains('can-hover')) return;
+                    const to = e.relatedTarget;
+                    if (to === infoBtn || to === helpBox || helpBox.contains(to)) return;
+                    helpBox.style.display = 'none';
+                    infoBtn.classList.remove('active');
+                };
+                infoBtn.addEventListener('mouseleave', hideExpertHelpUnlessMovingBetweenBoth);
+                helpBox.addEventListener('mouseleave', hideExpertHelpUnlessMovingBetweenBoth);
+
                 labelContainer.appendChild(labelRow);
                 labelContainer.appendChild(desc);
                 if (genContainer) {

@@ -4,6 +4,8 @@
  * Pauses and mutes all gallery videos/audio when activated.
  */
 
+import { icon } from '../icons.js';
+
 export class SafeScreen {
     constructor() {
         this.overlay = null;
@@ -274,7 +276,7 @@ export class SafeScreen {
 
         const closeBtn = document.createElement('button');
         closeBtn.className = 'safe-screen-close-btn';
-        closeBtn.innerHTML = '&times;';
+        closeBtn.innerHTML = icon('x', { size: 18 });
         closeBtn.title = 'Закрыть (Esc)';
         closeBtn.onclick = (e) => {
             e.stopPropagation();
@@ -415,7 +417,7 @@ export class SafeScreen {
                 <div class="safe-screen-toast-title">Папка safe_screen пуста</div>
                 <div class="safe-screen-toast-text">${msg || 'Добавьте фото или видео в папку <code>/safe_screen</code> проекта или загрузите их через Базовые настройки!'}</div>
             </div>
-            <button class="safe-screen-toast-close">&times;</button>
+            <button class="safe-screen-toast-close">${icon('x', { size: 16 })}</button>
         `;
 
         toast.querySelector('.safe-screen-toast-close').onclick = () => {

@@ -68,6 +68,18 @@ export function debounce(func, wait) {
     };
 }
 
+// Галерея и избранное сами урезают число колонок на узких экранах
+// (gallery.js: getDisplayedColumns, favoritesManager.js:
+// getDisplayedFavoritesColumns) — те же пороги здесь, чтобы кнопки выбора
+// колонок в настройках могли отключать варианты, которые всё равно не
+// применятся на текущей ширине экрана, вместо того чтобы молча их игнорировать.
+export function getMaxAllowedColumns() {
+    const width = window.innerWidth;
+    if (width < 600) return 2;
+    if (width < 900) return 3;
+    return 5;
+}
+
 export function setRangeGradient(range) {
     const min = Number(range.min) || 0;
     const max = Number(range.max) || 1;

@@ -1,122 +1,797 @@
 {
-  "2b_(nier)": {
-    "source": "wikidata",
-    "title": "NieR: Automata",
-    "type": "game"
-  },
-  "aardie_(aardwolferowo)": {
-    "source": "tag",
-    "title": null,
-    "type": "original"
-  },
-  "akande_ogundimu": {
-    "source": "none",
-    "title": null,
-    "type": "unknown"
-  },
-  "android_18": {
-    "source": "anilist_character",
-    "title": "Dragon Ball Z",
+  "absol": {
+    "source": "kitsu",
+    "title": "Shinwa",
     "type": "anime"
   },
-  "angelina_(arknights)": {
+  "aerith_gainsborough": {
     "source": "wikidata",
-    "title": "Arknights",
-    "type": "game"
-  },
-  "byleth_(summer)_(fire_emblem)_(female)": {
-    "source": "wikidata",
-    "title": "Fire Emblem",
-    "type": "game"
-  },
-  "doomfist": {
-    "source": "none",
-    "title": null,
-    "type": "unknown"
-  },
-  "emma_frost_(marvel_rivals)": {
-    "source": "anilist_media",
-    "title": "Final Fantasy: The Spirits Within",
-    "type": "anime"
-  },
-  "eve_(bible)": {
-    "source": "none",
-    "title": null,
-    "type": "unknown"
-  },
-  "evil_eye_(dandadan)": {
-    "source": "anilist_character",
-    "title": "Dandadan",
-    "type": "manga"
-  },
-  "guts_(berserk)": {
-    "source": "wikidata",
-    "title": "Berserk",
-    "type": "manga"
-  },
-  "human_(world_of_warcraft)": {
-    "source": "wikidata",
-    "title": "World of Warcraft",
-    "type": "game"
-  },
-  "inoue_orihime": {
-    "source": "wikidata",
-    "title": "Bleach",
+    "title": "Final Fantasy",
     "type": "franchise"
   },
-  "kanon_(umineko)": {
-    "source": "anilist_character",
-    "title": "Umineko: When They Cry",
+  "ahri": {
+    "source": "wikidata",
+    "title": "League of Legends",
+    "type": "game"
+  },
+  "alice_margatroid": {
+    "source": "wikidata",
+    "title": "Touhou Project",
+    "type": "game"
+  },
+  "alphys": {
+    "source": "steam",
+    "title": "DELTARUNE",
+    "type": "game"
+  },
+  "ann_takamaki": {
+    "source": "wikidata",
+    "title": "Persona 5",
+    "type": "game"
+  },
+  "anon": {
+    "source": "wikidata",
+    "title": "Friday Night Funkin'",
+    "type": "game"
+  },
+  "applejack_(mlp)": {
+    "source": "wikidata",
+    "title": "My Little Pony",
+    "type": "franchise"
+  },
+  "arcanine": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "arlecchino_(genshin_impact)": {
+    "source": "wikidata",
+    "title": "Genshin Impact",
+    "type": "game"
+  },
+  "ashido_mina": {
+    "source": "steam",
+    "title": "MY HERO ACADEMIA: All’s Justice",
+    "type": "game"
+  },
+  "ashley_graham": {
+    "source": "wikidata",
+    "title": "Capcom vs. SNK 2: Mark of the Millennium 2001",
+    "type": "game"
+  },
+  "asuka_langley_sohryu": {
+    "source": "kitsu",
+    "title": "Evangelion: 2.0 You Can (Not) Advance",
     "type": "anime"
   },
-  "kochou_shinobu": {
+  "azula": {
+    "source": "kitsu",
+    "title": "Avatar: The Last Airbender",
+    "type": "manga"
+  },
+  "barbara_(genshin_impact)": {
+    "source": "wikidata",
+    "title": "Genshin Impact",
+    "type": "game"
+  },
+  "big_macintosh_(mlp)": {
+    "source": "wikidata",
+    "title": "My Little Pony",
+    "type": "franchise"
+  },
+  "black_widow_(marvel)": {
+    "source": "wikidata",
+    "title": "Marvel Cinematic Universe",
+    "type": "franchise"
+  },
+  "blake_belladonna": {
+    "source": "vndb",
+    "title": "RWBY: DAY OUT",
+    "type": "visual_novel"
+  },
+  "bonnie_(fnaf)": {
+    "source": "none",
+    "title": null,
+    "type": "unknown"
+  },
+  "braixen": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "cammy_white": {
+    "source": "wikidata",
+    "title": "Street Fighter",
+    "type": "game"
+  },
+  "changeling": {
+    "source": "wikidata",
+    "title": "My Little Pony",
+    "type": "franchise"
+  },
+  "chel": {
+    "source": "wikidata",
+    "title": "The Road to El Dorado",
+    "type": "cartoon"
+  },
+  "chica_(fnaf)": {
+    "source": "none",
+    "title": null,
+    "type": "unknown"
+  },
+  "chichi": {
+    "source": "wikidata",
+    "title": "Dragon Ball",
+    "type": "franchise"
+  },
+  "chun-li": {
+    "source": "wikidata",
+    "title": "Street Fighter",
+    "type": "game"
+  },
+  "cloud_strife": {
+    "source": "wikidata",
+    "title": "Final Fantasy VII",
+    "type": "game"
+  },
+  "colette_(brawl_stars)": {
+    "source": "wikidata",
+    "title": "Brawl Stars",
+    "type": "game"
+  },
+  "diana_prince": {
+    "source": "kitsu",
+    "title": "Aoki Hagane no Arpeggio: Ars Nova DC",
+    "type": "anime"
+  },
+  "digimon_(species)": {
+    "source": "wikidata",
+    "title": "Digimon",
+    "type": "franchise"
+  },
+  "eevee": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "eeveelution": {
+    "source": "kitsu",
+    "title": "Pokemon: The First Movie",
+    "type": "anime"
+  },
+  "elegg_(nikke)": {
+    "source": "kitsu",
+    "title": "Devil May Cry",
+    "type": "anime"
+  },
+  "elizabeth_comstock": {
+    "source": "wikidata",
+    "title": "BioShock",
+    "type": "game"
+  },
+  "ellie_(the_last_of_us)": {
+    "source": "wikidata",
+    "title": "The Last of Us",
+    "type": "cartoon"
+  },
+  "ellie_williams": {
+    "source": "wikidata",
+    "title": "The Last of Us",
+    "type": "cartoon"
+  },
+  "emilia_(re:zero)": {
+    "source": "wikidata",
+    "title": "Re:Zero",
+    "type": "anime"
+  },
+  "felicia_(darkstalkers)": {
+    "source": "wikidata",
+    "title": "Capcom vs. SNK 2: Mark of the Millennium 2001",
+    "type": "game"
+  },
+  "flareon": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "freddy_(fnaf)": {
+    "source": "none",
+    "title": null,
+    "type": "unknown"
+  },
+  "fubuki_(one-punch_man)": {
+    "source": "steam",
+    "title": "ONE PUNCH MAN: A HERO NOBODY KNOWS",
+    "type": "game"
+  },
+  "generation_3_pokemon": {
+    "source": "kitsu",
+    "title": "Pokemon: The First Movie",
+    "type": "anime"
+  },
+  "generation_5_pokemon": {
+    "source": "kitsu",
+    "title": "Pokemon: The First Movie",
+    "type": "anime"
+  },
+  "generation_6_pokemon": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "glaceon": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "gotou_hitori": {
+    "source": "wikidata",
+    "title": "Bocchi the Rock!",
+    "type": "manga"
+  },
+  "gray_fullbuster": {
+    "source": "wikidata",
+    "title": "Dragon Ball",
+    "type": "franchise"
+  },
+  "guilmon": {
+    "source": "kitsu",
+    "title": "Digimon Adventure",
+    "type": "anime"
+  },
+  "harley_quinn": {
+    "source": "wikidata",
+    "title": "Batman: Arkham Knight",
+    "type": "game"
+  },
+  "hex_maniac": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "human_(world_of_warcraft)": {
+    "source": "kitsu",
+    "title": "Warcraft - The Sunwell Trilogy",
+    "type": "manga"
+  },
+  "hyuuga_hanabi": {
+    "source": "wikidata",
+    "title": "Boruto",
+    "type": "manga"
+  },
+  "hyuuga_hinata": {
+    "source": "wikidata",
+    "title": "Boruto",
+    "type": "manga"
+  },
+  "inkling": {
+    "source": "wikidata",
+    "title": "Splatoon",
+    "type": "game"
+  },
+  "isabelle_(animal_crossing)": {
+    "source": "wikidata",
+    "title": "Animal Crossing",
+    "type": "game"
+  },
+  "jinx_(league_of_legends)": {
+    "source": "wikidata",
+    "title": "Arcane",
+    "type": "game"
+  },
+  "judy_hopps": {
+    "source": "wikidata",
+    "title": "Zootopia",
+    "type": "cartoon"
+  },
+  "juri_han": {
+    "source": "vndb",
+    "title": "Street Fighter-tachi no Yoru",
+    "type": "visual_novel"
+  },
+  "kafka_(honkai:_star_rail)": {
+    "source": "wikidata",
+    "title": "Honkai: Star Rail",
+    "type": "game"
+  },
+  "kanroji_mitsuri": {
     "source": "wikidata",
     "title": "Demon Slayer",
     "type": "game"
   },
-  "mogador_(azur_lane)": {
-    "source": "anilist_character",
-    "title": "Azur Lane: 8 Shuunen Kinen Anime PV",
+  "kimberly_ann_possible": {
+    "source": "wikidata",
+    "title": "Kim Possible",
+    "type": "cartoon"
+  },
+  "korra": {
+    "source": "wikidata",
+    "title": "The Legend of Korra",
+    "type": "cartoon"
+  },
+  "lara_croft": {
+    "source": "wikidata",
+    "title": "Tomb Raider",
+    "type": "game"
+  },
+  "leon_scott_kennedy": {
+    "source": "wikidata",
+    "title": "Capcom vs. SNK 2: Mark of the Millennium 2001",
+    "type": "game"
+  },
+  "loba_(apex_legends)": {
+    "source": "wikidata",
+    "title": "Apex Legends",
+    "type": "game"
+  },
+  "loona_(helluva_boss)": {
+    "source": "kitsu",
+    "title": "Disney: Twisted-Wonderland Anthology Comic",
+    "type": "manga"
+  },
+  "lucina_(fire_emblem)": {
+    "source": "wikidata",
+    "title": "Fire Emblem Awakening",
+    "type": "game"
+  },
+  "lucy_heartfilia": {
+    "source": "wikidata",
+    "title": "Dragon Ball",
+    "type": "franchise"
+  },
+  "luna_snow": {
+    "source": "wikidata",
+    "title": "Marvel Cinematic Universe",
+    "type": "franchise"
+  },
+  "mai_shiranui": {
+    "source": "wikidata",
+    "title": "Fatal Fury: King of Fighters",
+    "type": "game"
+  },
+  "makima": {
+    "source": "anilist_character_guess",
+    "title": "Chainsaw Man",
+    "type": "manga"
+  },
+  "makima_(chainsaw_man)": {
+    "source": "wikidata",
+    "title": "Chainsaw Man",
     "type": "anime"
   },
-  "nami_(one_piece)": {
-    "source": "anilist_character",
-    "title": "ONE PIECE",
+  "mal0": {
+    "source": "wikidata",
+    "title": "SCP",
+    "type": "game"
+  },
+  "malo": {
+    "source": "wikidata",
+    "title": "SCP",
+    "type": "game"
+  },
+  "marceline": {
+    "source": "steam",
+    "title": "Adventure Time",
+    "type": "game"
+  },
+  "marisa_kirisame": {
+    "source": "wikidata",
+    "title": "Touhou Project",
+    "type": "game"
+  },
+  "matsumoto_rangiku": {
+    "source": "wikidata",
+    "title": "Bleach",
+    "type": "franchise"
+  },
+  "mavuika_(genshin_impact)": {
+    "source": "wikidata",
+    "title": "Genshin Impact",
+    "type": "game"
+  },
+  "may_(pokemon)": {
+    "source": "wikidata",
+    "title": "Pokémon",
     "type": "anime"
   },
-  "pokemon": {
+  "megumin": {
+    "source": "kitsu",
+    "title": "Kono Subarashii Sekai ni Shukufuku wo!",
+    "type": "anime"
+  },
+  "millie_(helluva_boss)": {
+    "source": "none",
+    "title": null,
+    "type": "unknown"
+  },
+  "mirajane_strauss": {
+    "source": "wikidata",
+    "title": "Dragon Ball",
+    "type": "franchise"
+  },
+  "mirko": {
+    "source": "wikidata",
+    "title": "My Hero Academia",
+    "type": "manga"
+  },
+  "miruko": {
+    "source": "wikidata",
+    "title": "My Hero Academia",
+    "type": "manga"
+  },
+  "misty_(pokemon)": {
     "source": "wikidata",
     "title": "Pokémon",
     "type": "franchise"
+  },
+  "mona_(genshin_impact)": {
+    "source": "wikidata",
+    "title": "Genshin Impact",
+    "type": "game"
+  },
+  "monika_(doki_doki_literature_club)": {
+    "source": "wikidata",
+    "title": "Doki Doki Literature Club!",
+    "type": "game"
+  },
+  "moxxie_(helluva_boss)": {
+    "source": "none",
+    "title": null,
+    "type": "unknown"
+  },
+  "mythra": {
+    "source": "none",
+    "title": null,
+    "type": "unknown"
+  },
+  "natsu_dragneel": {
+    "source": "wikidata",
+    "title": "Dragon Ball",
+    "type": "franchise"
+  },
+  "natsuki_(doki_doki_literature_club)": {
+    "source": "wikidata",
+    "title": "Doki Doki Literature Club!",
+    "type": "game"
+  },
+  "nico_robin": {
+    "source": "wikidata",
+    "title": "One Piece",
+    "type": "game"
+  },
+  "ninetales": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "peridot_(steven_universe)": {
+    "source": "wikidata",
+    "title": "Steven Universe",
+    "type": "cartoon"
+  },
+  "pikachu": {
+    "source": "kitsu",
+    "title": "Pokemon: The First Movie",
+    "type": "anime"
+  },
+  "piranha_plant": {
+    "source": "anilist_media",
+    "title": "Mario",
+    "type": "manga"
+  },
+  "pok&eacute;mon_(species)": {
+    "source": "kitsu",
+    "title": "Pokemon: The First Movie",
+    "type": "anime"
   },
   "pokemon_(species)": {
     "source": "wikidata",
     "title": "Pokémon",
     "type": "franchise"
   },
-  "raiden_shogun_(genshin_impact)": {
+  "princess_zelda": {
+    "source": "kitsu",
+    "title": "The Legend of Zelda: Majora's Mask",
+    "type": "manga"
+  },
+  "queen_chrysalis_(mlp)": {
     "source": "wikidata",
-    "title": "Genshin Impact",
+    "title": "My Little Pony",
+    "type": "franchise"
+  },
+  "rainbow_dash_(mlp)": {
+    "source": "wikidata",
+    "title": "My Little Pony",
+    "type": "franchise"
+  },
+  "rarity_(mlp)": {
+    "source": "wikidata",
+    "title": "My Little Pony",
+    "type": "franchise"
+  },
+  "raven_team_leader": {
+    "source": "wikidata",
+    "title": "Fortnite",
     "type": "game"
   },
-  "sylvain_jose_gautier": {
+  "rem": {
+    "source": "anilist_character_guess",
+    "title": "Re:ZERO -Starting Life in Another World-",
+    "type": "anime"
+  },
+  "renamon": {
+    "source": "wikidata",
+    "title": "Digimon",
+    "type": "franchise"
+  },
+  "reshiram": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "robin_(fire_emblem)": {
     "source": "wikidata",
     "title": "Fire Emblem",
     "type": "game"
   },
-  "teo_minh": {
+  "robin_(fire_emblem)_(female)": {
+    "source": "wikidata",
+    "title": "Fire Emblem Awakening",
+    "type": "game"
+  },
+  "rouge_the_bat": {
+    "source": "wikidata",
+    "title": "Sonic the Hedgehog",
+    "type": "game"
+  },
+  "roxanne_wolf_(fnaf)": {
     "source": "none",
     "title": null,
     "type": "unknown"
   },
-  "walrider": {
+  "rumi_usagiyama": {
     "source": "wikidata",
-    "title": "Elden Ring",
+    "title": "My Hero Academia",
+    "type": "manga"
+  },
+  "sakura_haruno": {
+    "source": "steam",
+    "title": "NARUTO: Ultimate Ninja STORM",
     "type": "game"
+  },
+  "sakuya_izayoi": {
+    "source": "wikidata",
+    "title": "Touhou Project",
+    "type": "game"
+  },
+  "scolipede": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "scp-1471": {
+    "source": "wikidata",
+    "title": "SCP",
+    "type": "game"
+  },
+  "scp-1471-a": {
+    "source": "wikidata",
+    "title": "SCP",
+    "type": "game"
+  },
+  "serena_(pokemon)": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "shy_gal": {
+    "source": "anilist_media",
+    "title": "Mario",
+    "type": "manga"
+  },
+  "snivy": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "son_goku": {
+    "source": "wikidata",
+    "title": "Dragon Ball",
+    "type": "franchise"
+  },
+  "sona_buvelle": {
+    "source": "wikidata",
+    "title": "League of Legends",
+    "type": "game"
+  },
+  "spike_(mlp)": {
+    "source": "wikidata",
+    "title": "My Little Pony",
+    "type": "franchise"
+  },
+  "squirrel_girl_(marvel)": {
+    "source": "wikidata",
+    "title": "Marvel Cinematic Universe",
+    "type": "franchise"
+  },
+  "starfire": {
+    "source": "kitsu",
+    "title": "Aoki Hagane no Arpeggio: Ars Nova DC",
+    "type": "anime"
+  },
+  "sunset_shimmer": {
+    "source": "wikidata",
+    "title": "My Little Pony",
+    "type": "franchise"
+  },
+  "supergirl": {
+    "source": "kitsu",
+    "title": "Aoki Hagane no Arpeggio: Ars Nova DC",
+    "type": "anime"
+  },
+  "sylveon": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "tia_harribel": {
+    "source": "wikidata",
+    "title": "Bleach",
+    "type": "franchise"
+  },
+  "toga_himiko": {
+    "source": "wikidata",
+    "title": "My Hero Academia",
+    "type": "manga"
+  },
+  "toriel": {
+    "source": "wikidata",
+    "title": "Undertale",
+    "type": "game"
+  },
+  "ty_lee": {
+    "source": "wikidata",
+    "title": "Avatar Legends: The Fighting Game",
+    "type": "game"
+  },
+  "typhlosion": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "undyne": {
+    "source": "wikidata",
+    "title": "Undertale",
+    "type": "game"
+  },
+  "uraraka_ochako": {
+    "source": "wikidata",
+    "title": "My Hero Academia",
+    "type": "manga"
+  },
+  "uzaki_hana": {
+    "source": "wikidata",
+    "title": "Uzaki-chan Wants to Hang Out!",
+    "type": "manga"
+  },
+  "uzumaki_hinata": {
+    "source": "wikidata",
+    "title": "Boruto",
+    "type": "manga"
+  },
+  "uzumaki_kushina": {
+    "source": "steam",
+    "title": "NARUTO: Ultimate Ninja STORM",
+    "type": "game"
+  },
+  "uzumaki_naruto": {
+    "source": "steam",
+    "title": "NARUTO: Ultimate Ninja STORM",
+    "type": "game"
+  },
+  "venom_(marvel)": {
+    "source": "wikidata",
+    "title": "Marvel Cinematic Universe",
+    "type": "franchise"
+  },
+  "vi": {
+    "source": "wikidata",
+    "title": "Arcane",
+    "type": "game"
+  },
+  "videl": {
+    "source": "wikidata",
+    "title": "Dragon Ball",
+    "type": "franchise"
+  },
+  "vinyl_scratch_(mlp)": {
+    "source": "wikidata",
+    "title": "My Little Pony",
+    "type": "franchise"
+  },
+  "violet_parr": {
+    "source": "wikidata",
+    "title": "The Incredibles",
+    "type": "game"
+  },
+  "vulpix": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
+  },
+  "wendy_corduroy": {
+    "source": "kitsu",
+    "title": "Disney: Twisted-Wonderland Anthology Comic",
+    "type": "manga"
+  },
+  "wolf_o&#039;donnell": {
+    "source": "wikidata",
+    "title": "Fire Emblem",
+    "type": "game"
+  },
+  "wonder_woman": {
+    "source": "kitsu",
+    "title": "Aoki Hagane no Arpeggio: Ars Nova DC",
+    "type": "anime"
+  },
+  "worgen": {
+    "source": "wikidata",
+    "title": "Warcraft: Orcs & Humans",
+    "type": "game"
+  },
+  "xenomorph": {
+    "source": "wikidata",
+    "title": "Alien",
+    "type": "game"
+  },
+  "yang_xiao_long": {
+    "source": "wikidata",
+    "title": "RWBY",
+    "type": "franchise"
+  },
+  "yennefer": {
+    "source": "anilist_media",
+    "title": "Failed to Ascend, So I Became a Witcher Instead",
+    "type": "manga"
+  },
+  "yor_briar": {
+    "source": "wikidata",
+    "title": "Spy × Family",
+    "type": "manga"
+  },
+  "yorha_2b": {
+    "source": "wikidata",
+    "title": "NieR: Automata",
+    "type": "game"
+  },
+  "yorha_9s": {
+    "source": "wikidata",
+    "title": "NieR: Automata",
+    "type": "game"
+  },
+  "yorha_no._2_type_b": {
+    "source": "none",
+    "title": null,
+    "type": "unknown"
+  },
+  "yuuki_asuna": {
+    "source": "wikidata",
+    "title": "Sword Art Online",
+    "type": "anime"
+  },
+  "zangoose": {
+    "source": "kitsu",
+    "title": "Pokemon: The First Movie",
+    "type": "anime"
   },
   "zero_two_(darling_in_the_franxx)": {
     "source": "wikidata",
     "title": "Darling in the Franxx",
     "type": "anime"
+  },
+  "zoroark": {
+    "source": "wikidata",
+    "title": "Pokémon",
+    "type": "franchise"
   }
 }

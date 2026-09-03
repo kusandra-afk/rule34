@@ -30,14 +30,7 @@ export class ModeController {
         if (!this.modeGalleryBtn || !this.modeProfileBtn) return;
 
         this.modeGalleryBtn.classList.add('active');
-        this.modeGalleryBtn.style.background = 'var(--accent)';
-        this.modeGalleryBtn.style.color = '#fff';
-        this.modeGalleryBtn.style.boxShadow = '0 4px 16px var(--accent-glow)';
-
         this.modeProfileBtn.classList.remove('active');
-        this.modeProfileBtn.style.background = 'transparent';
-        this.modeProfileBtn.style.color = 'rgba(255,255,255,0.7)';
-        this.modeProfileBtn.style.boxShadow = 'none';
 
         if (this.searchContainer) this.searchContainer.style.display = '';
 
@@ -59,16 +52,19 @@ export class ModeController {
         if (!this.modeGalleryBtn || !this.modeProfileBtn) return;
 
         this.modeProfileBtn.classList.add('active');
-        this.modeProfileBtn.style.background = 'var(--accent)';
-        this.modeProfileBtn.style.color = '#fff';
-        this.modeProfileBtn.style.boxShadow = '0 4px 16px var(--accent-glow)';
-
         this.modeGalleryBtn.classList.remove('active');
-        this.modeGalleryBtn.style.background = 'transparent';
-        this.modeGalleryBtn.style.color = 'rgba(255,255,255,0.7)';
-        this.modeGalleryBtn.style.boxShadow = 'none';
 
         if (this.searchContainer) this.searchContainer.style.display = 'none';
+
+        // Баннер ошибки/rate-limit галереи (плавающий тост, не привязанный к
+        // текущему экрану) относится только к загрузке страниц галереи —
+        // "Избранное" грузится через свой отдельный /api/my-favorites и
+        // никогда не вызывает rate-limit Rule34. Без явной очистки тост с
+        // обратным отсчётом продолжал висеть поверх экрана "Избранное" до
+        // истечения своего таймера, хотя к нему уже не имел отношения.
+        if (window.galleryController && typeof window.galleryController._clearError === 'function') {
+            window.galleryController._clearError();
+        }
 
         if (this.gallery) {
             if (typeof this.gallery.showFavoritesView === 'function') {

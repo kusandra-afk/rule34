@@ -381,12 +381,44 @@ export class VideoPlayer {
         this._userExplicitlyHidden = false;
 
         if (this.fullscreenMode) {
+            // Показываем пульт при движении мыши и снова прячем его, если
+            // мышь замерла на месте — как и в карточках, autoHide=true
+            // перезапускает 3-секундный таймер при каждом mousemove, а не
+            // просто один раз показывает панель и оставляет её висеть
+            // навсегда до следующего клика.
             const handleMouseMove = () => {
                 if (this._userExplicitlyHidden) return;
-                this._showControls();
+                this._showControls(true, 3000);
             };
             this.container.addEventListener('mousemove', handleMouseMove);
             this.video.addEventListener('mousemove', handleMouseMove);
+        } else {
+            // На ПК (устройства с реальным hover) панель управления должна
+            // появляться при наведении курсора на карточку, а не только по
+            // тапу/клику — тап нужен только там, где нет курсора (телефон).
+            // Свойство onmouseenter/onmouseleave вместо addEventListener,
+            // т.к. container переиспользуется галереей между разными видео
+            // (loadMedia пересоздаёт VideoPlayer на том же контейнере) —
+            // присвоение перезаписывает старый обработчик вместо накопления.
+            // autoHide=true — если мышь замерла над карточкой и не покидает
+            // её, пульт всё равно скрывается через 3с, а не висит вечно.
+            const handleCardHover = () => {
+                if (!document.body.classList.contains('can-hover')) return;
+                this._userExplicitlyHidden = false;
+                this._showControls(true, 3000);
+            };
+            this.container.onmouseenter = handleCardHover;
+            this.container.onmousemove = handleCardHover;
+            this.container.onmouseleave = () => {
+                if (!document.body.classList.contains('can-hover')) return;
+                if (this.hideTimeout) {
+                    clearTimeout(this.hideTimeout);
+                    this.hideTimeout = null;
+                }
+                if (!this.video.paused && !this.video.ended) {
+                    this._hideControls(true);
+                }
+            };
         }
 
         // Global single scroll-bind check (automatic and clean)

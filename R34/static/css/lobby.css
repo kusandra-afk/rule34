@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════════
    UNIFIED LOBBY & GAME DESIGN SYSTEM - LOBBY.CSS
    Единые стили меню, лобби и мультиплеера для всех мини-игр
    ═══════════════════════════════════════════════════════════════ */
@@ -771,6 +771,20 @@ body.can-hover .game-checkbox:hover input ~ .game-checkbox-mark, body:not(.can-h
   pointer-events: none;
 }
 
+/* Экраны лобби "Больше/Меньше" (guessOnlineUI.js) рисуют заголовок как
+   обычную часть карточки, а не плавающей поверх всего экрана панелью —
+   раньше это делалось инлайновым style="position:static", но position
+   не отменяет left/transform: translateX(-50%) у .game-header по-прежнему
+   считался от НОВОЙ, узкой ширины (100% карточки вместо 100% экрана) и
+   утаскивал заголовок на половину этой ширины влево, за пределы карточки. */
+.game-header--static {
+  position: static;
+  left: auto;
+  transform: none;
+  width: auto;
+  max-width: none;
+}
+
 .game-title-group, .game-close-btn {
   pointer-events: auto;
 }
@@ -1040,7 +1054,9 @@ body.can-hover .game-player-row:hover, body:not(.can-hover) .game-player-row:act
 
 .game-player-score {
   font-weight: 800;
-  color: #a78bfa;
+  /* было жёстко #a78bfa — счёт игрока не слушал тему и оставался фиолетовым
+     в любой раскраске сайта, как и .guess-count со .guess-spinner до правки */
+  color: var(--accent, #a78bfa);
 }
 
 .game-player-status {
@@ -1069,10 +1085,32 @@ body.can-hover .game-player-row:hover, body:not(.can-hover) .game-player-row:act
   filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.4));
 }
 
-/* ═══ "Больше / Меньше" ═══ */
+
+/* ═══ "Больше / Меньше" ═══
+   Все размеры/цвета согласованы с макетом. Акценты идут через var(--accent),
+   а не хардкодом: раньше .guess-count и .guess-spinner были жёстко фиолетовыми
+   (#a78bfa / #8b5cf6) и выбивались из любой темы, кроме дефолтной. */
+
+/* Размеры игры текучие (clamp), а не фиксированные под один экран: раньше блок
+   был жёстко 660px и на большом мониторе выглядел крошечным, а между телефоном
+   и десктопом ничего не менялось до самого 640px. Теперь всё считается от
+   ширины окна, а брейкпоинты ниже меняют только СТРУКТУРУ (кнопки в столбик и
+   т.п.), а не каждый размер по отдельности. */
 .guess-shell {
-  max-width: 640px;
+  /* от 660px на ноутбуке до 1100px на широком мониторе */
+  max-width: clamp(560px, 78vw, 1100px);
   align-items: stretch;
+  gap: clamp(12px, 1.6vw, 22px);
+  padding: clamp(18px, 2.4vw, 38px) clamp(16px, 2.2vw, 36px);
+}
+
+.guess-shell .guess-vs-row { gap: clamp(8px, 1.4vw, 20px); }
+
+/* Высота арта ограничена долей экрана, чтобы на низких/широких окнах карточка
+   не уезжала за пределы видимой области. Кадрирование остаётся cover, поэтому
+   при упоре в потолок картинка просто становится шире, чем выше. */
+.guess-shell .guess-img-wrap {
+  max-height: clamp(140px, 38vh, 420px);
 }
 
 .guess-loading {
@@ -1092,169 +1130,422 @@ body.can-hover .game-player-row:hover, body:not(.can-hover) .game-player-row:act
   height: 36px;
   border-radius: 50%;
   border: 3px solid rgba(255, 255, 255, 0.15);
-  border-top-color: #8b5cf6;
+  border-top-color: var(--accent, #10b981);
   animation: guessSpin 0.8s linear infinite;
 }
 
-@keyframes guessSpin {
-  to { transform: rotate(360deg); }
-}
+@keyframes guessSpin { to { transform: rotate(360deg); } }
 
 .guess-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
-.guess-score-box {
-  font-size: 1.05rem;
+.guess-close {
+  width: 38px;
+  height: 38px;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.guess-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.11);
   color: rgba(255, 255, 255, 0.85);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.2s var(--ease);
 }
 
-.guess-score-box b {
-  color: #fff;
+body.can-hover .guess-icon-btn:hover { background: rgba(255, 255, 255, 0.11); }
+
+.guess-logo {
+  background: linear-gradient(135deg, var(--accent, #10b981) 0%, var(--accent-alt, #059669) 100%) !important;
+  color: var(--btn-primary-color, #03140e) !important;
+  box-shadow: 0 0 20px var(--accent-glow, rgba(16, 185, 129, 0.4)) !important;
 }
 
-.guess-vs-row {
+.guess-hero-badge {
+  background: rgba(var(--accent-rgb, 16, 185, 129), 0.1);
+  border-color: rgba(var(--accent-rgb, 16, 185, 129), 0.3);
+  color: var(--accent, #6ee7b7);
+}
+
+/* ── Счёт ── */
+.guess-stats {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
+  flex-grow: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.guess-stats-spacer { flex-grow: 1; }
+
+.guess-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  white-space: nowrap;
+}
+
+.guess-chip span {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.guess-chip b { font-size: 0.9rem; font-weight: 800; color: rgba(255, 255, 255, 0.75); line-height: 1; }
+
+.guess-chip-score {
+  background: rgba(var(--accent-rgb, 16, 185, 129), 0.15);
+  border-color: rgba(var(--accent-rgb, 16, 185, 129), 0.3);
+}
+.guess-chip-score span { color: rgba(var(--accent-rgb, 16, 185, 129), 0.85); }
+.guess-chip-score b { font-size: 1.05rem; font-weight: 900; color: var(--accent, #10b981); }
+
+.guess-chip-streak {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.28);
+  color: #fbbf24;
+  animation: tagPopIn 0.3s var(--ease-bounce, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+.guess-chip-streak b { color: #fbbf24; }
+
+/* ── Вопрос / вердикт ── */
+.guess-question {
+  text-align: center;
+  font-size: clamp(1.05rem, 2.1vw, 1.75rem);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 1.7em;
+}
+
+.guess-verdict-ok { color: var(--success, #34d399); animation: tagPopIn 0.35s var(--ease-bounce, cubic-bezier(0.34, 1.56, 0.64, 1)); }
+.guess-verdict-fail { color: #f87171; animation: errorShake 0.4s var(--ease); }
+
+/* ── Карточки персонажей ── */
+.guess-vs-row {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
 }
 
 .guess-slot {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  min-width: 0;
+  gap: 8px;
 }
 
 .guess-vs-badge {
-  font-size: 1.3rem;
-  font-weight: 900;
-  color: rgba(255, 255, 255, 0.35);
-  flex-shrink: 0;
-}
-
-/* ═══ Мультиплеерные тосты (замена плоской цветной плашки) ═══ */
-.r34-toast {
-  position: fixed;
-  top: 24px;
-  left: 50%;
-  transform: translate(-50%, -16px);
   display: flex;
   align-items: center;
-  gap: 12px;
-  max-width: min(90vw, 440px);
-  background: rgba(15, 17, 25, 0.92);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-left: 3px solid var(--r34-toast-accent, #3b82f6);
-  border-radius: 14px;
-  padding: 12px 20px 12px 14px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
-  z-index: 10000000;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
-
-.r34-toast.show {
-  opacity: 1;
-  transform: translate(-50%, 0);
-}
-
-.r34-toast-icon {
+  justify-content: center;
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  padding-bottom: 58px;
+}
+
+.guess-vs-badge span {
+  width: clamp(34px, 3.6vw, 58px);
+  height: clamp(34px, 3.6vw, 58px);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--r34-toast-accent, #3b82f6) 18%, transparent);
-  color: var(--r34-toast-accent, #3b82f6);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 24px rgba(var(--accent-rgb, 16, 185, 129), 0.18);
+  font-size: clamp(0.64rem, 0.9vw, 0.95rem);
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.55);
 }
-
-.r34-toast-text {
-  color: #f1f5f9;
-  font-weight: 600;
-  font-size: 0.9rem;
-  line-height: 1.35;
-  text-align: left;
-}
-
-.r34-toast-success { --r34-toast-accent: #10b981; }
-.r34-toast-danger { --r34-toast-accent: #ef4444; }
-.r34-toast-info { --r34-toast-accent: #3b82f6; }
-.r34-toast-warning { --r34-toast-accent: #f59e0b; }
 
 .guess-img-wrap {
+  position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
   border-radius: 20px;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: border-color 0.3s var(--ease), box-shadow 0.3s var(--ease);
 }
 
+/* contain, а не cover: картинка должна помещаться в блок ЦЕЛИКОМ — на кропе
+   часть арта просто не видно, а угадывать надо по персонажу. Пустота по краям
+   не остаётся чёрными полосами: под картинкой лежит её же размытая копия,
+   растянутая по cover, и блок выглядит заполненным при любых пропорциях. */
 .guess-img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.guess-img-bg {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: filter 0.35s var(--ease);
+  filter: blur(22px) brightness(0.45) saturate(1.2);
+  transform: scale(1.15); /* прячем прозрачные края, которые даёт размытие */
+  pointer-events: none;
 }
 
-.guess-img-blur {
-  filter: blur(18px) brightness(0.6);
+/* Загаданный персонаж: арт и франшиза видны полностью, скрыто ТОЛЬКО число.
+   Что именно загадано, показывает акцентная рамка и метка, а не размытие. */
+.guess-slot-riddle .guess-img-wrap {
+  border-color: rgba(var(--accent-rgb, 16, 185, 129), 0.45);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb, 16, 185, 129), 0.12),
+              0 0 28px rgba(var(--accent-rgb, 16, 185, 129), 0.18);
+}
+
+.guess-slot-win .guess-img-wrap {
+  border-color: rgba(var(--accent-rgb, 16, 185, 129), 0.65);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb, 16, 185, 129), 0.2),
+              0 0 34px rgba(var(--accent-rgb, 16, 185, 129), 0.35);
+}
+.guess-slot-lose .guess-img-wrap {
+  border-color: rgba(239, 68, 68, 0.6);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.16), 0 0 30px rgba(239, 68, 68, 0.28);
+}
+
+.guess-riddle-badge {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 8px;
+  transform: translateX(-50%);
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--accent, #10b981);
+  color: var(--btn-primary-color, #03140e);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Листалка артов ── */
+.guess-art-nav {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  transform: translateY(-50%);
+  width: clamp(26px, 2.4vw, 38px);
+  height: clamp(26px, 2.4vw, 38px);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.18s var(--ease), transform 0.18s var(--ease);
+}
+
+.guess-art-prev { left: 8px; }
+.guess-art-next { right: 8px; }
+
+body.can-hover .guess-art-nav:hover { background: rgba(0, 0, 0, 0.8); }
+.guess-art-nav:active { transform: translateY(-50%) scale(0.9); }
+
+.guess-art-counter {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  padding: 3px 11px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.78);
+  letter-spacing: 0.04em;
+  pointer-events: none;
 }
 
 .guess-name {
   font-weight: 700;
-  font-size: 1rem;
+  font-size: clamp(0.86rem, 1.3vw, 1.2rem);
   color: #fff;
   text-align: center;
+  line-height: 1.25;
 }
 
-.guess-count {
-  font-size: 0.95rem;
+/* ── Плашка франшизы + скелет на время загрузки ── */
+.guess-type {
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.guess-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  font-size: clamp(0.63rem, 0.85vw, 0.88rem);
   font-weight: 600;
-  color: #a78bfa;
-  transition: color 0.2s var(--ease);
+  color: rgba(255, 255, 255, 0.55);
+  animation: tagPopIn 0.28s var(--ease);
+}
+
+.guess-type-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guess-type-icon { flex-shrink: 0; }
+
+/* Скелет вместо пустого места: вёрстка не прыгает, когда франшиза догрузится */
+.guess-type-skeleton {
+  display: block;
+  width: 96px;
+  height: 16px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.13) 50%, rgba(255,255,255,0.05) 100%);
+  background-size: 200% 100%;
+  animation: guessShimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes guessShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.guess-type-empty .guess-type-skeleton { display: none; }
+
+/* ── Числа ── */
+.guess-count {
+  font-size: clamp(1.28rem, 2.7vw, 2.2rem);
+  font-weight: 900;
+  color: var(--accent, #10b981);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  transition: color 0.25s var(--ease);
 }
 
 .guess-count-hidden {
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.28);
+  letter-spacing: 0.1em;
 }
 
-.guess-type {
-  font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.5);
-  min-height: 1.1em;
+.guess-count-win {
+  color: var(--accent, #10b981);
+  text-shadow: 0 0 20px rgba(var(--accent-rgb, 16, 185, 129), 0.5);
+  animation: tagPopIn 0.4s var(--ease-bounce, cubic-bezier(0.34, 1.56, 0.64, 1));
 }
 
-.guess-question {
+.guess-count-lose {
+  color: #f87171;
+  text-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+  animation: tagPopIn 0.4s var(--ease-bounce, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+
+.guess-count-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* ── Подсказка над кнопками ── */
+.guess-prompt {
   text-align: center;
-  font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.75);
-  line-height: 1.4;
+  font-size: clamp(0.8rem, 1.1vw, 1.05rem);
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.5;
+  min-height: 2.2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.guess-actions {
-  display: flex;
-  gap: 16px;
+.guess-prompt b { color: rgba(255, 255, 255, 0.85); font-weight: 700; }
+
+.guess-prompt-num {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 8px;
+  background: rgba(var(--accent-rgb, 16, 185, 129), 0.14);
+  border: 1px solid rgba(var(--accent-rgb, 16, 185, 129), 0.28);
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--accent, #34d399);
 }
+
+/* Полоса ожидания следующего раунда — вместо мёртвой паузы */
+.guess-next { flex-direction: column; gap: 9px; }
+.guess-next-label { font-size: 0.85rem; font-weight: 600; color: rgba(255, 255, 255, 0.5); }
+.guess-next-bar {
+  display: block;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+.guess-next-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent-alt, #059669), var(--accent, #34d399));
+  animation: guessNextFill 1.8s linear forwards;
+}
+@keyframes guessNextFill { from { width: 0; } to { width: 100%; } }
+
+/* ── Кнопки ответа ── */
+.guess-actions { display: flex; gap: 16px; }
 
 .guess-btn {
-  flex: 1;
-  padding: 16px;
+  flex: 1 1 0;
+  padding: clamp(14px, 1.6vw, 20px);
   border-radius: 16px;
   border: none;
   font-weight: 800;
-  font-size: 1.05rem;
+  font-size: clamp(1rem, 1.3vw, 1.22rem);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -1264,10 +1555,8 @@ body.can-hover .game-player-row:hover, body:not(.can-hover) .game-player-row:act
   color: #fff;
 }
 
-.guess-btn:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
+.guess-btn:disabled { cursor: default; }
+.guess-btn-dimmed { opacity: 0.4; }
 
 .guess-btn-more {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
@@ -1279,59 +1568,449 @@ body.can-hover .game-player-row:hover, body:not(.can-hover) .game-player-row:act
   box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
 }
 
-body.can-hover .guess-btn:not(:disabled):hover {
-  transform: translateY(-2px);
+body.can-hover .guess-btn:not(:disabled):hover { transform: translateY(-2px); filter: brightness(1.08); }
+
+/* ── Правила в меню ── */
+.guess-rules {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-sizing: border-box;
 }
 
-.guess-feedback {
-  text-align: center;
+.guess-rules-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+  text-align: left;
+}
+
+.guess-rule { display: flex; align-items: flex-start; gap: 13px; text-align: left; }
+
+.guess-rule-num {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: rgba(var(--accent-rgb, 16, 185, 129), 0.16);
+  border: 1px solid rgba(var(--accent-rgb, 16, 185, 129), 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
   font-weight: 800;
-  font-size: 1.15rem;
-  min-height: 1.4em;
+  color: var(--accent, #34d399);
 }
 
-.guess-feedback-ok {
-  color: #34d399;
-}
+.guess-rule-text { font-size: 0.9rem; color: rgba(255, 255, 255, 0.72); line-height: 1.45; }
+.guess-rule-text b { color: rgba(255, 255, 255, 0.9); font-weight: 700; }
 
-.guess-feedback-fail {
-  color: #f87171;
-}
-
+/* ── Конец игры ── */
 .guess-gameover {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 20px 10px;
+  gap: 18px;
+  padding: 6px 0 4px;
   text-align: center;
 }
 
-.guess-final-score {
-  font-size: 1.3rem;
-  color: #fff;
-  margin-top: 6px;
-}
-
-.guess-new-best {
-  color: #fbbf24;
-  font-weight: 700;
-}
-
-.guess-best-line {
+.guess-over-icon {
+  width: 76px;
+  height: 76px;
+  border-radius: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.6);
+  animation: gameCardEntry 0.45s var(--ease);
 }
 
-@media (max-width: 560px) {
-  .guess-vs-row {
-    gap: 8px;
-  }
-  .guess-vs-badge {
-    font-size: 1rem;
-  }
-  .guess-actions {
-    flex-direction: column;
-  }
+.guess-over-icon-win {
+  background: rgba(251, 191, 36, 0.14);
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #fbbf24;
+  box-shadow: 0 0 40px rgba(251, 191, 36, 0.2);
 }
 
+.guess-over-title {
+  font-size: clamp(1.5rem, 2.8vw, 2.4rem);
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
 
+.guess-over-sub { font-size: 0.95rem; color: rgba(255, 255, 255, 0.55); margin-top: -12px; }
+
+.guess-tiles { display: flex; gap: 14px; width: 100%; }
+
+.guess-tile {
+  flex: 1 1 0;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.guess-tile-num { font-size: clamp(1.8rem, 3.4vw, 3rem); font-weight: 900; line-height: 1; letter-spacing: -0.03em; color: rgba(255, 255, 255, 0.85); }
+.guess-tile-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.4); }
+
+.guess-tile-score {
+  background: rgba(var(--accent-rgb, 16, 185, 129), 0.1);
+  border-color: rgba(var(--accent-rgb, 16, 185, 129), 0.3);
+  box-shadow: 0 0 26px rgba(var(--accent-rgb, 16, 185, 129), 0.12);
+}
+.guess-tile-score .guess-tile-num { color: var(--accent, #10b981); }
+.guess-tile-score .guess-tile-label { color: rgba(var(--accent-rgb, 16, 185, 129), 0.8); }
+
+.guess-tile-best { background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.28); }
+.guess-tile-best .guess-tile-num { color: #fbbf24; }
+.guess-tile-best .guess-tile-label { color: rgba(251, 191, 36, 0.75); }
+
+/* Разбор последнего раунда — видно, на чём именно оборвалась серия */
+.guess-recap {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  box-sizing: border-box;
+}
+
+.guess-recap-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+  text-align: left;
+}
+
+.guess-recap-row { display: flex; align-items: center; gap: 14px; }
+.guess-recap-side { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 11px; }
+.guess-recap-side-right { justify-content: flex-end; }
+
+.guess-recap-thumb {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.guess-recap-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.guess-recap-thumb-win { border-color: rgba(var(--accent-rgb, 16, 185, 129), 0.4); }
+
+.guess-recap-info { min-width: 0; text-align: left; }
+.guess-recap-side-right .guess-recap-info { text-align: right; }
+.guess-recap-name { font-size: 0.88rem; font-weight: 700; color: rgba(255, 255, 255, 0.9); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.guess-recap-num { font-size: 0.85rem; font-weight: 800; color: rgba(255, 255, 255, 0.5); }
+.guess-recap-num-win { color: var(--accent, #34d399); }
+
+.guess-recap-verdict {
+  flex-shrink: 0;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #f87171;
+  white-space: nowrap;
+}
+
+.guess-over-actions { display: flex; flex-direction: column; gap: 11px; width: 100%; }
+.guess-btn-again { width: 100%; }
+.guess-over-actions .game-btn-secondary { width: 100%; }
+
+/* ═══ Мобильные ═══
+   Карточки остаются рядом — сравнивать надо бок о бок; в столбик уходят кнопки. */
+@media (max-width: 640px) {
+  .guess-shell { gap: 14px; }
+  .guess-question { font-size: 1.08rem; min-height: 2.6em; }
+  .guess-vs-row { gap: 8px; }
+  .guess-vs-badge { padding-bottom: 46px; }
+  .guess-vs-badge span { width: 34px; height: 34px; font-size: 0.64rem; }
+  .guess-img-wrap { border-radius: 16px; }
+  .guess-slot { gap: 6px; }
+  .guess-name { font-size: 0.86rem; }
+  .guess-count { font-size: 1.28rem; }
+  .guess-count-label { font-size: 0.62rem; }
+  .guess-type-chip { font-size: 0.63rem; padding: 2px 8px; }
+  .guess-type-skeleton { width: 72px; height: 14px; }
+  .guess-art-nav { width: 26px; height: 26px; left: 5px; }
+  .guess-art-next { left: auto; right: 5px; }
+  .guess-art-counter { font-size: 0.58rem; padding: 2px 9px; bottom: 6px; }
+  .guess-riddle-badge { font-size: 0.55rem; padding: 3px 9px; top: 6px; }
+  .guess-prompt { font-size: 0.8rem; }
+  .guess-prompt-num { font-size: 0.78rem; }
+  .guess-actions { flex-direction: column; gap: 10px; }
+  .guess-btn { padding: 15px; font-size: 1.02rem; }
+  .guess-chip { padding: 6px 11px; gap: 6px; }
+  .guess-chip span { font-size: 0.6rem; }
+  .guess-rules { padding: 16px; border-radius: 18px; }
+  .guess-rule-text { font-size: 0.82rem; }
+  .guess-over-title { font-size: 1.55rem; }
+  .guess-tiles { gap: 10px; }
+  .guess-tile { padding: 16px 10px; border-radius: 16px; }
+  .guess-tile-num { font-size: 1.9rem; }
+  .guess-recap-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  .guess-recap-side-right { flex-direction: row-reverse; justify-content: flex-end; }
+  .guess-recap-side-right .guess-recap-info { text-align: left; }
+  .guess-recap-verdict { align-self: center; }
+  .guess-icon-btn span { display: none; }
+  .guess-icon-btn { padding: 10px; min-width: 40px; justify-content: center; }
+}
+
+/* ── Просмотр арта на весь экран ──
+   В карточке картинка обрезана по квадрату, чтобы ряд сравнения был ровным;
+   целиком её видно здесь, по клику. */
+.guess-img-zoomable { cursor: zoom-in; }
+
+.guess-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 70000;
+  background: rgba(3, 4, 8, 0.94);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 72px 24px 32px;
+  box-sizing: border-box;
+  animation: fadeIn 0.2s var(--ease);
+}
+
+.guess-viewer-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-md, 14px);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.6);
+  animation: zoomIn 0.24s var(--ease);
+}
+
+.guess-viewer-bar {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 900px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 18px;
+  border-radius: 999px;
+  background: rgba(22, 22, 34, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-sizing: border-box;
+}
+
+.guess-viewer-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guess-viewer-count {
+  margin-left: auto;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.guess-viewer-close {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s var(--ease);
+}
+
+body.can-hover .guess-viewer-close:hover {
+  background: rgba(244, 63, 94, 0.2);
+  border-color: rgba(244, 63, 94, 0.4);
+  transform: rotate(90deg);
+}
+
+.guess-viewer-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.18s var(--ease), transform 0.18s var(--ease);
+}
+
+.guess-viewer-prev { left: 20px; }
+.guess-viewer-next { right: 20px; }
+
+body.can-hover .guess-viewer-nav:hover { background: rgba(0, 0, 0, 0.8); }
+.guess-viewer-nav:active { transform: translateY(-50%) scale(0.92); }
+
+@media (max-width: 640px) {
+  .guess-viewer { padding: 64px 10px 84px; }
+  .guess-viewer-bar { top: 10px; width: calc(100% - 20px); padding: 6px 6px 6px 14px; }
+  .guess-viewer-title { font-size: 0.85rem; }
+  .guess-viewer-nav { width: 44px; height: 44px; top: auto; bottom: 20px; transform: none; }
+  .guess-viewer-prev { left: 25%; }
+  .guess-viewer-next { right: 25%; }
+  .guess-viewer-nav:active { transform: scale(0.92); }
+}
+
+/* ═══ Ступени экранов ═══
+   Блок @media 640px выше отвечает за телефоны (кнопки в столбик и прочее).
+   Здесь — ступени, которых раньше не было вообще: планшеты, узкие окна на ПК,
+   низкие окна и широкие мониторы. Сами размеры считаются clamp'ом от ширины
+   окна, поэтому тут меняется только то, что действительно зависит от ступени. */
+
+/* Планшет / окно браузера в половину экрана */
+@media (max-width: 900px) {
+  .guess-shell { max-width: 100%; }
+  .guess-shell .guess-img-wrap { max-height: 34vh; }
+  .guess-tiles { gap: 10px; }
+}
+
+/* Низкое окно: ноутбучные 768p, половина экрана по высоте.
+   Ограничиваем именно арт — он самый крупный элемент и первым выталкивает
+   кнопки за пределы видимой области. */
+@media (max-height: 800px) {
+  .guess-shell { gap: 12px; }
+  .guess-shell .guess-img-wrap { max-height: 30vh; }
+  .guess-gameover { gap: 12px; }
+  .guess-over-icon { width: 60px; height: 60px; border-radius: 20px; }
+}
+
+@media (max-height: 640px) {
+  .guess-shell .guess-img-wrap { max-height: 26vh; }
+  .guess-question { min-height: 0; }
+  .guess-prompt { min-height: 0; }
+}
+
+/* Маленькие телефоны */
+@media (max-width: 400px) {
+  .guess-shell { padding: 14px 12px 16px; gap: 10px; }
+  .guess-vs-badge { padding-bottom: 40px; }
+  .guess-stats { gap: 6px; }
+  .guess-chip { padding: 5px 10px; gap: 5px; }
+  .guess-chip span { font-size: 0.56rem; letter-spacing: 0.04em; }
+  .guess-tiles { gap: 8px; }
+  .guess-tile { padding: 13px 8px; }
+  .guess-rules { padding: 14px; }
+  .guess-rule { gap: 10px; }
+  .guess-rule-text { font-size: 0.78rem; }
+}
+
+/* Широкий монитор — блок больше не выглядит крошечным посреди пустоты */
+@media (min-width: 1500px) {
+  .guess-shell { max-width: 1180px; }
+  .guess-shell .guess-img-wrap { max-height: 440px; }
+}
+
+/* Элементы листалки существуют всегда и просто скрываются, когда листать нечего.
+   Раньше они рендерились только при уже загруженных артах, и если догрузка
+   запаздывала или срывалась — стрелок не появлялось совсем. */
+.guess-art-hidden {
+  display: none !important;
+}
+
+/* Подписаны ОБЕ карточки. Раньше акцентом была помечена только загаданная, а
+   вторая никак — и всё равно приходилось соображать, какая из них какая.
+   Явная пара «Известно» / «Угадай» снимает вопрос. */
+.guess-known-badge {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 8px;
+  transform: translateX(-50%);
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: rgba(10, 12, 18, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Известная карточка получает свою, спокойную рамку — чтобы пара читалась как
+   «две подписанные карточки», а не «одна выделенная и одна обычная». */
+.guess-slot-known .guess-img-wrap {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Число у известной карточки — то самое, с которым идёт сравнение: подсвечиваем
+   его так же, как чип с числом в подсказке над кнопками. */
+.guess-slot-known .guess-count {
+  text-shadow: 0 0 18px rgba(var(--accent-rgb, 16, 185, 129), 0.35);
+}
+
+@media (max-width: 640px) {
+  .guess-known-badge { font-size: 0.55rem; padding: 3px 9px; top: 6px; }
+}
+
+/* Плашка франшизы имеет два состояния.
+
+   НЕПОДТВЕРЖДЁННАЯ — название взято из тегов самого Rule34. Показывается сразу,
+   но приглушённой и без иконки типа: данные тегов там ненадёжны, и выдавать их
+   за проверенный факт нельзя.
+
+   ПОДТВЕРЖДЁННАЯ — ответил внешний справочник (Wikidata / Steam / Kitsu / VNDB).
+   Обычная яркость плюс иконка типа: аниме, игра, манга. */
+.guess-type-unverified {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.guess-type-typed {
+  opacity: 1;
+  border-style: solid;
+  animation: tagPopIn 0.28s var(--ease);
+}

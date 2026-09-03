@@ -675,6 +675,12 @@ body.can-hover .confirm-modal-confirm:hover, body:not(.can-hover) .confirm-modal
   box-shadow: 0 0 8px var(--accent-glow);
 }
 
+.preview-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .preview-scroll-btn {
   font-size: 0.7rem;
   padding: 4px 10px;
@@ -685,6 +691,71 @@ body.can-hover .confirm-modal-confirm:hover, body:not(.can-hover) .confirm-modal
   gap: 4px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.03);
+}
+
+/* Крупный предпросмотр — та же .preview-wrapper, но перенесённая (портал)
+   в document.body поверх settings-modal-card: у него backdrop-filter +
+   overflow:hidden, так что зафиксированный элемент внутри просто обрежется
+   по рамке модалки, а не растянется на весь экран. Портал — единственный
+   надёжный способ дать превью реально "полноэкранный" вид. */
+.preview-wrapper.preview-fullscreen-active {
+  position: fixed;
+  inset: 16px;
+  z-index: 90000;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--modal-bg, rgba(13, 15, 22, 0.97));
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.65);
+}
+
+.preview-fullscreen-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 89999;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.preview-fullscreen-active .mock-browser-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-fullscreen-active .settings-preview-area {
+  flex: 1;
+  min-height: 0;
+  height: auto !important;
+  max-height: none !important;
+}
+
+.preview-fullscreen-close {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(18, 19, 26, 0.85);
+  color: #fff;
+  cursor: pointer;
+}
+
+.preview-fullscreen-active .preview-fullscreen-close {
+  display: flex;
+}
+
+body.can-hover .preview-fullscreen-close:hover, body:not(.can-hover) .preview-fullscreen-close:active {
+  background: rgba(var(--accent-rgb), 0.25);
+  border-color: var(--accent);
 }
 
 /* Мок-браузер */
@@ -1902,6 +1973,73 @@ body.can-hover .safe-screen-toast-close:hover, body:not(.can-hover) .safe-screen
   }
 }
 
+/* Общие тосты OnlineUI.showToast() (puzzle/onlineUI.js) — используются
+   лобби пазла И лобби "Больше/Меньше" (guessOnlineUI.js оборачивает тот же
+   метод) для кодов комнат, ошибок подключения, "комната закрыта" и т.д.
+   Раньше для .r34-toast нигде не было ни одного CSS-правила — элемент
+   реально создавался и добавлялся в document.body, но рендерился без
+   позиционирования, фона и анимации, то есть все эти сообщения были
+   практически невидимы. Это и есть недостающие "логи" в онлайн-лобби. */
+.r34-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translate(-50%, -16px);
+  z-index: 9999999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  max-width: calc(100% - 32px);
+  background: rgba(24, 24, 35, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 500;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
+}
+
+.r34-toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.r34-toast-icon {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.r34-toast-success { border-color: rgba(74, 222, 128, 0.4); }
+.r34-toast-success .r34-toast-icon { color: #4ade80; }
+
+.r34-toast-danger { border-color: rgba(255, 59, 107, 0.45); }
+.r34-toast-danger .r34-toast-icon { color: var(--accent, #ff3b6b); }
+
+.r34-toast-warning { border-color: rgba(242, 201, 76, 0.4); }
+.r34-toast-warning .r34-toast-icon { color: #f2c94c; }
+
+.r34-toast-info { border-color: rgba(255, 255, 255, 0.18); }
+.r34-toast-info .r34-toast-icon { color: rgba(255, 255, 255, 0.7); }
+
+@media (max-width: 600px) {
+  .r34-toast {
+    left: 16px;
+    right: 16px;
+    top: 14px;
+    transform: translateY(-16px);
+    max-width: none;
+  }
+  .r34-toast.show {
+    transform: translateY(0);
+  }
+}
+
 /* Badge "(только для ПК)" */
 .pc-only-badge {
   display: inline-block;
@@ -1930,6 +2068,29 @@ body.can-hover .safe-screen-toast-close:hover, body:not(.can-hover) .safe-screen
     color: #ffffff !important;
     font-weight: 600 !important;
   }
+}
+
+/* Настройки "(Только для ПК)" вне Safe Screen (эффект/свечение/скорость
+   анимации при наведении, скрывать теги до наведения) — тот же визуальный
+   приём, что и у .safe-screen-settings-wrapper.mobile-disabled выше, но
+   кнопка-подсказка "!" остаётся кликабельной, чтобы можно было прочитать,
+   почему настройка недоступна на этом устройстве. */
+.settings-option.pc-only-disabled {
+  opacity: 0.55;
+  filter: grayscale(1);
+  pointer-events: none;
+  user-select: none;
+}
+.settings-option.pc-only-disabled .info-btn {
+  opacity: 1;
+  filter: none;
+  pointer-events: auto;
+}
+.settings-option.pc-only-disabled .pc-only-badge {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  font-weight: 600;
 }
 
 /* Класс при детекции мобильного устройства через JS */

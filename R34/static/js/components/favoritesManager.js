@@ -1,4 +1,6 @@
 import { StorageManager } from '../storage.js';
+import { getMaxAllowedColumns } from '../utils.js';
+import { OnlineUI } from '../puzzle/onlineUI.js';
 
 export class FavoritesManager {
     static async syncFavorites(gallery) {
@@ -158,6 +160,7 @@ export class FavoritesManager {
 
         const updateFavColsUI = (cols) => {
             if (!favColsGroup) return;
+            const maxAllowed = getMaxAllowedColumns();
             const buttons = favColsGroup.querySelectorAll('.fav-col-btn');
             buttons.forEach(btn => {
                 const dataCols = btn.getAttribute('data-cols');
@@ -166,10 +169,31 @@ export class FavoritesManager {
                 } else {
                     btn.classList.remove('active');
                 }
+                const exceedsScreen = parseInt(dataCols, 10) > maxAllowed;
+                btn.classList.toggle('col-btn-unavailable', exceedsScreen);
+                btn.title = exceedsScreen ? `При такой ширине экрана отображается не больше ${maxAllowed} колонок` : '';
             });
         };
 
         updateFavColsUI(activeFavCols);
+
+        // Ширина экрана могла измениться (поворот телефона, ресайз окна) —
+        // держим disabled-состояние кнопок актуальным, пока открыт "Избранное".
+        if (!gallery._favColsResizeBound) {
+            gallery._favColsResizeBound = true;
+            window.addEventListener('resize', () => {
+                const liveGroup = document.getElementById('favColumnsGroup');
+                if (!liveGroup) return;
+                const liveCols = parseInt(localStorage.getItem('r34_favorites_cols'), 10) || 2;
+                const maxAllowed = getMaxAllowedColumns();
+                liveGroup.querySelectorAll('.fav-col-btn').forEach(btn => {
+                    const dataCols = btn.getAttribute('data-cols');
+                    const exceedsScreen = parseInt(dataCols, 10) > maxAllowed;
+                    btn.disabled = exceedsScreen;
+                    btn.title = exceedsScreen ? `При такой ширине экрана отображается не больше ${maxAllowed} колонок` : '';
+                });
+            });
+        }
 
         if (favColsGroup) {
             favColsGroup.addEventListener('click', (e) => {
@@ -178,6 +202,12 @@ export class FavoritesManager {
                 const colsVal = btn.getAttribute('data-cols');
                 const num = parseInt(colsVal, 10);
                 if (num) {
+                    // Недоступная кнопка не выбирается — только тост.
+                    if (btn.classList.contains('col-btn-unavailable')) {
+                        const maxAllowed = getMaxAllowedColumns();
+                        OnlineUI.showToast(`Ваш экран слишком мал для ${num} колонок — сейчас доступно максимум ${maxAllowed}`, 'warning');
+                        return;
+                    }
                     StorageManager.setItem('r34_favorites_cols', num.toString());
                     updateFavColsUI(num);
                     const subGrid = container.querySelector('div[style*="display: grid"]');
@@ -312,15 +342,25 @@ export class FavoritesManager {
 
                 // Queue up IDs of favorites that need details
                 const idsToFetch = pagePosts.map(p => p.id);
-                
-                // Define a batch fetch function
-                const fetchBatch = async (batchIds) => {
+
+                // Раньше ID резались на пачки по 5 с паузой 2 секунды между
+                // ними, потому что сервер ходил в API rule34 отдельным запросом
+                // на каждый пост. Теперь /api/enrich-favorites добирает всё
+                // одним пакетным запросом `tags=fav:<user_id>` (плюс параллельно
+                // то, чего в нём не было), так что весь список запрашивается
+                // разом — данные ровно такие же свежие, просто без ожидания.
+                const fetchAllDetails = async (batchIds) => {
                     try {
                         const response = await fetch('/api/enrich-favorites', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ ids: batchIds })
                         });
+                        // Пока шёл запрос, вид мог смениться (уход в галерею,
+                        // «Обновить список», другая страница пагинации) — тогда
+                        // применять ответ уже некуда и не нужно: плейсхолдеры
+                        // с теми же id принадлежат уже другой сетке.
+                        if (!document.body.contains(subGrid)) return;
                         if (response.ok) {
                             const data = await response.json();
                             if (data.ok && Array.isArray(data.posts)) {
@@ -397,32 +437,13 @@ export class FavoritesManager {
                             }
                         }
                     } catch (e) {
-                        console.error('Failed to fetch batch details:', e);
+                        console.error('Failed to fetch favorites details:', e);
                     }
                 };
-                
-                // Process batches: 5 posts every 2 seconds
-                let batchIndex = 0;
-                const batchSize = 5;
-                
-                const processNextBatch = () => {
-                    // If the container is cleared or replaced, stop processing
-                    if (!document.body.contains(subGrid)) return;
-                    
-                    const start = batchIndex * batchSize;
-                    if (start >= idsToFetch.length) return;
-                    
-                    const batch = idsToFetch.slice(start, start + batchSize);
-                    fetchBatch(batch);
-                    
-                    batchIndex++;
-                    if (batchIndex * batchSize < idsToFetch.length) {
-                        setTimeout(processNextBatch, 2000);
-                    }
-                };
-                
-                // Run the first batch immediately!
-                processNextBatch();
+
+                if (idsToFetch.length) {
+                    fetchAllDetails(idsToFetch);
+                }
             }
         }
 

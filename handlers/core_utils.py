@@ -6,6 +6,7 @@ import base64
 import threading
 import functools
 import requests
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -377,25 +378,44 @@ def are_favorites_equal(list_a, list_b):
     return True
 
 def enrich_favorites_with_post_data(optimized_favorites):
+    """Дополняет "оптимизированное" избранное (id/change/is_deleted) полными
+    данными постов. Данные всегда берутся из API заново, никогда из кэша —
+    избранное обязано показывать актуальную информацию.
+
+    Раньше здесь был последовательный цикл с отдельным запросом на каждый пост:
+    сотня избранных = сотня запросов друг за другом. Теперь сначала идёт один
+    пакетный запрос `tags=fav:<user_id>` (он и так возвращает полные данные обо
+    всём избранном пользователя), и только то, чего в нём не оказалось,
+    добирается поштучно — зато параллельно."""
+    need_ids = [
+        str(f['id']) for f in optimized_favorites
+        if isinstance(f, dict) and 'id' in f and 'image' not in f
+    ]
+
+    posts_by_id = {}
+    if need_ids:
+        posts_by_id = fetch_all_favorites_from_api()
+        # Посты, которых нет в списке fav: пользователя — например, добавленные
+        # вручную по ID через /api/add-post-by-id, или уже удалённые из
+        # избранного на самом сайте, но ещё живые в локальном списке.
+        missing = [pid for pid in need_ids if pid not in posts_by_id]
+        if missing:
+            posts_by_id.update(fetch_posts_data_parallel(missing))
+
     enriched = []
     for fav in optimized_favorites:
         if isinstance(fav, dict) and 'id' in fav and 'image' not in fav:
             fav_id = fav['id']
-            post_data = fetch_post_data(fav_id)
+            base = {
+                'id': fav_id,
+                'change': fav.get('change', 0),
+                'is_deleted': fav.get('is_deleted', 0)
+            }
+            post_data = posts_by_id.get(str(fav_id))
             if post_data:
-                enriched.append({
-                    'id': fav_id,
-                    'change': fav.get('change', 0),
-                    'is_deleted': fav.get('is_deleted', 0),
-                    **post_data
-                })
+                enriched.append({**base, **post_data})
             else:
-                enriched.append({
-                    'id': fav_id,
-                    'change': fav.get('change', 0),
-                    'is_deleted': fav.get('is_deleted', 0),
-                    'api_failed': True
-                })
+                enriched.append({**base, 'api_failed': True})
         else:
             enriched.append(fav)
     return enriched
@@ -633,24 +653,107 @@ def fetch_post_data(post_id):
         print(f'Error fetching post data for ID {post_id}: {e}')
     return None
 
+# Сколько запросов к API rule34 идёт одновременно, когда данные постов
+# приходится добирать поштучно. Число намеренно небольшое: ToS API просит не
+# долбить сервис, а лимиты там могут поменяться в любой момент — шесть потоков
+# дают ускорение в разы против последовательного цикла и при этом не выглядят
+# как флуд.
+POST_FETCH_WORKERS = 6
+
+# Хардлимит API rule34 на один запрос списка постов — больше 1000 за раз отдать
+# нельзя, дальше только через pid (номер страницы).
+API_POSTS_PAGE_LIMIT = 1000
+# Потолок страниц на всякий случай, чтобы кривой ответ API не превратился в
+# бесконечный цикл запросов.
+FAVORITES_MAX_PAGES = 10
+
+def fetch_posts_data_parallel(post_ids):
+    """Тянет данные постов по списку ID параллельно вместо последовательного
+    цикла. Данные НЕ кэшируются — каждый вызов реально идёт в API, чтобы
+    информация всегда была свежей; ускорение достигается только за счёт
+    одновременности запросов. Возвращает {str(post_id): post_dict}, и только
+    для тех ID, по которым API реально что-то отдал."""
+    ids = [str(pid) for pid in post_ids if pid]
+    if not ids:
+        return {}
+    result = {}
+    with ThreadPoolExecutor(max_workers=min(POST_FETCH_WORKERS, len(ids))) as pool:
+        for pid, post in zip(ids, pool.map(fetch_post_data, ids)):
+            if post:
+                result[pid] = post
+    return result
+
+def fetch_all_favorites_from_api():
+    """Один запрос (плюс по одному на каждую следующую 1000) вместо N запросов
+    по одному посту: метатег `fav:<user_id>` возвращает полные данные сразу обо
+    всех постах в избранном пользователя. Свежесть та же самая — просто данные
+    добываются за один заход, а не сотней последовательных обращений.
+    Возвращает {str(id): post} либо {}, если ключей нет или запрос не удался."""
+    user_id, api_key = get_saved_api_key()
+    if not user_id or not api_key:
+        return {}
+    posts_by_id = {}
+    try:
+        for page in range(FAVORITES_MAX_PAGES):
+            url = (
+                'https://api.rule34.xxx/index.php?page=dapi&s=post&q=index'
+                f'&tags=fav:{user_id}&user_id={user_id}&api_key={api_key}'
+                f'&json=1&fields=tag_info&limit={API_POSTS_PAGE_LIMIT}&pid={page}'
+            )
+            resp = session.get(url, headers={'User-Agent': REAL_USER_AGENT}, timeout=20)
+            if resp.status_code != 200:
+                break
+            text = (resp.text or '').strip()
+            if not text.startswith('['):
+                break
+            batch = json.loads(text)
+            if not isinstance(batch, list) or not batch:
+                break
+            for post in batch:
+                if isinstance(post, dict) and post.get('id') is not None:
+                    posts_by_id[str(post['id'])] = post
+            if len(batch) < API_POSTS_PAGE_LIMIT:
+                break
+    except Exception as e:
+        print('Error bulk-fetching favorites from API:', e)
+    return posts_by_id
+
+def _puzzle_source_fields(puzzle):
+    """Достаёт из записи пазла (в любом из исторических форматов) id поста,
+    URL картинки и размеры — ровно то, что нужно и для проверки "чего не
+    хватает", и для сборки итоговой записи."""
+    post_id = puzzle.get('postId') or puzzle.get('id') or (puzzle.get('post', {}).get('id') if isinstance(puzzle.get('post'), dict) else None)
+    image_url = puzzle.get('imageUrl') or puzzle.get('thumbnail')
+    post_obj = puzzle.get('post') or {}
+    if not image_url and isinstance(post_obj, dict):
+        image_url = post_obj.get('sample_url') or post_obj.get('file_url') or post_obj.get('preview_url')
+    width = puzzle.get('width') or (post_obj.get('width') if isinstance(post_obj, dict) else None)
+    height = puzzle.get('height') or (post_obj.get('height') if isinstance(post_obj, dict) else None)
+    return post_id, image_url, width, height
+
 def enrich_puzzles_with_post_data(optimized_puzzles):
+    # Данные постов для пазлов без сохранённой картинки раньше добирались
+    # последовательно прямо в цикле ниже — на десятке-другом таких пазлов
+    # запросы шли друг за другом, и /api/puzzle-completed отвечал секундами.
+    # Сначала выясняем, чего не хватает, и тянем всё одним параллельным заходом.
+    need_ids = []
+    for puzzle in optimized_puzzles:
+        if not isinstance(puzzle, dict):
+            continue
+        post_id, image_url, _, _ = _puzzle_source_fields(puzzle)
+        if post_id and not image_url:
+            need_ids.append(str(post_id))
+    posts_by_id = fetch_posts_data_parallel(need_ids) if need_ids else {}
+
     enriched = []
     for puzzle in optimized_puzzles:
         if isinstance(puzzle, dict):
-            post_id = puzzle.get('postId') or puzzle.get('id') or (puzzle.get('post', {}).get('id') if isinstance(puzzle.get('post'), dict) else None)
+            post_id, image_url, width, height = _puzzle_source_fields(puzzle)
             if not post_id:
                 continue
 
-            image_url = puzzle.get('imageUrl') or puzzle.get('thumbnail')
-            post_obj = puzzle.get('post') or {}
-            if not image_url and isinstance(post_obj, dict):
-                image_url = post_obj.get('sample_url') or post_obj.get('file_url') or post_obj.get('preview_url')
-            
-            width = puzzle.get('width') or (post_obj.get('width') if isinstance(post_obj, dict) else None)
-            height = puzzle.get('height') or (post_obj.get('height') if isinstance(post_obj, dict) else None)
-
-            if not image_url and post_id:
-                post_data = fetch_post_data(post_id)
+            if not image_url:
+                post_data = posts_by_id.get(str(post_id))
                 if post_data:
                     image_url = post_data.get('sample_url') or post_data.get('file_url') or post_data.get('preview_url') or ""
                     width = post_data.get('width') or 1000

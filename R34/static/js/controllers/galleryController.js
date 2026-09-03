@@ -23,6 +23,7 @@ export class GalleryController {
         this.lastTagsQuery = '';
         this.isInitialLoad = true;
         this.debounceTimeout = null;
+        this._pendingQuery = null;
 
         window.reachedEnd = false;
     }
@@ -70,7 +71,20 @@ export class GalleryController {
             return; // Don't load gallery posts when in profile mode
         }
 
-        if (this.loading || (this.reachedEnd && append)) return;
+        if (this.loading || (this.reachedEnd && append)) {
+            // Пользователь сменил теги/фильтр, пока предыдущий запрос ещё в
+            // полёте (например, ждёт retry на rate-limit — это десятки
+            // секунд, см. api.js). Раньше такой запрос просто молча терялся
+            // здесь же, и после завершения старого рисовались результаты по
+            // уже неактуальным тегам без единого следа, что что-то пошло не
+            // так. Запоминаем последнее желаемое состояние поиска и
+            // перезапускаем его сами, как только текущий запрос освободится.
+            if (this.loading && !append) {
+                this._pendingQuery = tagsQuery;
+            }
+            return;
+        }
+        this._pendingQuery = null;
         this.loading = true;
 
         if (append) {
@@ -85,10 +99,7 @@ export class GalleryController {
             window.reachedEnd = false;
         }
 
-        if (this.errorEl) {
-            this.errorEl.textContent = '';
-            this.errorEl.classList.remove('active');
-        }
+        this._clearError();
 
         try {
             const sortBy = this.getCurrentSort();
@@ -270,6 +281,12 @@ export class GalleryController {
             if (this.loader) this.loader.style.display = 'none';
             if (this.paginationLoader) this.paginationLoader.style.display = 'none';
             this.loading = false;
+
+            if (this._pendingQuery !== null) {
+                const pending = this._pendingQuery;
+                this._pendingQuery = null;
+                this.resetAndLoad(pending);
+            }
         }
     }
 
@@ -347,46 +364,62 @@ export class GalleryController {
         return filtered;
     }
 
+    // Единая точка сброса блока ошибки — используется и перед новой попыткой
+    // загрузки, и после того как rate-limit самовосстановился. Раньше показ
+    // rate-limit ставил инлайновый style.display='flex' поверх CSS-класса
+    // .active, а сброс убирал только .active и текст — инлайн-стиль никто не
+    // снимал, и после первого rate-limit пустой блок с рамкой оставался
+    // видимым на странице навсегда. Теперь видимостью управляет только класс.
+    _clearError() {
+        if (window._rateLimitInterval) {
+            clearInterval(window._rateLimitInterval);
+            window._rateLimitInterval = null;
+        }
+        if (!this.errorEl) return;
+        this.errorEl.textContent = '';
+        this.errorEl.classList.remove('active', 'rate-limit');
+    }
+
     handleLoadError(error, append) {
         if (!this.errorEl) return;
 
         const isRateLimit = error && (error.message === "RATE_LIMIT" || error.isRateLimit === true);
         if (isRateLimit) {
             console.warn('[GalleryController] API Rate Limit encountered. Cooldown started.');
-            let secondsLeft = 15;
+            const totalSeconds = 15;
+            let secondsLeft = totalSeconds;
             this.errorEl.innerHTML = `
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                    <span>${icon('warning', { size: 16 })} API Rule34 временно ограничил частоту запросов.</span>
-                    <span style="font-size: 0.9em; opacity: 0.85;">Автоматическая повторная попытка через <b id="rate-limit-timer">${secondsLeft}</b> сек...</span>
-                    <button id="retry-now-btn" style="margin-top: 6px; padding: 6px 16px; background: var(--glass-bg-strong); color: #fff; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); cursor: pointer; font-weight: bold; transition: background 0.2s;">
+                <div class="rate-limit-box">
+                    <span class="rate-limit-msg">${icon('warning', { size: 16 })} API Rule34 временно ограничил частоту запросов.</span>
+                    <span class="rate-limit-sub">Автоматическая повторная попытка через <b id="rate-limit-timer">${secondsLeft}</b> сек...</span>
+                    <div class="rate-limit-bar"><div class="rate-limit-bar-fill" id="rate-limit-bar-fill"></div></div>
+                    <button id="retry-now-btn" class="rate-limit-retry-btn">
                         Попробовать сейчас ${icon('refresh', { size: 14 })}
                     </button>
                 </div>
             `;
-            this.errorEl.classList.add('active');
-            this.errorEl.style.display = 'flex';
+            this.errorEl.classList.add('active', 'rate-limit');
+
+            const retryNow = () => {
+                this._clearError();
+                this.immediateLoadPosts(this.tagSearch?.getTagsQuery() || '', append);
+            };
 
             if (window._rateLimitInterval) clearInterval(window._rateLimitInterval);
             window._rateLimitInterval = setInterval(() => {
                 secondsLeft--;
                 const timerEl = document.getElementById('rate-limit-timer');
                 if (timerEl) timerEl.textContent = secondsLeft;
+                const barFill = document.getElementById('rate-limit-bar-fill');
+                if (barFill) barFill.style.width = `${Math.max(0, (secondsLeft / totalSeconds) * 100)}%`;
                 if (secondsLeft <= 0) {
-                    clearInterval(window._rateLimitInterval);
-                    this.errorEl.classList.remove('active');
-                    this.errorEl.innerHTML = '';
-                    this.immediateLoadPosts(this.tagSearch?.getTagsQuery() || '', append);
+                    retryNow();
                 }
             }, 1000);
 
             const retryBtn = document.getElementById('retry-now-btn');
             if (retryBtn) {
-                retryBtn.onclick = () => {
-                    if (window._rateLimitInterval) clearInterval(window._rateLimitInterval);
-                    this.errorEl.classList.remove('active');
-                    this.errorEl.innerHTML = '';
-                    this.immediateLoadPosts(this.tagSearch?.getTagsQuery() || '', append);
-                };
+                retryBtn.onclick = retryNow;
             }
         } else {
             this.errorEl.textContent = 'Ошибка загрузки. Попробуйте позже.';

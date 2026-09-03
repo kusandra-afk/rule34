@@ -821,6 +821,19 @@ body.can-hover .col-btn:hover, body:not(.can-hover) .col-btn:active {
   box-shadow: 0 2px 10px var(--accent-glow);
 }
 
+/* Некоторые значения колонок не помещаются на текущей ширине экрана
+   (gallery.js/favoritesManager.js всё равно урезают их до 2-3). Кнопка
+   визуально выключена, но не через атрибут disabled — клик по ней всё
+   ещё ловится, чтобы показать тост с объяснением, а не просто ничего
+   не сделать молча. */
+.col-btn.col-btn-unavailable {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
 [data-theme="light"] .col-btn,
 body.light-theme .col-btn {
   background: rgba(0, 0, 0, 0.08);

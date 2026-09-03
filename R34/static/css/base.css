@@ -348,6 +348,21 @@ h1 {
   40%, 60%      { transform: translateX(6px); }
 }
 
+/* Тост #error центрируется через translate(-50%, 0) — обычный errorShake
+   перезаписал бы этот сдвиг чистым translateX() и тост прыгнул бы влево
+   при каждой тряске, поэтому у него своя версия с сохранённым -50%. */
+@keyframes errorToastShake {
+  10%, 90%      { transform: translate(calc(-50% - 2px), 0); }
+  20%, 80%      { transform: translate(calc(-50% + 4px), 0); }
+  30%, 50%, 70% { transform: translate(calc(-50% - 6px), 0); }
+  40%, 60%      { transform: translate(calc(-50% + 6px), 0); }
+}
+
+@keyframes errorToastIn {
+  from { transform: translate(-50%, 16px); opacity: 0; }
+  to   { transform: translate(-50%, 0); opacity: 1; }
+}
+
 /* ============================================================
    APP MODE TABS (Галерея / Избранное / Настройки)
    ============================================================ */
@@ -398,7 +413,11 @@ h1 {
   transition: transform 0.2s var(--ease);
 }
 
-body.can-hover .app-mode-btn:hover, body:not(.can-hover) .app-mode-btn:active {
+/* :not(.active) — иначе наведение на уже активную вкладку (выше по
+   специфичности, чем .app-mode-btn.active ниже) перекрашивало её обратно в
+   серый неактивный цвет, пока раньше это маскировал инлайн-style из
+   modeController.js с наивысшим приоритетом в каскаде. */
+body.can-hover .app-mode-btn:hover:not(.active), body:not(.can-hover) .app-mode-btn:active:not(.active) {
   color: #fff;
   background: rgba(255, 255, 255, 0.06);
 }
@@ -796,6 +815,11 @@ body.can-hover .r34-custom-dropdown-trigger:hover, body:not(.can-hover) .r34-cus
   box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.15);
 }
 
+.r34-custom-dropdown-trigger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .r34-custom-dropdown-arrow {
   display: flex;
   align-items: center;
@@ -1075,6 +1099,20 @@ body.can-hover .r34-btn-danger:hover, body:not(.can-hover) .r34-btn-danger:activ
   transition: all 0.3s var(--ease);
 }
 
+/* Настройки "(Только для ПК)" отключаются на устройствах без реального
+   курсора (settingsModal.js выставляет disabled по body.can-hover) —
+   переключатель/слайдер/поле остаются видны, но не нажимаются. */
+.r34-toggle-switch input:disabled + .r34-slider {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.r34-range:disabled,
+.r34-input-mini:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .r34-slider:before {
   content: "";
   position: absolute;
@@ -1117,25 +1155,109 @@ body.can-hover .r34-btn-danger:hover, body:not(.can-hover) .r34-btn-danger:activ
   animation: spin 0.9s linear infinite;
 }
 
+/* Раньше блок ошибки жил прямо в потоке страницы, под сеткой карточек —
+   если он появлялся во время подгрузки следующей страницы (бесконечный
+   скролл), пользователь мог быть далеко вверху и просто не увидеть его,
+   пока не долистает до самого низа. Плавающий тост внизу экрана виден
+   сразу, независимо от текущей прокрутки — и на десктопе, и на телефоне. */
 .error {
   display: none;
-  max-width: 620px;
-  margin: 24px auto;
+  position: fixed;
+  left: 50%;
+  /* 24px + 50px кнопки "наверх" + отступ — иначе на мобильной ширине,
+     где обе всплывают у одного и того же нижнего края, тост перекрывает её. */
+  bottom: 88px;
+  z-index: 9000;
+  width: calc(100% - 32px);
+  max-width: 560px;
+  margin: 0;
   padding: 15px 22px;
-  background: rgba(255, 92, 92, 0.08);
+  background: rgba(255, 92, 92, 0.12);
   border: 1px solid rgba(255, 92, 92, 0.28);
   border-radius: var(--radius-md);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   color: var(--error);
   font-size: 1rem;
   font-weight: 500;
   text-align: center;
-  animation: errorShake 0.5s var(--ease);
+  transform: translate(-50%, 0);
 }
 
 .error.active {
   display: block;
+  animation: errorToastIn 0.35s var(--ease), errorToastShake 0.5s var(--ease) 0.35s;
+}
+
+/* Rate-limit — это не поломка, а обычное временное ограничение API, которое
+   само восстановится, так что оформляем его мягче обычной красной ошибки
+   (янтарный акцент, тот же тон, что и у "тёплых" элементов интерфейса) и без
+   тряски — дёргать тост при каждой обычной паузе на дозвон API избыточно. */
+.error.rate-limit {
+  background: rgba(242, 201, 76, 0.12);
+  border-color: rgba(242, 201, 76, 0.3);
+  color: #f2c94c;
+}
+
+.error.rate-limit.active {
+  animation: errorToastIn 0.35s var(--ease);
+}
+
+.rate-limit-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.rate-limit-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rate-limit-sub {
+  font-size: 0.9em;
+  opacity: 0.85;
+}
+
+.rate-limit-bar {
+  width: 100%;
+  max-width: 220px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(242, 201, 76, 0.18);
+  overflow: hidden;
+}
+
+.rate-limit-bar-fill {
+  width: 100%;
+  height: 100%;
+  background: #f2c94c;
+  transition: width 1s linear;
+}
+
+.rate-limit-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 16px;
+  background: rgba(242, 201, 76, 0.12);
+  color: #f2c94c;
+  border: 1px solid rgba(242, 201, 76, 0.35);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.95em;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+body.can-hover .rate-limit-retry-btn:hover,
+body:not(.can-hover) .rate-limit-retry-btn:active {
+  background: rgba(242, 201, 76, 0.22);
+  border-color: rgba(242, 201, 76, 0.55);
 }
 
 /* ============================================================

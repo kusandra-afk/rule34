@@ -2,13 +2,14 @@
  * Settings Modal Component
  */
 
-import { debounce, setRangeGradient, extractHexColor } from '../utils.js';
+import { debounce, setRangeGradient, extractHexColor, getMaxAllowedColumns } from '../utils.js';
 import { icon } from '../icons.js';
 import { checkAndRemoveModalOpenClass, initTutorialModal } from './tutorialModal.js';
 import { tursoSync } from '../tursoSync.js';
 import { saveTursoConfigToServer, saveSettingsToServer } from '../init/initServerSync.js';
 import { colorPresets } from '../theme/themePresets.js';
 import { debouncedSaveSetting } from '../theme/themeManager.js';
+import { OnlineUI } from '../puzzle/onlineUI.js';
 
 export function initSettingsModal(options = {}) {
     const {
@@ -23,6 +24,12 @@ export function initSettingsModal(options = {}) {
     } = options;
 
     let currentSort = getCurrentSort();
+    // Заполняется ниже, когда инициализируется разворот живого предпросмотра
+    // на весь экран — закрытие самой модалки (крестик/фон/Escape) должно
+    // сначала свернуть предпросмотр, иначе он остаётся висеть поверх всего
+    // экрана как портальный узел из document.body, а модалка под ним уже
+    // закрыта и никак его не достать, кроме как найти его собственный крестик.
+    let collapsePreviewFullscreen = () => {};
 
     // --- ИНИЦИАЛИЗАЦИЯ НАСТРОЕК (Gear settings modal) ---
     const settingsBtn = document.getElementById('settingsBtn');
@@ -56,6 +63,7 @@ export function initSettingsModal(options = {}) {
     // Вспомогательная функция для обновления кнопок колонок
     function updateColumnsSelectorUI(cols, isCustom) {
         if (!settingsColumnsGroup) return;
+        const maxAllowed = getMaxAllowedColumns();
         const buttons = settingsColumnsGroup.querySelectorAll('.col-btn');
         buttons.forEach(btn => {
             const dataCols = btn.getAttribute('data-cols');
@@ -64,6 +72,9 @@ export function initSettingsModal(options = {}) {
             } else {
                 btn.classList.remove('active');
             }
+            const exceedsScreen = parseInt(dataCols, 10) > maxAllowed;
+            btn.classList.toggle('col-btn-unavailable', exceedsScreen);
+            btn.title = exceedsScreen ? `При такой ширине экрана отображается не больше ${maxAllowed} колонок` : '';
         });
 
         const numCols = parseInt(cols, 10) || 1;
@@ -71,6 +82,36 @@ export function initSettingsModal(options = {}) {
         const optNote = document.getElementById('columnsOptNote');
         if (optWarning) optWarning.style.display = numCols >= 2 ? 'inline-flex' : 'none';
         if (optNote) optNote.style.display = numCols >= 2 ? 'block' : 'none';
+    }
+
+    // Настройки, помеченные бейджем "(Только для ПК)", управляют эффектами
+    // наведения мышью — на телефоне/планшете без курсора они просто ничего
+    // не делают. Раньше их можно было покрутить и ничего не заметить, что
+    // выглядит как будто настройка сломана. body.can-hover — тот же флаг,
+    // что main.js использует для CSS :hover/:active по всему сайту (снимается
+    // с body при первом touchstart), так что источник истины один и тот же.
+    function applyPcOnlyDisabledState() {
+        const isPcLike = document.body.classList.contains('can-hover');
+        const pcOnlyIds = [
+            'settingsHoverSelect',
+            'settingsCardGlowInput', 'settingsCardGlowManual',
+            'settingsCardTransitionInput', 'settingsCardTransitionManual',
+            'settingsTagsOnHoverCheckbox'
+        ];
+        pcOnlyIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = !isPcLike;
+        });
+
+        // Затемняем целиком весь блок настройки, а не только сам ползунок/
+        // переключатель — иначе неясно, почему конкретно это поле серое.
+        // Кнопку "!" (info-btn) из затемнения исключаем — объяснение, почему
+        // настройка недоступна, должно оставаться читаемым и нажимаемым.
+        const pcOnlyOptionIds = ['pcOnlyHoverEffectOption', 'pcOnlyGlowOption', 'pcOnlyTransitionOption', 'pcOnlyTagsHoverOption'];
+        pcOnlyOptionIds.forEach(id => {
+            const optionEl = document.getElementById(id);
+            if (optionEl) optionEl.classList.toggle('pc-only-disabled', !isPcLike);
+        });
     }
 
     function updateDurationContainerUI(enabled) {
@@ -195,7 +236,8 @@ export function initSettingsModal(options = {}) {
                 }
     
                 updateLikesGroupVisibility();
-                
+                applyPcOnlyDisabledState();
+
                 // Колонки
                 const savedCols = localStorage.getItem('r34_gallery_cols') || '1';
                 const savedIsCustom = localStorage.getItem('r34_gallery_is_custom') === 'true';
@@ -670,14 +712,16 @@ export function initSettingsModal(options = {}) {
     
         if (settingsCloseBtn && settingsModal) {
             settingsCloseBtn.addEventListener('click', () => {
+                collapsePreviewFullscreen();
                 settingsModal.classList.remove('open');
                 if (typeof stopDemoScroll === 'function') stopDemoScroll();
                 checkAndRemoveModalOpenClass();
             });
-            
+
             // Закрытие при клике по фону
             settingsModal.addEventListener('click', (e) => {
                 if (e.target === settingsModal) {
+                    collapsePreviewFullscreen();
                     settingsModal.classList.remove('open');
                     if (typeof stopDemoScroll === 'function') stopDemoScroll();
                     checkAndRemoveModalOpenClass();
@@ -695,6 +739,7 @@ export function initSettingsModal(options = {}) {
                 if (tutorialModal && tutorialModal.classList.contains('open')) {
                     closeTutorial();
                 } else if (settingsModal && settingsModal.classList.contains('open')) {
+                    collapsePreviewFullscreen();
                     settingsModal.classList.remove('open');
                     if (typeof stopDemoScroll === 'function') stopDemoScroll();
                     checkAndRemoveModalOpenClass();
@@ -1575,15 +1620,26 @@ export function initSettingsModal(options = {}) {
         settingsColumnsGroup.addEventListener('click', (e) => {
             const btn = e.target.closest('.col-btn');
             if (!btn) return;
-            
+
             const colsVal = btn.getAttribute('data-cols');
             const num = parseInt(colsVal, 10);
-            if (!isNaN(num)) {
-                if (window.gallery && typeof window.gallery.setColumns === 'function') {
-                    window.gallery.setColumns(num, false);
-                }
-                updateColumnsSelectorUI(colsVal, false);
+            if (isNaN(num)) return;
+
+            // Недоступная на этой ширине экрана кнопка не выбирается вообще —
+            // только тост с объяснением. Раньше клик всё равно применял и
+            // подсвечивал значение (просто урезанное при отрисовке), что
+            // выглядело так, будто выбор сработал, хотя внешне ничего не
+            // менялось.
+            if (btn.classList.contains('col-btn-unavailable')) {
+                const maxAllowed = getMaxAllowedColumns();
+                OnlineUI.showToast(`Ваш экран слишком мал для ${num} колонок — сейчас доступно максимум ${maxAllowed}`, 'warning');
+                return;
             }
+
+            if (window.gallery && typeof window.gallery.setColumns === 'function') {
+                window.gallery.setColumns(num, false);
+            }
+            updateColumnsSelectorUI(colsVal, false);
         });
     }
 
@@ -1594,6 +1650,18 @@ export function initSettingsModal(options = {}) {
         window.gallery.setColumns(parseInt(initCols, 10), initIsCustom);
     }
     updateColumnsSelectorUI(initCols, initIsCustom);
+    applyPcOnlyDisabledState();
+
+    // Порог, после которого экран урезает число колонок (gallery.js /
+    // favoritesManager.js), зависит от ширины окна — при повороте телефона
+    // или изменении размера окна на ПК какая-то из кнопок 1-5 может
+    // перестать/начать помещаться, так что список disabled-кнопок держим
+    // актуальным, а не только на момент открытия настроек.
+    window.addEventListener('resize', debounce(() => {
+        const savedCols = localStorage.getItem('r34_gallery_cols') || '1';
+        const savedIsCustom = localStorage.getItem('r34_gallery_is_custom') === 'true';
+        updateColumnsSelectorUI(savedCols, savedIsCustom);
+    }, 200));
 
     // Изменение сортировки в настройках
     if (settingsSortSelect) {
@@ -1956,6 +2024,59 @@ export function initSettingsModal(options = {}) {
         });
     }
 
+    // Разворачивание живого предпросмотра на весь экран. .preview-wrapper
+    // внутри модалки ограничен её backdrop-filter (создаёт containing block
+    // для position:fixed) и overflow:hidden — обычный position:fixed внутри
+    // просто обрезался бы по рамке модалки. Поэтому на разворот сам узел
+    // переносится в document.body (тот же портал-приём, что и у
+    // customDropdown.js), а при сворачивании возвращается ровно на своё
+    // место — это тот же DOM-узел, а не копия, так что живой предпросмотр
+    // продолжает реагировать на слайдеры без каких-либо дополнительных швов.
+    const previewExpandBtn = document.getElementById('settingsPreviewExpandBtn');
+    const previewCloseBtn = document.getElementById('settingsPreviewCloseBtn');
+    const previewWrapperEl = document.querySelector('.preview-wrapper');
+    if (previewExpandBtn && previewCloseBtn && previewWrapperEl) {
+        let previewAnchor = null;
+        let previewBackdrop = null;
+
+        const closePreviewFullscreen = () => {
+            if (!previewWrapperEl.classList.contains('preview-fullscreen-active')) return;
+            previewWrapperEl.classList.remove('preview-fullscreen-active');
+            if (previewAnchor && previewAnchor.parentNode) {
+                previewAnchor.parentNode.insertBefore(previewWrapperEl, previewAnchor);
+            }
+            if (previewBackdrop) {
+                previewBackdrop.remove();
+                previewBackdrop = null;
+            }
+        };
+
+        previewExpandBtn.addEventListener('click', () => {
+            previewAnchor = document.createComment('preview-wrapper-anchor');
+            previewWrapperEl.parentNode.insertBefore(previewAnchor, previewWrapperEl);
+
+            previewBackdrop = document.createElement('div');
+            previewBackdrop.className = 'preview-fullscreen-backdrop';
+            previewBackdrop.addEventListener('click', closePreviewFullscreen);
+            document.body.appendChild(previewBackdrop);
+
+            document.body.appendChild(previewWrapperEl);
+            previewWrapperEl.classList.add('preview-fullscreen-active');
+        });
+
+        previewCloseBtn.addEventListener('click', closePreviewFullscreen);
+        collapsePreviewFullscreen = closePreviewFullscreen;
+
+        // Esc сначала сворачивает превью, а не закрывает модалку под ним —
+        // тот же приём (capture + stopPropagation), что и в customDropdown.js.
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && previewWrapperEl.classList.contains('preview-fullscreen-active')) {
+                e.stopPropagation();
+                closePreviewFullscreen();
+            }
+        }, true);
+    }
+
     // 10. Кнопка сброса настроек
     const settingsResetBtn = document.getElementById('settingsResetBtn');
     if (settingsResetBtn) {
@@ -2152,10 +2273,11 @@ export function initSettingsModal(options = {}) {
     // Инструкции (кнопки с восклицательным знаком) — этот блок отвечал за клик по "!" и
     // открытие соответствующей подсказки, был утерян при разбиении на модули.
     document.querySelectorAll('.info-btn').forEach(btn => {
+        const key = btn.getAttribute('data-info');
+        const targetBox = document.getElementById(`info-${key}`);
+
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const key = btn.getAttribute('data-info');
-            const targetBox = document.getElementById(`info-${key}`);
             if (targetBox) {
                 const isHidden = targetBox.style.display === 'none';
                 // Сначала закроем все остальные
@@ -2166,6 +2288,29 @@ export function initSettingsModal(options = {}) {
                 targetBox.style.display = isHidden ? 'block' : 'none';
             }
         });
+
+        // На ПК подсказка раскрывается уже при наведении на "!" — клик
+        // остаётся единственным способом на тач-устройствах, где hover нет.
+        // mouseleave проверяет relatedTarget: уход курсора С кнопки НА саму
+        // подсказку (например, чтобы выделить текст в примере) не закрывает
+        // её раньше времени.
+        if (targetBox) {
+            btn.addEventListener('mouseenter', () => {
+                if (!document.body.classList.contains('can-hover')) return;
+                document.querySelectorAll('.info-help-box').forEach(box => {
+                    if (box !== targetBox) box.style.display = 'none';
+                });
+                targetBox.style.display = 'block';
+            });
+            const hideUnlessMovingBetweenBoth = (e) => {
+                if (!document.body.classList.contains('can-hover')) return;
+                const to = e.relatedTarget;
+                if (to === btn || to === targetBox || targetBox.contains(to)) return;
+                targetBox.style.display = 'none';
+            };
+            btn.addEventListener('mouseleave', hideUnlessMovingBetweenBoth);
+            targetBox.addEventListener('mouseleave', hideUnlessMovingBetweenBoth);
+        }
     });
 
     // Закрытие подсказок при клике в любое место

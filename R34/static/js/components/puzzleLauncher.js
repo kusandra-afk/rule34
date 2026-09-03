@@ -4,7 +4,6 @@
 
 import { PuzzleGame } from './puzzleGame.js';
 import { PuzzleOnlineManager } from './puzzleOnline.js';
-import { fetchPuzzleCompleted } from '../api.js';
 import { icon } from '../icons.js';
 import { getSavedExcludedTags } from '../init/initServerSync.js';
 import { openGameChoiceModal } from '../modals/gameChoiceModal.js';
@@ -160,13 +159,19 @@ export function startPuzzleGame() {
     window.loadMorePostsForPuzzle = loadMorePostsForPuzzle;
 
     const showPuzzleToast = (msg, duration = 3500) => {
+        // Тост пазла переиспользует тот же #error, что и ошибки галереи
+        // (GalleryController) — раньше здесь выставлялся инлайновый
+        // style.display поверх класса .active. Инлайн-стиль побеждает любое
+        // CSS-правило, так что после первого показа тоста ('display:none' в
+        // конце) блок ошибок галереи переставал появляться вообще —
+        // classList.add('active') в handleLoadError уже ничего не мог
+        // перебить. Видимостью должен управлять только класс .active.
         const tempErr = document.getElementById('error');
         if (tempErr) {
+            tempErr.classList.remove('rate-limit');
             tempErr.textContent = msg;
-            tempErr.style.display = 'block';
             tempErr.classList.add('active');
             setTimeout(() => {
-                tempErr.style.display = 'none';
                 tempErr.classList.remove('active');
             }, duration);
         }
@@ -225,26 +230,28 @@ export function startPuzzleGame() {
         game.start();
     };
 
-    const showModeMenu = async () => {
-        // До сюда меню появлялось в DOM только ПОСЛЕ await fetchPuzzleCompleted() —
-        // на плохом интернете это могло занять заметное время, а пользователь в
-        // этот момент видел только исчезающее окно выбора игры и никакой
-        // индикации, что что-то вообще происходит (можно было принять за баг).
-        // Показываем загрузочный экран сразу — тот же, что уже используется
-        // при открытии библиотеки пазлов (см. PuzzleUI.showCompletedModal),
-        // чтобы не плодить второй, менее аккуратный вариант того же самого.
-        const loadingModal = document.createElement('div');
-        loadingModal.className = 'puzzle-loading-overlay keep-animation';
-        const loadingContent = document.createElement('div');
-        loadingContent.className = 'puzzle-loading-content keep-animation';
-        loadingContent.innerHTML = `
-            <div class="puzzle-loading-spinner keep-animation"></div>
-            <div class="puzzle-loading-title">Загрузка пазлов...</div>
-            <div class="puzzle-loading-subtext">Синхронизация с базой данных</div>
-        `;
-        loadingModal.appendChild(loadingContent);
-        document.body.appendChild(loadingModal);
+    const showModeMenu = () => {
+        // Раньше здесь ждали fetchPuzzleCompleted() — это /api/puzzle-completed,
+        // который на GET реально ходит в облачную Turso-БД и мёржит записи
+        // (handlers/user_routes.py), а не просто читает локальный файл. Этот
+        // раунд-трип нужен библиотеке пазлов (PuzzleUI.showCompletedModal),
+        // где показывается точный список решённых пазлов с превью — а тут он
+        // был нужен только ради одного числа (счётчик "решено") в меню выбора
+        // режима, которое открывается при каждом входе в пазлы, а не только
+        // при заходе в библиотеку. Локальный localStorage даёт то же число
+        // мгновенно, без сети и без полноэкранного "Синхронизация с БД" —
+        // настоящая синхронизация с Turso происходит один раз, когда
+        // действительно открывается библиотека.
+        let solvedCount = 0;
+        try {
+            const solvedIds = JSON.parse(localStorage.getItem('r34_solved_puzzles') || '[]');
+            solvedCount = solvedIds.length;
+        } catch (e) {}
 
+        // Анимации закрытия ниже (fadeOut/slideDown) ссылаются на @keyframes,
+        // которые обычно приезжают вместе с загрузочным экраном библиотеки —
+        // а меню теперь открывается без него, так что регистрируем их сами
+        // при первом открытии меню, если их ещё нет на странице.
         if (!document.getElementById('puzzle-library-animations')) {
             const style = document.createElement('style');
             style.id = 'puzzle-library-animations';
@@ -258,27 +265,10 @@ export function startPuzzleGame() {
             document.head.appendChild(style);
         }
 
-        let solvedCount = 0;
-        try {
-            const completedPuzzles = await fetchPuzzleCompleted();
-            solvedCount = Array.isArray(completedPuzzles) ? completedPuzzles.length : 0;
-        } catch (err) {
-            console.error('[Puzzle Menu] Failed to load completed puzzles library count, falling back:', err);
-            try {
-                const solvedIds = JSON.parse(localStorage.getItem('r34_solved_puzzles') || '[]');
-                solvedCount = solvedIds.length;
-            } catch (e) {}
-        }
-
-        loadingModal.style.animation = 'fadeOut 0.2s ease-out';
-        setTimeout(() => loadingModal.remove(), 200);
-
         const menuModal = document.createElement('div');
         menuModal.id = 'puzzle-mode-menu-modal';
         menuModal.className = 'game-overlay open';
 
-        // Загрузочный экран сделал своё дело — дальше собирается настоящее
-        // содержимое меню и целиком заменяет его (innerHTML ниже).
         menuModal.innerHTML = `
             <div class="game-header">
                 <button class="game-back-btn" id="pzMenuBackBtn" title="Назад к выбору игр" style="background:none;border:none;color:#fff;cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center;border-radius:12px;transition:background 0.2s;">
@@ -288,7 +278,7 @@ export function startPuzzleGame() {
                     <div class="game-logo-icon game-logo-icon-puzzle">${icon('puzzle', { size: 20 })}</div>
                     <h2 class="game-app-title">Пазлы</h2>
                 </div>
-                <button class="game-close-btn" id="pzMenuCloseBtn" title="Закрыть">&times;</button>
+                <button class="game-close-btn" id="pzMenuCloseBtn" title="Закрыть">${icon('x', { size: 18 })}</button>
             </div>
         `;
 

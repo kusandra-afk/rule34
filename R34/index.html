@@ -68,7 +68,7 @@
       </div>
       <div class="settings-header-actions">
         <button id="settingsResetBtn" class="r34-btn-secondary settings-reset-btn">Сбросить всё</button>
-        <button id="settings-close-btn" class="settings-close-btn">&times;</button>
+        <button id="settings-close-btn" class="settings-close-btn"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     </div>
 
@@ -427,11 +427,20 @@
         <span class="preview-toolbar-dot"></span>
         Живой предпросмотр (Мини-сайт)
       </label>
-      <button id="settingsDemoScrollBtn" class="r34-btn-secondary preview-scroll-btn">
-        <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><polygon points="5 3 19 12 5 21"></polygon></svg>
-        <span>Авто-скролл</span>
-      </button>
+      <div class="preview-toolbar-actions">
+        <button id="settingsDemoScrollBtn" class="r34-btn-secondary preview-scroll-btn">
+          <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><polygon points="5 3 19 12 5 21"></polygon></svg>
+          <span>Авто-скролл</span>
+        </button>
+        <button id="settingsPreviewExpandBtn" class="r34-btn-secondary preview-scroll-btn" title="Развернуть предпросмотр на весь экран">
+          <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+          <span>Во весь экран</span>
+        </button>
+      </div>
     </div>
+    <button id="settingsPreviewCloseBtn" class="preview-fullscreen-close" title="Свернуть предпросмотр">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
 
     <!-- Мок-браузер -->
     <div class="mock-browser-frame">
@@ -868,7 +877,7 @@
   </div>
 
   <!-- Эффект при наведении -->
-  <div class="settings-option settings-option--divided-top">
+  <div class="settings-option settings-option--divided-top" id="pcOnlyHoverEffectOption">
     <div class="settings-label-group">
       <label class="settings-label">Эффект при наведении на медиа <span class="pc-only-badge">(Только для ПК)</span></label>
       <button class="info-btn" data-info="hover" title="Инструкция">!</button>
@@ -893,7 +902,7 @@
   </div>
 
   <!-- Интенсивность свечения -->
-  <div class="settings-option settings-option--divided-top">
+  <div class="settings-option settings-option--divided-top" id="pcOnlyGlowOption">
     <div class="settings-row">
       <div class="settings-label-group">
         <label class="settings-label">Интенсивность свечения (Shadow) <span class="pc-only-badge">(Только для ПК)</span></label>
@@ -911,7 +920,7 @@
   </div>
 
   <!-- Скорость анимации карточек -->
-  <div class="settings-option settings-option--divided-top">
+  <div class="settings-option settings-option--divided-top" id="pcOnlyTransitionOption">
     <div class="settings-row">
       <div class="settings-label-group">
         <label class="settings-label">Скорость анимации карточек <span class="pc-only-badge">(Только для ПК)</span></label>
@@ -953,7 +962,7 @@
   </div>
 
   <!-- Скрывать теги до наведения -->
-  <div class="settings-option settings-option--divided-top">
+  <div class="settings-option settings-option--divided-top" id="pcOnlyTagsHoverOption">
     <div class="settings-row">
       <div class="settings-label-group">
         <label class="settings-label">Скрывать теги до наведения <span class="pc-only-badge">(Только для ПК)</span></label>

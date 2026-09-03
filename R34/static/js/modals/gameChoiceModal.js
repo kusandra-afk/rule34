@@ -16,7 +16,7 @@ export function openGameChoiceModal(onStartPuzzle) {
     modalContent.className = 'game-choice-modal-content';
 
     modalContent.innerHTML = `
-        <button id="closeGameChoiceBtn" class="game-choice-close-btn">&times;</button>
+        <button id="closeGameChoiceBtn" class="game-choice-close-btn">${icon('x', { size: 18 })}</button>
         <div style="font-size: 2.5rem; margin-bottom: 8px;">🎮</div>
         <h2 class="game-choice-title">Выбор Игры</h2>
         <p class="game-choice-subtitle">Выберите во что хотите сыграть:</p>
@@ -54,7 +54,7 @@ export function openGameChoiceModal(onStartPuzzle) {
             <button id="selectGuessBtn" class="game-choice-btn">
                 <span class="game-choice-btn-icon">⚖️</span>
                 <div style="text-align: left;">
-                    <div class="game-choice-btn-text">Больше / Меньше <span style="font-size: 0.65em; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; padding: 2px 8px; border-radius: 8px; font-weight: 800; vertical-align: middle; margin-left: 4px;">В разработке</span></div>
+                    <div class="game-choice-btn-text">Больше / Меньше</div>
                     <div class="game-choice-btn-sub">Угадай, у какого персонажа больше постов</div>
                 </div>
             </button>
@@ -142,7 +142,7 @@ export function openGameChoiceModal(onStartPuzzle) {
                         <div class="instr-modal-icon">!</div>
                         <h2 class="instr-modal-title">Инструкция (API Ключ)</h2>
                     </div>
-                    <button id="closeInstrBtn" class="instr-modal-close">&times;</button>
+                    <button id="closeInstrBtn" class="instr-modal-close">${icon('x', { size: 18 })}</button>
                 </div>
                 
                 <div class="instr-modal-body custom-scroll">
@@ -157,7 +157,7 @@ export function openGameChoiceModal(onStartPuzzle) {
                                 <b>TURN Credentials:</b> В личном кабинете откройте раздел <b>TURN Credentials</b> и нажмите <b>Add Credential</b> — появится строка с готовыми <b>Username</b> и <b>Password</b>.
                             </li>
                             <li class="instr-modal-li">
-                                <b>Запуск игры:</b> В поле ввода на главном экране игры вставляйте <b>Username</b>, точку, и сразу за ней <b>Password</b> без пробелов — например <code class="instr-modal-code">865d628f128429b0eef16fe6.ZIkbOwetcPHjrqR4</code>. Нажимайте <b>Проверить</b>, и если пишет, что ключ верный — можете начинать играть!
+                                <b>Запуск игры:</b> В поле ввода на главном экране игры вставляйте <b>Username</b>, точку, и сразу за ней <b>Password</b> без пробелов — например <code class="instr-modal-code">a1b2c3d4e5f6a7b8c9d0e1f2.XyZ9AbCdEfGhIjKl</code>. Нажимайте <b>Проверить</b>, и если пишет, что ключ верный — можете начинать играть!
                             </li>
                         </ol>
                     </div>

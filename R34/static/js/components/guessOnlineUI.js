@@ -3,6 +3,7 @@
  */
 import { OnlineUI } from '../puzzle/onlineUI.js';
 import { prettifyTag } from './guessGame.js';
+import { icon } from '../icons.js';
 // GuessOnlineManager НЕ импортируется здесь намеренно — guessOnline.js сам
 // импортирует GuessOnlineUI (чтобы дёргать рендер из хостовой логики раунда),
 // а статический import в обе стороны — циклическая зависимость модулей.
@@ -63,20 +64,27 @@ export class GuessOnlineUI {
         modal.className = 'game-overlay open';
 
         const card = document.createElement('div');
-        card.className = 'game-card';
-        card.style.maxWidth = '620px';
+        card.className = 'game-card guess-shell';
         modal.appendChild(card);
         document.body.appendChild(modal);
 
-        modal.onclick = (e) => {
-            if (e.target === modal) GuessOnlineUI._leaveAndClose(onlineMgr);
-        };
+        // Клик по фону больше НЕ выходит из комнаты. Здесь цена промаха была ещё
+        // выше, чем в одиночной игре: у хоста выход закрывает комнату сразу всем.
+        // Выход — только крестиком, то есть намеренно.
         return { modal, card };
     }
 
     static _leaveAndClose(onlineMgr) {
         try { if (onlineMgr && onlineMgr.roomId) onlineMgr.leaveRoom(); } catch (e) {}
-        GuessOnlineUI.closeModal();
+        // onlineMgr.leaveRoom() синхронно эмитит 'closed' (multiplayer.js),
+        // на который guessOnline.js подписан и синхронно пересоздаёт модалку
+        // через onClosed → renderLobbySetupUI — ДО того, как выполнение
+        // вернётся сюда. closeModal() ниже тогда удалял бы не старую
+        // модалку, а только что созданную форму настройки, и пользователь
+        // видел пустой экран вместо чего бы то ни было. setTimeout(0)
+        // откладывает закрытие на следующий тик, чтобы оно гарантированно
+        // снесло тот DOM, что реально в документе к этому моменту.
+        setTimeout(() => GuessOnlineUI.closeModal(), 0);
     }
 
     static renderSyncScreen(onlineMgr, title, subtitle) {
@@ -99,13 +107,13 @@ export class GuessOnlineUI {
         const { modal, card } = GuessOnlineUI._newShell(onlineMgr);
 
         card.innerHTML = `
-            <div class="game-header" style="position:static;">
+            <div class="game-header game-header--static">
                 <button class="game-back-btn" id="gzBackBtn" style="background:none;border:none;color:#fff;cursor:pointer;padding:8px;border-radius:12px;">←</button>
                 <div class="game-title-group">
                     <div class="game-logo-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">⚖️</div>
                     <h2 class="game-app-title">Больше / Меньше — Онлайн</h2>
                 </div>
-                <button class="game-close-btn" id="gzCloseBtn">&times;</button>
+                <button class="game-close-btn" id="gzCloseBtn">${icon('x', { size: 18 })}</button>
             </div>
             <div class="game-menu-container" style="gap:20px;">
                 <h1 class="game-menu-title" style="font-size:1.6rem;">Мультиплеерные Комнаты</h1>
@@ -185,7 +193,20 @@ export class GuessOnlineUI {
             GuessOnlineUI.renderSyncScreen(onlineMgr, 'Подключение...', `Подключаемся к комнате ${code}...`);
             try {
                 await onlineMgr.joinRoomAs(code, password);
-                GuessOnlineUI.renderWaitingRoom(onlineMgr);
+                // Если подключились в разгар уже идущего раунда, синхронный
+                // обработчик первого пакета (guessOnline.js: _onClientMessage
+                // → onRoundStart) мог отрисовать экран раунда ДО того, как
+                // управление вернётся сюда после await — тогда следующая
+                // строка безусловно перетирала его залом ожидания, и игрок
+                // не мог ответить на уже идущий раунд. Рендерим зал ожидания,
+                // только если раунда ещё действительно нет; иначе повторно
+                // (безопасно — _newShell идемпотентен) рисуем экран раунда,
+                // на случай если синхронный обработчик почему-то не успел.
+                if (onlineMgr.roomData && onlineMgr.roomData.round) {
+                    GuessOnlineUI.onRoundStart(onlineMgr);
+                } else {
+                    GuessOnlineUI.renderWaitingRoom(onlineMgr);
+                }
             } catch (err) {
                 const errCode = err && err.message;
                 const msg = errCode === 'password_required' ? 'Комната защищена паролем — введите его.'
@@ -204,12 +225,12 @@ export class GuessOnlineUI {
         card.dataset.screen = 'waiting';
 
         card.innerHTML = `
-            <div class="game-header" style="position:static;">
+            <div class="game-header game-header--static">
                 <div class="game-title-group">
                     <div class="game-logo-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">⚖️</div>
                     <h2 class="game-app-title">Комната ${escapeHtml(onlineMgr.roomId || '')}</h2>
                 </div>
-                <button class="game-close-btn" id="gzWaitCloseBtn">&times;</button>
+                <button class="game-close-btn" id="gzWaitCloseBtn">${icon('x', { size: 18 })}</button>
             </div>
             <div class="game-room-header-card">
                 <div>Код комнаты: <span class="game-room-code-val">${escapeHtml(onlineMgr.roomId || '')}</span></div>
@@ -312,27 +333,27 @@ export class GuessOnlineUI {
         card.innerHTML = `
             <div class="guess-header">
                 <div class="guess-score-box">Раунд ${round.num} &middot; До победы: <b>${onlineMgr.roomData.targetScore}</b></div>
-                <button class="game-close-btn" id="gzRoundCloseBtn">&times;</button>
+                <button class="game-close-btn" id="gzRoundCloseBtn">${icon('x', { size: 18 })}</button>
             </div>
+            <div class="guess-question">У кого больше постов на Rule34?</div>
             <div class="guess-vs-row">
-                <div class="guess-slot">
-                    <div class="guess-img-wrap"><img src="${escapeHtml(cur.img)}" class="guess-img" loading="lazy"></div>
-                    <div class="guess-name">${escapeHtml(prettifyTag(cur.tag))}</div>
-                    <div class="guess-count">${cur.count.toLocaleString('ru-RU')} постов</div>
-                    <div class="guess-type" id="gzTypeLeft"></div>
-                </div>
-                <div class="guess-vs-badge">VS</div>
-                <div class="guess-slot">
-                    <div class="guess-img-wrap"><img src="${escapeHtml(hid.img)}" class="guess-img" loading="lazy"></div>
-                    <div class="guess-name">${escapeHtml(prettifyTag(hid.tag))}</div>
-                    <div class="guess-count guess-count-hidden" id="gzHiddenCount">???</div>
-                    <div class="guess-type" id="gzTypeRight"></div>
-                </div>
+                ${GuessOnlineUI._slotHtml(cur, 'left', false)}
+                <div class="guess-vs-badge"><span>VS</span></div>
+                ${GuessOnlineUI._slotHtml(hid, 'right', true)}
             </div>
-            <div class="guess-question">У «${escapeHtml(prettifyTag(hid.tag))}» постов больше или меньше, чем у «${escapeHtml(prettifyTag(cur.tag))}» (${cur.count.toLocaleString('ru-RU')})?</div>
+            <div class="guess-prompt">
+                У <b>${escapeHtml(prettifyTag(hid.tag))}</b> постов больше или меньше, чем
+                <span class="guess-prompt-num">${cur.count.toLocaleString('ru-RU')}</span>?
+            </div>
             <div class="guess-actions">
-                <button class="guess-btn guess-btn-more" id="gzMoreBtn">⬆ Больше</button>
-                <button class="guess-btn guess-btn-less" id="gzLessBtn">⬇ Меньше</button>
+                <button class="guess-btn guess-btn-more" id="gzMoreBtn">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                    Больше
+                </button>
+                <button class="guess-btn guess-btn-less" id="gzLessBtn">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                    Меньше
+                </button>
             </div>
             <div class="guess-feedback" id="gzFeedback"></div>
             <div class="game-leaderboard" id="gzRoundPlayerList"></div>
@@ -340,12 +361,21 @@ export class GuessOnlineUI {
 
         card.querySelector('#gzRoundCloseBtn').onclick = () => GuessOnlineUI._leaveAndClose(onlineMgr);
 
+        // Листалка артов. Список картинок приезжает в roomData от хоста, поэтому
+        // у всех игроков он одинаковый — но индекс листания у каждого свой,
+        // локальный: это личное удобство, а не часть состояния комнаты.
+        GuessOnlineUI._wireSlot(card, 'left', cur);
+        GuessOnlineUI._wireSlot(card, 'right', hid);
+
+        // roomData обнуляется в leaveRoom() (multiplayer.js) — если игрок
+        // выходит из комнаты, пока classifyEntry() ещё летит (сетевой запрос),
+        // .then() приходит уже после этого, и roomData.round упал бы на null.
         classifyEntry(cur).then(res => {
-            if (onlineMgr.roomData.round !== round) return;
+            if (!onlineMgr.roomData || onlineMgr.roomData.round !== round) return;
             GuessOnlineUI._applyType(card, 'gzTypeLeft', res);
         });
         classifyEntry(hid).then(res => {
-            if (onlineMgr.roomData.round !== round) return;
+            if (!onlineMgr.roomData || onlineMgr.roomData.round !== round) return;
             GuessOnlineUI._applyType(card, 'gzTypeRight', res);
         });
 
@@ -367,11 +397,88 @@ export class GuessOnlineUI {
     }
 
     static _applyType(card, elId, res) {
-        if (!res || !card.isConnected) return;
-        const meta = TYPE_META[res.type];
+        if (!card.isConnected) return;
         const el = card.querySelector('#' + elId);
-        if (!el || !meta) return;
-        el.textContent = `${meta.emoji} ${res.title || meta.label}`;
+        if (!el) return;
+        const meta = res && TYPE_META[res.type];
+        if (!meta) {
+            el.innerHTML = '';
+            el.classList.add('guess-type-empty');
+            return;
+        }
+        el.classList.remove('guess-type-empty');
+        const label = res.title || meta.label;
+        el.innerHTML = `<span class="guess-type-chip"><span>${escapeHtml(`${meta.emoji} ${label}`)}</span></span>`;
+    }
+
+    /** Карточка персонажа в онлайн-раунде. Арт и франшиза видны у обоих —
+     *  скрыто только число у загаданного. */
+    static _slotHtml(entry, side, isRiddle) {
+        const imgs = (Array.isArray(entry.imgs) && entry.imgs.length) ? entry.imgs : (entry.img ? [entry.img] : []);
+        entry._imgs = imgs;
+        entry._artIndex = 0;
+        const total = imgs.length;
+        // Как и в одиночной игре: элементы листалки есть всегда, скрыты классом,
+        // пока листать нечего.
+        const hidden = total > 1 ? '' : ' guess-art-hidden';
+        const nav = `
+            <button class="guess-art-nav guess-art-prev${hidden}" data-side="${side}" data-dir="-1" aria-label="Предыдущий арт">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button class="guess-art-nav guess-art-next${hidden}" data-side="${side}" data-dir="1" aria-label="Следующий арт">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            <div class="guess-art-counter${hidden}" id="gzCounter-${side}">1 / ${Math.max(total, 1)}</div>`;
+        return `
+            <div class="guess-slot ${isRiddle ? 'guess-slot-riddle' : 'guess-slot-known'}">
+                <div class="guess-img-wrap">
+                    <img src="${escapeHtml(imgs[0] || '')}" class="guess-img-bg" id="gzImgBg-${side}" aria-hidden="true" alt="">
+                    <img src="${escapeHtml(imgs[0] || '')}" class="guess-img" id="gzImg-${side}" loading="lazy" alt="">
+                    ${isRiddle
+                        ? '<div class="guess-riddle-badge">Угадай</div>'
+                        : '<div class="guess-known-badge">Известно</div>'}${nav}
+                </div>
+                <div class="guess-name">${escapeHtml(prettifyTag(entry.tag))}</div>
+                <div class="guess-type" id="gzType${side === 'left' ? 'Left' : 'Right'}"><span class="guess-type-skeleton"></span></div>
+                ${isRiddle
+                    ? '<div class="guess-count guess-count-hidden" id="gzHiddenCount">? ? ?</div>'
+                    : `<div class="guess-count">${Number(entry.count || 0).toLocaleString('ru-RU')}</div>`}
+                <div class="guess-count-label">постов</div>
+            </div>
+        `;
+    }
+
+    /** Один делегированный обработчик на всю картинку: стрелки листают, остальная
+     *  площадь открывает полный экран. См. пояснение в GuessUI._wireSlot — два
+     *  раздельных обработчика приводили к тому, что клик по стрелке открывал
+     *  полноэкранный просмотр. */
+    static _wireSlot(card, side, entry) {
+        const wrap = card.querySelectorAll('.guess-img-wrap')[side === 'left' ? 0 : 1];
+        if (!wrap || wrap._slotWired) return;
+        wrap._slotWired = true;
+        wrap.classList.add('guess-img-zoomable');
+
+        wrap.addEventListener('click', async (e) => {
+            const imgs = entry._imgs || [];
+            const nav = e.target.closest('.guess-art-nav');
+            if (nav) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (imgs.length < 2) return;
+                const dir = parseInt(nav.dataset.dir, 10);
+                entry._artIndex = (entry._artIndex + dir + imgs.length) % imgs.length;
+                const img = card.querySelector(`#gzImg-${side}`);
+                const bg = card.querySelector(`#gzImgBg-${side}`);
+                const counter = card.querySelector(`#gzCounter-${side}`);
+                if (img) img.setAttribute('src', imgs[entry._artIndex]);
+                if (bg) bg.setAttribute('src', imgs[entry._artIndex]);
+                if (counter) counter.textContent = `${entry._artIndex + 1} / ${imgs.length}`;
+                return;
+            }
+            if (!imgs.length) return;
+            const { GuessUI } = await import('./guessUI.js');
+            GuessUI._openViewer(imgs, entry._artIndex || 0, prettifyTag(entry.tag));
+        });
     }
 
     static onRoundReveal(onlineMgr) {
@@ -382,7 +489,9 @@ export class GuessOnlineUI {
         const round = onlineMgr.roomData.round;
         const hiddenCountEl = card.querySelector('#gzHiddenCount');
         if (hiddenCountEl) {
-            hiddenCountEl.textContent = round.hidden.count.toLocaleString('ru-RU') + ' постов';
+            // «постов» теперь отдельной строкой под числом (.guess-count-label),
+            // дописывать его к самому числу больше не нужно
+            hiddenCountEl.textContent = round.hidden.count.toLocaleString('ru-RU');
             hiddenCountEl.classList.remove('guess-count-hidden');
         }
 
@@ -409,8 +518,8 @@ export class GuessOnlineUI {
         const players = Object.values(onlineMgr.roomData.players || {}).sort((a, b) => (b.score || 0) - (a.score || 0));
 
         card.innerHTML = `
-            <div class="game-header" style="position:static;">
-                <button class="game-close-btn" id="gzOverCloseBtn">&times;</button>
+            <div class="game-header game-header--static">
+                <button class="game-close-btn" id="gzOverCloseBtn">${icon('x', { size: 18 })}</button>
             </div>
             <div class="guess-gameover">
                 <div style="font-size:2.5rem;">${iWon ? '🏆' : '🎮'}</div>

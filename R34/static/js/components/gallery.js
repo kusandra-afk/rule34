@@ -1411,6 +1411,43 @@ export class Gallery {
                 togglePlayGif(e);
             });
 
+            // На ПК (реальный hover) кнопка play/pause должна появляться при
+            // наведении на карточку, а не только на секунду после клика —
+            // клик/тап остаётся единственным способом на телефоне, где
+            // курсора нет. container переиспользуется между разными постами,
+            // поэтому используем onmouseenter/onmousemove/onmouseleave
+            // (перезапись), а не addEventListener (накопление обработчиков).
+            const revealPlayBtnOnHover = () => {
+                if (!document.body.classList.contains('can-hover')) return;
+                playBtn.style.opacity = '1';
+                playBtn.style.visibility = 'visible';
+                if (img._hideTimeout) clearTimeout(img._hideTimeout);
+                // Если мышь замерла над карточкой и не уходит с неё, кнопка
+                // всё равно прячется сама через секунду — как и при обычном
+                // проигрывании, а не висит вечно, пока курсор не покинет карточку.
+                if (isPlaying) {
+                    img._hideTimeout = setTimeout(() => {
+                        if (isPlaying) {
+                            playBtn.style.opacity = '0';
+                            playBtn.style.visibility = 'hidden';
+                        }
+                    }, 1000);
+                }
+            };
+            container.onmouseenter = revealPlayBtnOnHover;
+            container.onmousemove = revealPlayBtnOnHover;
+            container.onmouseleave = () => {
+                if (!document.body.classList.contains('can-hover')) return;
+                if (img._hideTimeout) {
+                    clearTimeout(img._hideTimeout);
+                    img._hideTimeout = null;
+                }
+                if (isPlaying) {
+                    playBtn.style.opacity = '0';
+                    playBtn.style.visibility = 'hidden';
+                }
+            };
+
             showPreview();
         } else {
             const img = document.createElement('img');

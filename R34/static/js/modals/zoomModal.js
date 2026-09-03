@@ -249,38 +249,37 @@ export function openZoomModal(post, options = {}) {
     contentWrapper.appendChild(infoBar);
     zoomOverlay.appendChild(contentWrapper);
 
-    // Close button
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'zoom-close-btn';
-    closeBtn.innerHTML = '&times;';
-    closeBtn.onclick = () => {
+    // Единая функция закрытия — раньше крестик и клик по фону прятали
+    // оверлей, но не снимали escHandler с document (снимался только сам
+    // Escape-обработчик, сам себя). zoomOverlay — синглтон, переиспользуемый
+    // между открытиями, поэтому каждый зум, закрытый не через Escape,
+    // оставлял в document ещё один мёртвый keydown-слушатель навсегда.
+    const closeZoom = () => {
         zoomOverlay.style.display = 'none';
         if (isVideo && mediaEl) {
             mediaEl.pause();
             mediaEl.src = '';
         }
+        document.removeEventListener('keydown', escHandler);
     };
+
+    // Close button
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'zoom-close-btn';
+    closeBtn.innerHTML = icon('x', { size: 18 });
+    closeBtn.onclick = closeZoom;
     zoomOverlay.appendChild(closeBtn);
 
     // Close when clicking anywhere on overlay
     zoomOverlay.onclick = (e) => {
         if (e.target === zoomOverlay || (e.target.closest('.preview-zoom-overlay') && !e.target.closest('.preview-zoom-content'))) {
-            zoomOverlay.style.display = 'none';
-            if (isVideo && mediaEl) {
-                mediaEl.pause();
-                mediaEl.src = '';
-            }
+            closeZoom();
         }
     };
 
     const escHandler = (e) => {
         if (e.key === 'Escape' && !e.shiftKey) {
-            zoomOverlay.style.display = 'none';
-            if (isVideo && mediaEl) {
-                mediaEl.pause();
-                mediaEl.src = '';
-            }
-            document.removeEventListener('keydown', escHandler);
+            closeZoom();
         }
     };
     document.addEventListener('keydown', escHandler);

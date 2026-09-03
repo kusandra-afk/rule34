@@ -1339,7 +1339,7 @@ export class PuzzleGame {
         title.innerHTML = `${icon('puzzle', { size: 20 })} <span>Настольный Пазл</span>`;
         const closeBtn = document.createElement('button');
         closeBtn.className = 'puzzle-close';
-        closeBtn.innerHTML = '&times;';
+        closeBtn.innerHTML = icon('x', { size: 18 });
         closeBtn.onclick = () => this.destroy();
         header.appendChild(title);
         header.appendChild(closeBtn);
@@ -1636,24 +1636,36 @@ export class PuzzleGame {
         allowLongToggle.appendChild(allowLongSlider);
 
         const infoBtn = document.createElement('button');
-        infoBtn.className = 'info-btn';
         infoBtn.className = 'puzzle-info-btn';
         infoBtn.textContent = '!';
         infoBtn.title = 'Инструкция';
-        
+
         const infoBox = document.createElement('div');
         infoBox.id = 'puzzle-long-image-info';
-        infoBox.className = 'info-help-box info-help-box--warn';
         infoBox.className = 'info-help-box info-help-box--warn puzzle-info-warn-box';
         infoBox.innerHTML = `<strong>Разрешить длинные изображения:</strong><br>• Отключает фильтр вертикальных картинок<br>• <svg class="warn-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin:0 2px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <b>Внимание:</b> могут попадаться очень длинные изображения!`;
-        
+
         infoBtn.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
             const currentDisplay = infoBox.style.display;
             infoBox.style.display = currentDisplay === 'none' ? 'block' : 'none';
-            console.log('Info button clicked, display:', infoBox.style.display);
         };
+
+        // На ПК подсказка раскрывается уже при наведении — клик остаётся
+        // единственным способом на тач-устройствах.
+        infoBtn.addEventListener('mouseenter', () => {
+            if (!document.body.classList.contains('can-hover')) return;
+            infoBox.style.display = 'block';
+        });
+        const hidePuzzleInfoUnlessMovingBetweenBoth = (e) => {
+            if (!document.body.classList.contains('can-hover')) return;
+            const to = e.relatedTarget;
+            if (to === infoBtn || to === infoBox || infoBox.contains(to)) return;
+            infoBox.style.display = 'none';
+        };
+        infoBtn.addEventListener('mouseleave', hidePuzzleInfoUnlessMovingBetweenBoth);
+        infoBox.addEventListener('mouseleave', hidePuzzleInfoUnlessMovingBetweenBoth);
 
         allowLongLeft.appendChild(infoBtn);
         allowLongContainer.appendChild(allowLongLeft);

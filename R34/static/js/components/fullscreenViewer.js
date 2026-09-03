@@ -232,8 +232,19 @@ export class FullscreenViewer {
             
             const isSaveData = localStorage.getItem('r34_save_data') === 'true';
             let imgHdEnabled = localStorage.getItem('r34_image_hd_enabled') === 'true' || localStorage.getItem('r34_hd_enabled') === 'true';
+
+            // У гифки sample_url — это статичный кадр в .jpg, который rule34
+            // генерирует рядом с анимацией. Обычная ветка ниже без HD берёт
+            // именно sample, поэтому в полноэкранном гифка показывалась
+            // неподвижной картинкой. Анимация живёт только в file_url, так что
+            // для gif выбора нет — берём его всегда, кроме явной экономии
+            // трафика, где пользователь сам согласился на облегчённое медиа.
+            const isGif = /\.gif$/i.test(post.file_url || '');
+
             if (isSaveData) {
                 img.src = post.preview_url || post.sample_url || post.file_url;
+            } else if (isGif) {
+                img.src = post.file_url || post.sample_url || post.preview_url;
             } else {
                 img.src = (hasSample && !imgHdEnabled) ? post.sample_url : (post.file_url || post.sample_url || post.preview_url);
             }
@@ -263,6 +274,22 @@ export class FullscreenViewer {
             const photoPlayBtn = document.createElement('button');
             photoPlayBtn.className = 'photo-bottom-play-btn';
             photoPlayBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="currentColor"/></svg>`;
+            // Раньше у кнопки не было обработчика клика вообще — пауза/плей
+            // слайд-шоу работали только с клавиатуры (пробел, см. обработчик
+            // ниже в keydown). Кнопка выглядела рабочей, но ничего не делала.
+            photoPlayBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (!g._photoViewer) return;
+                if (g._photoViewer.paused) {
+                    g._photoViewer.resume();
+                    g._autoSlidePausedByUser = false;
+                    photoPlayBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="currentColor"/></svg>`;
+                } else {
+                    g._photoViewer.pause();
+                    g._autoSlidePausedByUser = true;
+                    photoPlayBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>`;
+                }
+            };
 
             const progress = document.createElement('input');
             progress.type = 'range';
@@ -1242,12 +1269,18 @@ export class FullscreenViewer {
             nextIdx++;
         }
 
-        if (g.onLoadMore && !window.reachedEnd && (postsList.length - nextIdx < 8)) {
+        // Избранное — конечный список: догружать там нечего, loadPosts всё
+        // равно выходит сразу по isProfileMode(). Без этой проверки долистанное
+        // до конца избранное показывало вечный слайд "Идёт загрузка постов...",
+        // которая никогда не приходила, а page накручивался вхолостую.
+        const isFiniteList = !!g.isFavoritesActive;
+
+        if (g.onLoadMore && !isFiniteList && !window.reachedEnd && (postsList.length - nextIdx < 8)) {
             g.onLoadMore();
         }
 
         if (nextIdx >= postsList.length) {
-            if (window.reachedEnd) {
+            if (window.reachedEnd || isFiniteList) {
                 this._showFullscreenEndSlide(direction);
             } else if (g.onLoadMore) {
                 this._showFullscreenLoadingSlide(direction);

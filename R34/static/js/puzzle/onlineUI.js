@@ -94,7 +94,7 @@ export class OnlineUI {
                     <div class="game-logo-icon game-logo-icon-puzzle">${icon('puzzle', { size: 20 })}</div>
                     <h2 class="game-app-title">${onlineMgr.isHost ? 'Лобби Хоста' : 'Комната Мультиплеера'} <span style="font-size: 0.65em; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; padding: 2px 8px; border-radius: 8px; font-weight: 800; vertical-align: middle; margin-left: 6px;">БЕТА</span></h2>
                 </div>
-                <button class="game-close-btn" id="pzOnlineCloseBtn" title="Закрыть">&times;</button>
+                <button class="game-close-btn" id="pzOnlineCloseBtn" title="Закрыть">${icon('x', { size: 18 })}</button>
             </div>
         `;
 
@@ -394,7 +394,7 @@ export class OnlineUI {
                     <div class="game-logo-icon game-logo-icon-puzzle">${icon('puzzle', { size: 20 })}</div>
                     <h2 class="game-app-title">Онлайн Режим <span style="font-size: 0.65em; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; padding: 2px 8px; border-radius: 8px; font-weight: 800; vertical-align: middle; margin-left: 6px;">БЕТА</span></h2>
                 </div>
-                <button class="game-close-btn" id="pzSetupCloseBtn" title="Закрыть">&times;</button>
+                <button class="game-close-btn" id="pzSetupCloseBtn" title="Закрыть">${icon('x', { size: 18 })}</button>
             </div>
         `;
 

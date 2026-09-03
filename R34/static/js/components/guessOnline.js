@@ -6,7 +6,7 @@
  * один и тот же раунд одновременно.
  */
 import { BaseOnlineEngine } from '../multiplayer.js';
-import { GuessGame, prettifyTag } from './guessGame.js';
+import { GuessGame, prettifyTag, postImageUrl } from './guessGame.js';
 import { GuessOnlineUI } from './guessOnlineUI.js';
 
 export class GuessOnlineManager extends BaseOnlineEngine {
@@ -93,6 +93,10 @@ export class GuessOnlineManager extends BaseOnlineEngine {
             await this.pool.ensurePool(this.pool.pool.length + 4);
             hidden = this.pool._pickRandom(current);
         }
+        // Догружаем галереи обоих персонажей ДО рассылки раунда: список картинок
+        // едет в roomData, поэтому все игроки листают ровно один и тот же набор.
+        await Promise.all([this.pool.ensureArts(current), this.pool.ensureArts(hidden)]);
+        this.pool.warmUp();
         this.roundNum++;
         this.pendingAnswers = {};
         Object.values(this.roomData.players).forEach(p => { p.answered = false; p.lastCorrect = null; });
@@ -100,10 +104,14 @@ export class GuessOnlineManager extends BaseOnlineEngine {
         this._currentEntry = current;
         this._hiddenEntry = hidden;
 
+        // imgs — список артов персонажа (до 15), одинаковый у всех игроков; img
+        // оставлен для совместимости со старыми клиентами в комнате.
+        const currentImgs = current.posts.map(postImageUrl).filter(Boolean);
+        const hiddenImgs = hidden.posts.map(postImageUrl).filter(Boolean);
         this.roomData.round = {
             num: this.roundNum,
-            current: { tag: current.tag, count: current.count, img: current.post.sample_url || current.post.preview_url || current.post.file_url, copyrightTags: current.copyrightTags },
-            hidden: { tag: hidden.tag, img: hidden.post.sample_url || hidden.post.preview_url || hidden.post.file_url, copyrightTags: hidden.copyrightTags },
+            current: { tag: current.tag, count: current.count, img: currentImgs[0] || '', imgs: currentImgs, copyrightTags: current.copyrightTags },
+            hidden: { tag: hidden.tag, img: hiddenImgs[0] || '', imgs: hiddenImgs, copyrightTags: hidden.copyrightTags },
         };
         await this.broadcastRoomData();
         GuessOnlineUI.onRoundStart(this);

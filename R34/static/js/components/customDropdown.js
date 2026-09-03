@@ -110,8 +110,19 @@ export function makeCustomDropdown(selectEl, { classPrefix = 'game-custom-dropdo
         panel.classList.remove('open');
     };
 
+    // Скрытый select() не показывает своё disabled само по себе — его
+    // визуально заменяет trigger-кнопка, так что disabled должен быть
+    // отражён на ней, иначе спрятанный select можно задизейблить, а кнопка
+    // всё равно будет кликабельной и открывающей список.
+    const syncDisabledState = () => {
+        trigger.disabled = selectEl.disabled;
+        trigger.classList.toggle('disabled', selectEl.disabled);
+    };
+    syncDisabledState();
+
     trigger.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (selectEl.disabled) return;
         const isOpen = wrapper.classList.contains('open');
         document.querySelectorAll(`.${classPrefix}.open`).forEach(d => {
             if (d !== wrapper) d.classList.remove('open');
@@ -153,9 +164,25 @@ export function makeCustomDropdown(selectEl, { classPrefix = 'game-custom-dropdo
     };
     document.addEventListener('click', onOutsideClick);
 
+    // Esc должен сначала закрыть открытую панель, а не модалку под ней —
+    // иначе (например, в настройках, settingsModal.js) Esc закрывает всю
+    // модалку, а портальная панель (она вынесена в document.body, чтобы
+    // быть поверх backdrop-filter) остаётся висеть поверх страницы, потому
+    // что она не является потомком модалки и её закрытие модалку не задевает.
+    // capture:true + stopPropagation — чтобы модалка не получила то же
+    // нажатие тем же тиком и не закрылась следом.
+    const onEscKey = (e) => {
+        if (e.key === 'Escape' && panel.classList.contains('open')) {
+            e.stopPropagation();
+            closePanel();
+        }
+    };
+    document.addEventListener('keydown', onEscKey, true);
+
     const observer = new MutationObserver(() => {
         updateTriggerLabel();
         renderItems();
+        syncDisabledState();
     });
     observer.observe(selectEl, { childList: true, subtree: true, attributes: true });
 
