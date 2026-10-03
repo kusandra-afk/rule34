@@ -12,9 +12,6 @@ import { GuessUI } from './components/guessUI.js';
 import { initSettingsModal } from './modals/settingsModal.js';
 import { initR34SelectDropdowns } from './components/customDropdown.js';
 import { ApiSettingsManager } from './settings/apiSettings.js';
-import { DesignPresetsManager } from './settings/designPresets.js';
-import { CustomCssEditor } from './settings/customCssEditor.js';
-import { ImportExportSettings } from './settings/importExportSettings.js';
 import { applyThemeSettings, debouncedApplyThemeSettings, applyAdaptiveText } from './theme/themeManager.js';
 import { colorPresets, bgPresets, hoverPresets, fontPresets, getContrastYIQ, getBgLuminance, getAccentGlow, getAccentAlt } from './theme/themePresets.js';
 import { GalleryController } from './controllers/galleryController.js';
@@ -239,11 +236,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 12. Пользовательский редактор CSS
-    const customStylesEditor = new CustomCssEditor();
-    customStylesEditor.init();
-    window.customStylesEditor = customStylesEditor;
-
     // 13. Экспертный редактор CSS переменных
     const expertStylesEditor = new ExpertStylesEditor({
         applyAdaptiveText: (varName, val) => applyAdaptiveText(varName, val)
@@ -251,27 +243,10 @@ document.addEventListener('DOMContentLoaded', () => {
     expertStylesEditor.init();
     window.expertStylesEditor = expertStylesEditor;
 
-    // 14. Менеджер пресетов дизайна
-    const designPresetsManager = new DesignPresetsManager({
-        applyThemeSettings: () => applyThemeSettings(),
-        customStylesEditor
-    });
-    designPresetsManager.init();
-    window.designPresetsManager = designPresetsManager;
-
     // 15. Менеджер настроек API
     const apiSettingsManager = new ApiSettingsManager();
     apiSettingsManager.init();
     window.apiSettingsManager = apiSettingsManager;
-
-    // 16. Менеджер импорта/экспорта настроек
-    const importExportSettingsManager = new ImportExportSettings({
-        applyThemeSettings: () => applyThemeSettings(),
-        applyCustomCss: () => customStylesEditor.init(),
-        showConfirmModal: (title, msg) => showConfirmModal(title, msg)
-    });
-    importExportSettingsManager.init();
-    window.importExportSettingsManager = importExportSettingsManager;
 
     // 17. Модальное окно настроек (шестерёнка)
     initSettingsModal({

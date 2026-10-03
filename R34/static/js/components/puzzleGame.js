@@ -922,6 +922,9 @@ export class PuzzleGame {
             .puzzle-difficulty-selector::-webkit-scrollbar, .puzzle-shape-selector::-webkit-scrollbar { height: 4px; }
             .puzzle-difficulty-selector::-webkit-scrollbar-thumb, .puzzle-shape-selector::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
 
+            .puzzle-diff-short { display: none; }
+            .puzzle-diff-full { display: inline; }
+
             .puzzle-diff-btn, .puzzle-shape-btn {
                 flex: 0 0 auto; min-width: 70px;
                 background: none; border: none;
@@ -964,9 +967,18 @@ export class PuzzleGame {
             .puzzle-mode-selector { order: 3; }
             .puzzle-difficulty-selector { order: 4; }
             .puzzle-tray-cols-selector { order: 5; }
-            .puzzle-board-container { order: 6; }
-            .puzzle-tray { order: 7; }
-            .puzzle-controls { order: 8; }
+            /* Поле «Открыть по ID» и тумблер длинных изображений оставались
+               без order, то есть с order: 0 — flex выносил их выше заголовка
+               и крестика, и первым на экране оказывалось служебное поле ввода.
+               Ставим их в конец блока подготовки (сложность → лоток → выбор
+               картинки), но выше доски: это настройка перед сборкой, за ней
+               не нужно листать всю игру. */
+            .puzzle-id-selector { order: 6; }
+            .puzzle-allow-long-container { order: 7; }
+            .info-help-box.puzzle-info-warn-box { order: 8; }
+            .puzzle-board-container { order: 9; }
+            .puzzle-tray { order: 10; }
+            .puzzle-controls { order: 11; }
 
             .puzzle-card.size-large .puzzle-board-container { max-width: min(95vw, 840px); max-height: none !important; }
             @media (min-width: 900px) {
@@ -1290,6 +1302,8 @@ export class PuzzleGame {
                 .puzzle-badge { padding: 4px 8px; font-size: 0.75rem; }
                 .puzzle-mode-selector, .puzzle-difficulty-selector, .puzzle-shape-selector { gap: 8px; padding: 2px; border-radius: 10px; }
                 .puzzle-mode-btn, .puzzle-diff-btn, .puzzle-shape-btn { padding: 5px 6px; font-size: 0.72rem; border-radius: 8px; min-width: 45px; }
+                .puzzle-diff-full { display: none; }
+                .puzzle-diff-short { display: inline; }
                 .puzzle-controls { grid-template-columns: repeat(2, 1fr); gap: 6px; }
                 .puzzle-btn { padding: 12px 8px; font-size: 0.82rem; min-height: 44px; border-radius: 10px; }
                 .puzzle-win-title { font-size: 1.3rem; }

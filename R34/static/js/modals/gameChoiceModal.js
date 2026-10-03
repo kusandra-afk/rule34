@@ -26,7 +26,25 @@ export function openGameChoiceModal(onStartPuzzle) {
             <!-- Доступно сейчас -->
             <div class="game-choice-section-title">Доступно сейчас</div>
             
-            <!-- API KEY SECTION (Metered.ca) -->
+            <button id="selectPuzzleBtn" class="game-choice-btn">
+                <span class="game-choice-btn-icon">🧩</span>
+                <div style="text-align: left;">
+                    <div class="game-choice-btn-text">Пазл</div>
+                    <div class="game-choice-btn-sub">Соберите картинку из элементов</div>
+                </div>
+            </button>
+
+            <button id="selectGuessBtn" class="game-choice-btn game-choice-btn--wip">
+                <span class="game-choice-btn-icon">⚖️</span>
+                <div style="text-align: left;">
+                    <div class="game-choice-btn-text">Больше / Меньше <span class="game-choice-wip-badge">в разработке</span></div>
+                    <div class="game-choice-btn-sub">Угадай, у какого персонажа больше постов</div>
+                </div>
+            </button>
+
+            <!-- Ключ Metered.ca нужен только для онлайн-режимов, поэтому стоит
+                 после самих игр: открывая «Выбор игры», пользователь должен
+                 первым делом видеть игры, а не поле для служебного ключа. -->
             <div class="game-choice-api-box">
                 <div id="gameKeyInstructionsBtn" class="game-choice-inst-btn">
                     <div class="game-choice-inst-icon">!</div>
@@ -36,28 +54,12 @@ export function openGameChoiceModal(onStartPuzzle) {
                     </div>
                     ${icon('chevronRight', { size: 20, color: '#f59e0b' })}
                 </div>
-                
+
                 <div style="display: flex; flex-direction: column; gap: 8px;">
                     <input type="text" id="gameMeteredKeyInput" class="game-choice-input" placeholder="имяПриложения.apiKey" autocomplete="off" spellcheck="false">
                     <button id="gameCheckMeteredKeyBtn" class="game-choice-check-btn">Проверить и сохранить ключ</button>
                 </div>
             </div>
-
-            <button id="selectPuzzleBtn" class="game-choice-btn">
-                <span class="game-choice-btn-icon">🧩</span>
-                <div style="text-align: left;">
-                    <div class="game-choice-btn-text">Пазл</div>
-                    <div class="game-choice-btn-sub">Соберите картинку из элементов</div>
-                </div>
-            </button>
-
-            <button id="selectGuessBtn" class="game-choice-btn">
-                <span class="game-choice-btn-icon">⚖️</span>
-                <div style="text-align: left;">
-                    <div class="game-choice-btn-text">Больше / Меньше</div>
-                    <div class="game-choice-btn-sub">Угадай, у какого персонажа больше постов</div>
-                </div>
-            </button>
 
             <!-- Другие игры -->
             <div class="game-choice-section-title muted">Новые игры (планируется)</div>

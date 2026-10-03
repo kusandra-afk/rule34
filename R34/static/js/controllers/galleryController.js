@@ -454,8 +454,19 @@ export class GalleryController {
             btn.onclick = () => {
                 if (this.page === pageNum) return;
                 this.page = pageNum;
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                // Прыжок мгновенный, а не smooth: страница результатов бывает
+                // в десятки тысяч пикселей, плавную прокрутку с такой высоты
+                // перебивает подгрузка карточек, и пользователь остаётся в
+                // хвосте предыдущей страницы вместо начала новой.
+                const jumpTop = () => window.scrollTo({ top: 0, behavior: 'auto' });
+                jumpTop();
                 this.immediateLoadPosts(this.tagSearch?.getTagsQuery() || '', false);
+                // Сетка перестраивается асинхронно и меняет высоту документа —
+                // браузер при этом возвращает прокрутку обратно, поэтому
+                // повторяем прыжок на ближайших кадрах.
+                requestAnimationFrame(jumpTop);
+                setTimeout(jumpTop, 150);
+                setTimeout(jumpTop, 500);
             };
             return btn;
         };

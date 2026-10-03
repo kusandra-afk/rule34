@@ -681,6 +681,10 @@ export class CardComponent {
         
         if (authorsGroup) {
             authorsGroup.style.display = 'block';
+            // Помечаем пустую группу: под карточкой «(нету)» уместно, а в узкой
+            // панели полноэкранного режима две строки ради слова «нету» —
+            // лишний шум, и там она скрывается по этому классу.
+            authorsGroup.classList.toggle('media-group-empty', !hasAuthors);
             if (!hasAuthors && authorsListEl) {
                 const span = document.createElement('span');
                 span.style.color = 'rgba(255,255,255,0.4)';
@@ -692,6 +696,7 @@ export class CardComponent {
         }
         if (charactersGroup) {
             charactersGroup.style.display = 'block';
+            charactersGroup.classList.toggle('media-group-empty', !hasCharacters);
             if (!hasCharacters && charactersListEl) {
                 const span = document.createElement('span');
                 span.style.color = 'rgba(255,255,255,0.4)';
@@ -703,6 +708,10 @@ export class CardComponent {
         }
         if (hasOthers && tagsTitleEl) {
             tagsTitleEl.style.display = 'block';
+            // Счётчик рядом с заголовком: в панели полноэкранного тегов бывает
+            // под три десятка, и без числа непонятно, сколько ещё прокручивать.
+            const othersCount = tagsListEl.querySelectorAll('.media-tag').length;
+            tagsTitleEl.textContent = othersCount ? `Теги: ${othersCount}` : 'Теги:';
         }
     }
 }

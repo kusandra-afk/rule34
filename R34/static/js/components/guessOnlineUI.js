@@ -111,7 +111,7 @@ export class GuessOnlineUI {
                 <button class="game-back-btn" id="gzBackBtn" style="background:none;border:none;color:#fff;cursor:pointer;padding:8px;border-radius:12px;">←</button>
                 <div class="game-title-group">
                     <div class="game-logo-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">⚖️</div>
-                    <h2 class="game-app-title">Больше / Меньше — Онлайн</h2>
+                    <h2 class="game-app-title">Больше / Меньше<span class="game-title-suffix"> — Онлайн</span></h2>
                 </div>
                 <button class="game-close-btn" id="gzCloseBtn">${icon('x', { size: 18 })}</button>
             </div>

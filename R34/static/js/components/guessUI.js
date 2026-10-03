@@ -100,7 +100,10 @@ export class GuessUI {
         card.className = 'game-card';
         card.innerHTML = `
             <div class="game-menu-container">
-                <span class="game-hero-badge guess-hero-badge">Мини-игра</span>
+                <div class="guess-hero-badges">
+                    <span class="game-hero-badge guess-hero-badge">Мини-игра</span>
+                    <span class="game-hero-badge guess-wip-badge">В разработке</span>
+                </div>
                 <h1 class="game-menu-title">Угадай, у кого<br>постов больше</h1>
 
                 <div class="guess-rules">

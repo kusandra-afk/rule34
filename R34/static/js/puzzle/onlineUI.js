@@ -200,9 +200,6 @@ export class OnlineUI {
             OnlineUI.renderLobbySetupUI(onlineMgr);
         };
 
-        const pzHeaderBackBtn = document.getElementById('pzHeaderBackBtn');
-        if (pzHeaderBackBtn) pzHeaderBackBtn.onclick = handleLeaveToSetup;
-
         const pzLeaveRoomBtn = document.getElementById('pzLeaveRoomBtn');
         if (pzLeaveRoomBtn) pzLeaveRoomBtn.onclick = handleLeaveToSetup;
 
@@ -423,7 +420,7 @@ export class OnlineUI {
                     <div class="game-form-group">
                         <label class="game-form-label">Присоединиться к комнате:</label>
                         <div class="game-form-row">
-                            <input type="text" id="pzJoinCodeInput" class="game-input game-code-input" placeholder="5-значный код (напр. BFTZK)" maxlength="5">
+                            <input type="text" id="pzJoinCodeInput" class="game-input game-code-input" placeholder="5-значный код" maxlength="5">
                             <button class="game-btn-primary" id="pzJoinRoomBtn" style="min-width: auto; padding: 10px 18px;">${icon('arrowRight', { size: 16 })} Войти</button>
                         </div>
                         <input type="password" id="pzJoinPasswordInput" class="game-input" placeholder="Пароль комнаты (если задан)" style="margin-top: 8px;" autocomplete="new-password">
@@ -502,8 +499,6 @@ export class OnlineUI {
             }
         };
 
-        const pzHeaderBackBtn = document.getElementById('pzHeaderBackBtn');
-        if (pzHeaderBackBtn) pzHeaderBackBtn.onclick = goBackToMenu;
         document.getElementById('pzBackMenuBtn').onclick = goBackToMenu;
         document.getElementById('pzSetupCloseBtn').onclick = closeSetup;
 

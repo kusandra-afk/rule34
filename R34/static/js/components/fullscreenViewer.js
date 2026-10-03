@@ -39,6 +39,21 @@ export class FullscreenViewer {
         };
         fsContainer.appendChild(infoBtn);
 
+        // Кнопка VR/панорамы появляется только если включена экспериментальная
+        // настройка — иначе она бы мозолила глаза всем, кому панорамный
+        // контент вообще не встречается.
+        if (localStorage.getItem('r34_vr_mode_enabled') === 'true') {
+            const vrBtn = document.createElement('button');
+            vrBtn.className = 'fullscreen-vr-btn';
+            vrBtn.title = 'Панорамный просмотр 360°/180° (эксперимент)';
+            vrBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 18 0"/><ellipse cx="12" cy="12" rx="9" ry="4"/><circle cx="12" cy="12" r="9"/></svg>`;
+            vrBtn.onclick = (e) => {
+                e.stopPropagation();
+                this._openVrForCurrentPost();
+            };
+            fsContainer.appendChild(vrBtn);
+        }
+
         const backdrop = document.createElement('div');
         backdrop.className = 'fullscreen-info-backdrop';
         backdrop.onclick = (e) => {
@@ -672,7 +687,7 @@ export class FullscreenViewer {
         const touchStart = (e) => {
             if (g._fullscreenTransitioning) return;
             if (e.touches && e.touches[0]) {
-                if (e.target.closest('input[type="range"]') || e.target.closest('.fullscreen-close-btn') || e.target.closest('.fullscreen-info-toggle-btn') || e.target.closest('.fullscreen-info-close') || e.target.closest('.video-bottom-volume') || e.target.closest('.video-speed-menu-btn')) {
+                if (e.target.closest('input[type="range"]') || e.target.closest('.fullscreen-close-btn') || e.target.closest('.fullscreen-info-toggle-btn') || e.target.closest('.fullscreen-info-close') || e.target.closest('.video-bottom-volume')) {
                     return;
                 }
 
@@ -904,6 +919,12 @@ export class FullscreenViewer {
         const keyHandler = (e) => {
             if (window.safeScreen && window.safeScreen.isActive) return;
             if (!g.fullscreenContainer) return;
+            // Поверх полноэкранного просмотра может быть открыт VR-оверлей —
+            // тогда клавиши принадлежат ему. Этот обработчик висит на window
+            // в capture-фазе, то есть срабатывает раньше любого обработчика
+            // на document, и без явной проверки Esc закрывал бы полноэкранный
+            // просмотр из-под VR, оставляя сам VR висеть на экране.
+            if (document.querySelector('.vr-overlay')) return;
             const isShiftEsc = e.shiftKey && e.key === 'Escape';
             const isCtrlShiftS = e.ctrlKey && e.shiftKey && (e.key === 's' || e.key === 'S' || e.key === 'ы' || e.key === 'Ы');
             const isAltS = e.altKey && (e.key === 's' || e.key === 'S' || e.key === 'ы' || e.key === 'Ы');
@@ -1377,6 +1398,51 @@ export class FullscreenViewer {
         if (!mediaWrapper) return null;
         const slides = mediaWrapper.querySelectorAll('.media-slide, .fullscreen-slide');
         return slides[slides.length - 1] || null;
+    }
+
+    // Открывает панорамный (VR) просмотр для поста, который сейчас на экране.
+    // Модуль и three.js подгружаются только здесь — при выключенной настройке
+    // за них вообще ничего не платится.
+    async _openVrForCurrentPost() {
+        const g = this.gallery;
+        const postsList = g._activeFullscreenPosts || (g.isFavoritesActive ? g.favoritesPosts : g.currentPosts);
+        const post = postsList && g.fullscreenIdx != null ? postsList[g.fullscreenIdx] : null;
+        if (!post) return;
+
+        // Под VR-оверлеем не должно продолжать играть исходное видео и
+        // тикать слайд-шоу: иначе получаем двойной звук и перелистывание
+        // «вслепую», пока пользователь смотрит панораму.
+        const slide = this._getCurrentFullscreenSlide();
+        const underlyingVideo = slide ? slide.querySelector('video') : null;
+        const wasPlaying = underlyingVideo && !underlyingVideo.paused;
+        if (underlyingVideo) underlyingVideo.pause();
+        if (g._photoViewer && !g._photoViewer.paused) {
+            g._photoViewer.pause();
+            g._vrPausedPhotoViewer = true;
+        }
+
+        try {
+            const { VRViewer } = await import('./vrViewer.js');
+            await VRViewer.open(post, {
+                projection: localStorage.getItem('r34_vr_projection') || '360',
+                stereo: localStorage.getItem('r34_vr_stereo') || 'mono',
+                onChangeSettings: ({ projection, stereo }) => {
+                    localStorage.setItem('r34_vr_projection', projection);
+                    localStorage.setItem('r34_vr_stereo', stereo);
+                },
+                onClose: () => {
+                    if (wasPlaying && underlyingVideo && underlyingVideo.isConnected) {
+                        underlyingVideo.play().catch(() => {});
+                    }
+                    if (g._vrPausedPhotoViewer && g._photoViewer) {
+                        g._photoViewer.resume();
+                    }
+                    g._vrPausedPhotoViewer = false;
+                }
+            });
+        } catch (err) {
+            console.error('[VR] Не удалось загрузить модуль панорамного просмотра:', err);
+        }
     }
 
     _showVideoControls() {

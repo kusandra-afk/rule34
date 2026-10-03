@@ -517,6 +517,143 @@ body.can-hover .fullscreen-info-close:hover, body:not(.can-hover) .fullscreen-in
     margin-top: 6px;
 }
 
+/* ============================================================
+   Блок информации в панели полноэкранного режима.
+   Сюда вставляется тот же .media-extra-info, что и под карточкой
+   в галерее, но он рассчитан на широкую карточку: мета-строка из
+   разноцветных бейджей в одну линию, секции с разными цветами
+   заголовков и десятки одинаковых чипов подряд. В колонке ~340px
+   это выглядело тесно и разнородно. Ниже — правила только для
+   панели, карточки в сетке они не трогают.
+   ============================================================ */
+
+/* Пустые «Автор»/«Персонаж» не занимают две строки ради слова «нету» */
+.fullscreen-info-body .media-group-empty {
+    display: none !important;
+}
+
+/* Мета-строка: разрешение, ID и дата — спокойный ряд, а не три
+   разноцветных бейджа; лайк отделён и остаётся единственным акцентом */
+.fullscreen-info-body .media-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-bottom: 14px;
+    margin-bottom: 2px;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.fullscreen-info-body .media-dimensions {
+    gap: 8px !important;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.fullscreen-info-body .media-id-badge,
+.fullscreen-info-body .media-date-badge {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+    font-size: 0.72rem !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+}
+
+/* Заголовки секций — один стиль на все три, вместо бирюзового,
+   розового и серого вперемешку */
+.fullscreen-info-body .media-authors-group > div:first-child,
+.fullscreen-info-body .media-characters-group > div:first-child,
+.fullscreen-info-body .media-tags-title {
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.4) !important;
+    margin-bottom: 8px !important;
+}
+
+.fullscreen-info-body .media-authors-group,
+.fullscreen-info-body .media-characters-group {
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 12px !important;
+    margin-top: 14px !important;
+}
+
+/* Чипы: мельче и плотнее — их бывает под три десятка */
+.fullscreen-info-body .media-tag {
+    font-size: 0.74rem;
+    padding: 4px 9px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: background 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+
+body.can-hover .fullscreen-info-body .media-tag:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--accent);
+}
+
+/* Активный тег остаётся заметным на фоне остальных */
+.fullscreen-info-body .media-tag.active-tag {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.fullscreen-info-body .media-tags-list {
+    gap: 6px;
+}
+
+/* Источник — такой же заголовок, как у остальных секций */
+.fullscreen-info-body .media-source-block {
+    margin-top: 14px !important;
+    border-top: 1px solid var(--glass-border);
+    padding-top: 14px !important;
+}
+
+.fullscreen-info-body .r34-source-header {
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.4) !important;
+    margin-bottom: 8px !important;
+}
+
+/* Кнопка источника ломалась на две строки, а бейдж домена обрезался
+   многоточием — в колонке ей нужен более компактный вид */
+.fullscreen-info-body .r34-source-link-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 11px;
+    font-size: 0.82rem;
+    line-height: 1.2;
+}
+
+.fullscreen-info-body .r34-source-action-label {
+    white-space: nowrap;
+    flex: 0 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fullscreen-info-body .r34-domain-badge {
+    margin-left: auto;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.7rem;
+}
+
+.fullscreen-info-body .r34-link-arrow {
+    flex-shrink: 0;
+}
+
 .fullscreen-info-backdrop {
     position: absolute;
     inset: 0;
@@ -613,3 +750,253 @@ body.can-hover .fullscreen-info-close:hover, body:not(.can-hover) .fullscreen-in
 /* Fullscreen Loader */
 .fullscreen-loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; display: flex; }
 .fullscreen-loader-spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+
+/* ============================================================
+   VR / ПАНОРАМНЫЙ ПРОСМОТР (экспериментально)
+   Оверлей поверх полноэкранного просмотра: WebGL-сфера + свои
+   контролы. Safe Screen намеренно остаётся выше по z-index.
+   ============================================================ */
+.vr-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99000;
+    background: #000;
+    overscroll-behavior: contain;
+    touch-action: none;
+}
+
+.vr-stage,
+.vr-stage canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.vr-topbar {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    right: 18px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    pointer-events: none;
+}
+
+.vr-topbar-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.vr-topbar > *,
+.vr-topbar-group > * {
+    pointer-events: auto;
+}
+
+.vr-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 14px;
+    background: var(--glass-bg-strong, rgba(255, 255, 255, 0.12));
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.18));
+    border-radius: 999px;
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.vr-close-btn {
+    width: 40px;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+/* display у .vr-btn перебивает браузерное [hidden] { display: none },
+   поэтому кнопку «Войти в VR» надо гасить явно — иначе она видна даже
+   там, где WebXR не поддерживается и жать её бессмысленно. */
+.vr-btn[hidden] {
+    display: none;
+}
+
+body.can-hover .vr-btn:hover, body:not(.can-hover) .vr-btn:active {
+    background: rgba(var(--accent-rgb), 0.28);
+    border-color: var(--accent);
+}
+
+.vr-btn.active {
+    background: var(--accent, #ff3b6b);
+    border-color: var(--accent, #ff3b6b);
+    color: #fff;
+}
+
+.vr-seg {
+    display: inline-flex;
+    padding: 3px;
+    gap: 3px;
+    background: rgba(18, 19, 26, 0.75);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.18));
+    border-radius: 999px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.vr-seg-btn {
+    min-height: 34px;
+    padding: 0 14px;
+    background: transparent;
+    border: none;
+    border-radius: 999px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s var(--ease), color 0.2s var(--ease);
+}
+
+body.can-hover .vr-seg-btn:not(.active):hover,
+body:not(.can-hover) .vr-seg-btn:not(.active):active {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.vr-seg-btn.active {
+    background: var(--accent, #ff3b6b);
+    color: #fff;
+}
+
+.vr-hint {
+    position: absolute;
+    left: 50%;
+    bottom: 26px;
+    transform: translateX(-50%);
+    z-index: 2;
+    max-width: calc(100% - 36px);
+    padding: 8px 16px;
+    background: rgba(18, 19, 26, 0.7);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.14));
+    border-radius: 999px;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.8rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    pointer-events: none;
+    animation: vrHintFade 0.4s var(--ease);
+}
+
+@keyframes vrHintFade {
+    from { opacity: 0; transform: translate(-50%, 8px); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+
+.vr-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: rgba(0, 0, 0, 0.85);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.92rem;
+}
+
+.vr-spinner {
+    width: 44px;
+    height: 44px;
+    border: 3px solid rgba(255, 255, 255, 0.12);
+    border-top-color: var(--accent, #ff3b6b);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+}
+
+.vr-loading--error .vr-fatal {
+    max-width: 420px;
+    padding: 0 24px;
+    text-align: center;
+}
+
+.vr-fatal-title {
+    color: var(--error, #ff5c5c);
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.vr-fatal-text {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+@media (max-width: 600px) {
+    .vr-topbar { top: 12px; left: 12px; right: 12px; gap: 8px; }
+    .vr-topbar-group { gap: 6px; }
+    .vr-seg { gap: 2px; padding: 2px; }
+    .vr-seg-btn { padding: 0 9px; font-size: 0.76rem; }
+    /* На телефоне у кнопок стерео остаются только стрелки — со словом
+       «Стерео» панель занимала четыре строки и половину экрана. */
+    .vr-seg-word { display: none; }
+    .vr-btn { min-height: 36px; padding: 0 11px; font-size: 0.78rem; }
+    .vr-close-btn { width: 36px; }
+    .vr-hint { bottom: 16px; font-size: 0.74rem; }
+}
+
+/* Кнопка входа в панорамный (VR) просмотр — рядом с «Пазлом» слева сверху */
+.fullscreen-vr-btn {
+    position: absolute;
+    top: 30px;
+    left: 142px;
+    z-index: 52000;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    color: rgba(255, 255, 255, 0.85);
+    cursor: pointer;
+    outline: none;
+    transition: all 0.25s cubic-bezier(.4, 0, .2, 1);
+}
+
+.fullscreen-vr-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+body.can-hover .fullscreen-vr-btn:hover, body:not(.can-hover) .fullscreen-vr-btn:active {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: var(--accent, #ff3b6b);
+    color: #fff;
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(var(--accent-rgb), 0.4);
+}
+
+@media (max-width: 600px) {
+    .fullscreen-vr-btn {
+        top: 15px;
+        left: 119px;
+    }
+}

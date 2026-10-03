@@ -154,34 +154,44 @@ export class VideoPlayer {
             };
             this.controlsBar.appendChild(this.soundBtn);
 
-            // В полноэкранном режиме делаем аккуратный тонкий слайдер для громкости
-            this.volumeSlider = document.createElement('input');
-            this.volumeSlider.type = 'range';
-            this.volumeSlider.className = 'video-bottom-volume';
-            this.volumeSlider.min = 0;
-            this.volumeSlider.max = 1;
-            this.volumeSlider.step = 0.01;
-            this.volumeSlider.value = this.video.muted ? 0 : this.video.volume;
-            this.volumeSlider.oninput = () => {
-                const volNum = Number(this.volumeSlider.value);
-                this.video.volume = volNum;
-                if (volNum > 0 && this.video.muted) {
-                    this.video.muted = false;
-                }
-                const volPct = Math.round(volNum * 100);
-                StorageManager.setItem('r34_default_volume', volPct.toString());
-                const settingsInput = document.getElementById('settingsDefaultVolumeInput');
-                const settingsManual = document.getElementById('settingsDefaultVolumeManual');
-                const settingsVal = document.getElementById('settingsDefaultVolumeValue');
-                if (settingsInput) {
-                    settingsInput.value = volPct;
-                    if (typeof setRangeGradient === 'function') setRangeGradient(settingsInput);
-                }
-                if (settingsManual) settingsManual.value = volPct;
-                if (settingsVal) settingsVal.textContent = volPct + '%';
-                this._updateSoundState();
-            };
-            this.controlsBar.appendChild(this.volumeSlider);
+            // Ползунок громкости — только для мыши/десктопа. На телефонах и
+            // планшетах системная громкость управляется аппаратными кнопками,
+            // а HTMLMediaElement.volume на iOS/Android вообще игнорируется,
+            // поэтому слайдер там только занимает место в панели контролов.
+            const isTouchDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+                || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches)
+                || ('ontouchstart' in window && window.innerWidth <= 900);
+
+            if (!isTouchDevice) {
+                // В полноэкранном режиме делаем аккуратный тонкий слайдер для громкости
+                this.volumeSlider = document.createElement('input');
+                this.volumeSlider.type = 'range';
+                this.volumeSlider.className = 'video-bottom-volume';
+                this.volumeSlider.min = 0;
+                this.volumeSlider.max = 1;
+                this.volumeSlider.step = 0.01;
+                this.volumeSlider.value = this.video.muted ? 0 : this.video.volume;
+                this.volumeSlider.oninput = () => {
+                    const volNum = Number(this.volumeSlider.value);
+                    this.video.volume = volNum;
+                    if (volNum > 0 && this.video.muted) {
+                        this.video.muted = false;
+                    }
+                    const volPct = Math.round(volNum * 100);
+                    StorageManager.setItem('r34_default_volume', volPct.toString());
+                    const settingsInput = document.getElementById('settingsDefaultVolumeInput');
+                    const settingsManual = document.getElementById('settingsDefaultVolumeManual');
+                    const settingsVal = document.getElementById('settingsDefaultVolumeValue');
+                    if (settingsInput) {
+                        settingsInput.value = volPct;
+                        if (typeof setRangeGradient === 'function') setRangeGradient(settingsInput);
+                    }
+                    if (settingsManual) settingsManual.value = volPct;
+                    if (settingsVal) settingsVal.textContent = volPct + '%';
+                    this._updateSoundState();
+                };
+                this.controlsBar.appendChild(this.volumeSlider);
+            }
             this._updateSoundState();
         }
 

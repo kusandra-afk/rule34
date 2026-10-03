@@ -343,7 +343,7 @@ export function startPuzzleGame() {
         menuModal.querySelector('#pzStartSoloBtn').onclick = (e) => {
             const btn = e.currentTarget;
             const originalHtml = btn.innerHTML;
-            
+
             const launch = (post) => {
                 closeMenu();
                 startGame(post);
@@ -351,7 +351,7 @@ export function startPuzzleGame() {
 
             const initialEligible = getEligiblePosts();
             if (initialEligible.length === 0) {
-                btn.innerHTML = `<div class="puzzle-loader-spinner" style="width:16px;height:16px;border-width:2px;border-top-color:#fff;border-right-color:transparent;border-radius:50%;animation:pzSpin 1s linear infinite;display:inline-block;vertical-align:middle;"></div> <span style="vertical-align:middle;margin-left:8px;">Загрузка галереи...</span>`;
+                btn.innerHTML = `<div class="puzzle-loader-spinner puzzle-loader-spinner-light"></div> <span class="puzzle-loader-text">Загрузка галереи...</span>`;
                 btn.disabled = true;
                 showPuzzleToast("В галерее пусто, автоматически подгружаем картинки для пазла...", 4000);
                 (async () => {
@@ -375,7 +375,18 @@ export function startPuzzleGame() {
                     }
                 })();
             } else {
-                launch(getUnsolvedPost(null));
+                btn.innerHTML = `<div class="puzzle-loader-spinner puzzle-loader-spinner-light"></div> <span class="puzzle-loader-text">Поиск пазла...</span>`;
+                btn.disabled = true;
+                setTimeout(() => {
+                    const post = getUnsolvedPost(null);
+                    if (post) {
+                        launch(post);
+                    } else {
+                        showPuzzleToast("Не удалось найти подходящий пазл!", 4000);
+                        btn.innerHTML = originalHtml;
+                        btn.disabled = false;
+                    }
+                }, 100);
             }
         };
 

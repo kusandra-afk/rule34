@@ -1046,7 +1046,6 @@ body.can-hover .scroll-to-top-btn:hover svg, body:not(.can-hover) .scroll-to-top
 
 /* Устанавливаем дефолты на основе вычисленных адаптивных переменных */
 .settings-modal-card,
-.tag-modal-card,
 .puzzle-completed-modal,
 .puzzle-stats-modal {
   --ctrl-bg: var(--modal-control-bg, rgba(255, 255, 255, 0.045));
@@ -1064,9 +1063,6 @@ body.can-hover .scroll-to-top-btn:hover svg, body:not(.can-hover) .scroll-to-top
 .settings-modal-card .r34-input-mini,
 .settings-modal-card .r34-select,
 .settings-modal-card .col-btn,
-.tag-modal-card .r34-input,
-.tag-modal-card .r34-input-mini,
-.tag-modal-card .r34-select,
 .puzzle-completed-modal select,
 .puzzle-stats-modal select,
 .puzzle-completed-modal input,
@@ -1084,19 +1080,13 @@ body:not(.can-hover) .settings-modal-card .r34-input-mini:active,
 body.can-hover .settings-modal-card .r34-select:hover,
 body:not(.can-hover) .settings-modal-card .r34-select:active,
 body.can-hover .settings-modal-card .col-btn:hover,
-body:not(.can-hover) .settings-modal-card .col-btn:active,
-body.can-hover .tag-modal-card .r34-input:hover,
-body:not(.can-hover) .tag-modal-card .r34-input:active,
-body.can-hover .tag-modal-card .r34-input-mini:hover,
-body:not(.can-hover) .tag-modal-card .r34-input-mini:active,
-body.can-hover .tag-modal-card .r34-select:hover, body:not(.can-hover) .tag-modal-card .r34-select:active {
+body:not(.can-hover) .settings-modal-card .col-btn:active {
   background-color: var(--ctrl-hover-bg) !important;
   border-color: var(--ctrl-hover-border) !important;
 }
 
 /* Слайдер (круглый тумблер) выключенного переключателя должен быть контрастным */
-.settings-modal-card .r34-slider:before,
-.tag-modal-card .r34-slider:before {
+.settings-modal-card .r34-slider:before {
   background: var(--modal-text-color, #ffffff) !important;
 }
 
@@ -1109,9 +1099,7 @@ body.can-hover .tag-modal-card .r34-select:hover, body:not(.can-hover) .tag-moda
 
 /* Плейсхолдеры */
 .settings-modal-card .r34-input::placeholder,
-.settings-modal-card .r34-input-mini::placeholder,
-.tag-modal-card .r34-input::placeholder,
-.tag-modal-card .r34-input-mini::placeholder {
+.settings-modal-card .r34-input-mini::placeholder {
   color: var(--ctrl-placeholder) !important;
 }
 
@@ -1134,16 +1122,14 @@ body.can-hover .settings-modal-card .settings-close-btn:hover, body:not(.can-hov
 }
 
 /* Информационные плашки-подсказки (info-help-box) */
-.settings-modal-card .info-help-box,
-.tag-modal-card .info-help-box {
+.settings-modal-card .info-help-box {
   background: rgba(var(--accent-rgb), 0.08) !important;
   border-left: 3px solid var(--accent) !important;
   color: var(--modal-text-color, var(--adaptive-text-main, #ffffff)) !important;
 }
 
 /* Блоки кода `code` в инфо-подсказках */
-.settings-modal-card .info-help-box code,
-.tag-modal-card .info-help-box code {
+.settings-modal-card .info-help-box code {
   background: var(--ctrl-bg) !important;
   border-color: var(--ctrl-border) !important;
   color: var(--accent) !important;
@@ -1169,7 +1155,6 @@ body.can-hover .settings-modal-card .settings-close-btn:hover, body:not(.can-hov
 
 /* Опции выпадающего списка select - должны наследовать цвета модального окна, а не быть жестко черными */
 .settings-modal-card select option,
-.tag-modal-card select option,
 .puzzle-completed-modal select option,
 .puzzle-stats-modal select option {
   background-color: var(--modal-bg, #0c0d12) !important;
@@ -1178,25 +1163,21 @@ body.can-hover .settings-modal-card .settings-close-btn:hover, body:not(.can-hov
 
 /* Улучшение видимости скроллбара в модалках */
 .settings-modal-body::-webkit-scrollbar,
-.tag-modal-card::-webkit-scrollbar,
 .modal-tag-preview-grid::-webkit-scrollbar {
   width: 6px;
 }
 .settings-modal-body::-webkit-scrollbar-track,
-.tag-modal-card::-webkit-scrollbar-track,
 .modal-tag-preview-grid::-webkit-scrollbar-track {
   background: transparent;
 }
 .settings-modal-body::-webkit-scrollbar-thumb,
-.tag-modal-card::-webkit-scrollbar-thumb,
 .modal-tag-preview-grid::-webkit-scrollbar-thumb {
   background: var(--ctrl-border);
   border-radius: 99px;
 }
 body.can-hover .settings-modal-body::-webkit-scrollbar-thumb:hover,
 body:not(.can-hover) .settings-modal-body::-webkit-scrollbar-thumb:active,
-body.can-hover .tag-modal-card::-webkit-scrollbar-thumb:hover,
-body:not(.can-hover) .tag-modal-card::-webkit-scrollbar-thumb:active,
-body.can-hover .modal-tag-preview-grid::-webkit-scrollbar-thumb:hover, body:not(.can-hover) .modal-tag-preview-grid::-webkit-scrollbar-thumb:active {
+body.can-hover .modal-tag-preview-grid::-webkit-scrollbar-thumb:hover,
+body:not(.can-hover) .modal-tag-preview-grid::-webkit-scrollbar-thumb:active {
   background: var(--accent);
 }

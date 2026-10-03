@@ -180,6 +180,7 @@
 
           <div class="info-help-box" id="info-duration" style="display: none;">
             Позволяет искать видеофайлы, длительность которых превышает указанное число секунд. Например, введите 30, чтобы искать только видео длиной от 30 секунд.<br><br>
+            <strong>После включения фильтра желательно заново нажать на поиск.</strong><br><br>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             <strong>ОБРАТИТЕ ВНИМАНИЕ:</strong> Из-за технических особенностей определения длительности на стороне клиента, видео могут кратковременно мерцать или исчезать. Также использование этого фильтра может существенно увеличить время загрузки результатов поиска. В полноэкранном режиме видео, не соответствующие заданному фильтру длительности, автоматически и мгновенно (зависит от интернета) пролистываются (пропускаются).
           </div>
@@ -337,6 +338,25 @@
           </div>
         </div>
 
+        <!-- VR / панорамный просмотр (экспериментально) -->
+        <div class="settings-option settings-option--divided-top">
+          <div class="settings-row">
+            <div class="settings-label-group">
+              <label class="settings-label">VR-просмотр 360°/180° <span class="experimental-badge">эксперимент</span></label>
+              <button class="info-btn" data-info="vr-mode" title="Инструкция">!</button>
+            </div>
+            <label class="r34-toggle-switch">
+              <input type="checkbox" id="settingsVrModeCheckbox">
+              <span class="r34-slider"></span>
+            </label>
+          </div>
+          <div class="info-help-box" id="info-vr-mode" style="display: none;">
+            Добавляет в полноэкранный просмотр кнопку <b>VR</b>. Она натягивает медиа изнутри на сферу — так, как и задумано для панорамных съёмок 360° и 180°: можно осмотреться мышью, пальцем или надеть VR-шлем (кнопка «Войти в VR» появляется, если браузер и шлем поддерживают WebXR).<br><br>
+            <b>Важно:</b> режим не создаёт объём из плоской картинки. Он полезен только для контента, который изначально снят панорамой — обычное фото или видео в нём будет выглядеть растянутым по сфере.<br><br>
+            Прямо в VR-просмотре можно переключить проекцию (360°/180°) и раскладку стерео-пары (моно, кадры бок-о-бок, кадры сверху-вниз) — подберите то, при котором картинка перестаёт двоиться и выглядит правильно.
+          </div>
+        </div>
+
 
         <!-- СЕКЦИЯ 4: SAFE SCREEN (ЭКРАН БЕЗОПАСНОСТИ) -->
         <div id="safeScreenSettingsBlock" class="safe-screen-settings-wrapper" style="border: none; padding: 0; background: none; margin-top: 0;">
@@ -348,7 +368,16 @@
             </span>
           </div>
 
-          <div class="settings-option" style="border: none; padding: 0;">
+          <!-- На телефоне вся начинка секции бесполезна (горячая клавиша,
+               загрузка файлов, список) и занимала бы ~350px экрана, поэтому
+               вместо затемнённых неработающих кнопок показываем одну строку. -->
+          <div class="safe-screen-mobile-note">
+            Экран безопасности срабатывает по горячей клавише, поэтому доступен
+            только на компьютере. Откройте настройки с ПК, чтобы задать
+            комбинацию и загрузить файлы-заглушки.
+          </div>
+
+          <div class="settings-option safe-screen-pc-only" style="border: none; padding: 0;">
             <!-- Горячие клавиши -->
             <div class="settings-row settings-row--wrap" style="gap: 12px; align-items: center;">
               <div class="settings-label-group" style="flex: 1;">

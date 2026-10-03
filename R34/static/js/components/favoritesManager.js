@@ -152,10 +152,6 @@ export class FavoritesManager {
         const container = document.getElementById('profileFavoritesGridContainer');
         const favColsGroup = document.getElementById('favColumnsGroup');
 
-        if (refreshBtn) {
-            refreshBtn.onclick = () => FavoritesManager.renderProfileFavorites(gallery, true);
-        }
-
         const activeFavCols = parseInt(localStorage.getItem('r34_favorites_cols'), 10) || 2;
 
         const updateFavColsUI = (cols) => {
@@ -447,7 +443,30 @@ export class FavoritesManager {
             }
         }
 
-        if (refreshBtn) refreshBtn.onclick = () => loadFavs.call(gallery);
+        // Обновление идёт быстро, и без явного состояния кнопка выглядит так,
+        // будто нажатие не сработало: список успевает перерисоваться до того,
+        // как глаз заметит смену. Поэтому блокируем кнопку и показываем
+        // спиннер на всё время запроса, с небольшим минимальным временем.
+        if (refreshBtn) {
+            const refreshLabel = refreshBtn.innerHTML;
+            refreshBtn.onclick = async () => {
+                if (refreshBtn.disabled) return;
+                refreshBtn.disabled = true;
+                refreshBtn.classList.add('is-loading');
+                refreshBtn.innerHTML = '<span class="fav-refresh-spinner"></span><span>Обновляем…</span>';
+                const startedAt = Date.now();
+                try {
+                    await loadFavs.call(gallery);
+                } finally {
+                    const elapsed = Date.now() - startedAt;
+                    setTimeout(() => {
+                        refreshBtn.disabled = false;
+                        refreshBtn.classList.remove('is-loading');
+                        refreshBtn.innerHTML = refreshLabel;
+                    }, Math.max(0, 450 - elapsed));
+                }
+            };
+        }
         loadFavs.call(gallery);
     }
 

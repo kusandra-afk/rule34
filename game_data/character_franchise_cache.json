@@ -34,6 +34,11 @@
     "title": "Friday Night Funkin'",
     "type": "game"
   },
+  "anonymous_male": {
+    "source": "kitsu",
+    "title": "Promare",
+    "type": "anime"
+  },
   "applejack_(mlp)": {
     "source": "wikidata",
     "title": "My Little Pony",
@@ -59,10 +64,30 @@
     "title": "Capcom vs. SNK 2: Mark of the Millennium 2001",
     "type": "game"
   },
+  "asriel_dreemurr": {
+    "source": "wikidata",
+    "title": "Adventure Time",
+    "type": "cartoon"
+  },
+  "astolfo_(fate)": {
+    "source": "anilist_media",
+    "title": "Fate",
+    "type": "manga"
+  },
   "asuka_langley_sohryu": {
     "source": "kitsu",
     "title": "Evangelion: 2.0 You Can (Not) Advance",
     "type": "anime"
+  },
+  "asuna_(blue_archive)": {
+    "source": "steam",
+    "title": "Blue Archive",
+    "type": "game"
+  },
+  "asuna_(bunny)_(blue_archive)": {
+    "source": "steam",
+    "title": "Blue Archive",
+    "type": "game"
   },
   "azula": {
     "source": "kitsu",
@@ -88,6 +113,11 @@
     "source": "vndb",
     "title": "RWBY: DAY OUT",
     "type": "visual_novel"
+  },
+  "boa_hancock": {
+    "source": "kitsu",
+    "title": "One Piece",
+    "type": "anime"
   },
   "bonnie_(fnaf)": {
     "source": "none",
@@ -129,6 +159,11 @@
     "title": "Street Fighter",
     "type": "game"
   },
+  "cinderace": {
+    "source": "steam",
+    "title": "Adventure Time",
+    "type": "game"
+  },
   "cloud_strife": {
     "source": "wikidata",
     "title": "Final Fantasy VII",
@@ -137,6 +172,16 @@
   "colette_(brawl_stars)": {
     "source": "wikidata",
     "title": "Brawl Stars",
+    "type": "game"
+  },
+  "dark_magician_girl": {
+    "source": "kitsu",
+    "title": "Yu☆Gi☆Oh! Duel Monsters",
+    "type": "anime"
+  },
+  "deku": {
+    "source": "steam",
+    "title": "MY HERO ACADEMIA: All’s Justice",
     "type": "game"
   },
   "diana_prince": {
@@ -148,6 +193,11 @@
     "source": "wikidata",
     "title": "Digimon",
     "type": "franchise"
+  },
+  "duel_monster": {
+    "source": "kitsu",
+    "title": "Yu☆Gi☆Oh! Duel Monsters",
+    "type": "anime"
   },
   "eevee": {
     "source": "wikidata",
@@ -244,6 +294,11 @@
     "title": "Batman: Arkham Knight",
     "type": "game"
   },
+  "haruno_sakura": {
+    "source": "steam",
+    "title": "NARUTO: Ultimate Ninja STORM",
+    "type": "game"
+  },
   "hex_maniac": {
     "source": "wikidata",
     "title": "Pokémon",
@@ -274,6 +329,11 @@
     "title": "Animal Crossing",
     "type": "game"
   },
+  "izuku_midoriya": {
+    "source": "steam",
+    "title": "MY HERO ACADEMIA: All’s Justice",
+    "type": "game"
+  },
   "jinx_(league_of_legends)": {
     "source": "wikidata",
     "title": "Arcane",
@@ -299,10 +359,20 @@
     "title": "Demon Slayer",
     "type": "game"
   },
+  "katsuki_bakugou": {
+    "source": "steam",
+    "title": "MY HERO ACADEMIA: All’s Justice",
+    "type": "game"
+  },
   "kimberly_ann_possible": {
     "source": "wikidata",
     "title": "Kim Possible",
     "type": "cartoon"
+  },
+  "kitagawa_marin": {
+    "source": "wikidata",
+    "title": "My Dress-Up Darling",
+    "type": "manga"
   },
   "korra": {
     "source": "wikidata",
@@ -344,6 +414,11 @@
     "title": "Marvel Cinematic Universe",
     "type": "franchise"
   },
+  "luxray": {
+    "source": "steam",
+    "title": "Adventure Time",
+    "type": "game"
+  },
   "mai_shiranui": {
     "source": "wikidata",
     "title": "Fatal Fury: King of Fighters",
@@ -373,6 +448,11 @@
     "source": "steam",
     "title": "Adventure Time",
     "type": "game"
+  },
+  "marin_kitagawa": {
+    "source": "wikidata",
+    "title": "My Dress-Up Darling",
+    "type": "manga"
   },
   "marisa_kirisame": {
     "source": "wikidata",
@@ -499,6 +579,11 @@
     "title": "My Little Pony",
     "type": "franchise"
   },
+  "raikage": {
+    "source": "steam",
+    "title": "NARUTO: Ultimate Ninja STORM",
+    "type": "game"
+  },
   "rainbow_dash_(mlp)": {
     "source": "wikidata",
     "title": "My Little Pony",
@@ -529,6 +614,11 @@
     "title": "Pokémon",
     "type": "franchise"
   },
+  "rias_gremory": {
+    "source": "vndb",
+    "title": "High School DxD",
+    "type": "visual_novel"
+  },
   "robin_(fire_emblem)": {
     "source": "wikidata",
     "title": "Fire Emblem",
@@ -537,6 +627,11 @@
   "robin_(fire_emblem)_(female)": {
     "source": "wikidata",
     "title": "Fire Emblem Awakening",
+    "type": "game"
+  },
+  "robloxian": {
+    "source": "wikidata",
+    "title": "Roblox",
     "type": "game"
   },
   "rouge_the_bat": {
@@ -584,6 +679,11 @@
     "title": "Pokémon",
     "type": "franchise"
   },
+  "shihouin_yoruichi": {
+    "source": "kitsu",
+    "title": "BLEACH",
+    "type": "anime"
+  },
   "shy_gal": {
     "source": "anilist_media",
     "title": "Mario",
@@ -624,6 +724,11 @@
     "title": "My Little Pony",
     "type": "franchise"
   },
+  "super_crown": {
+    "source": "steam",
+    "title": "Adventure Time",
+    "type": "game"
+  },
   "supergirl": {
     "source": "kitsu",
     "title": "Aoki Hagane no Arpeggio: Ars Nova DC",
@@ -647,6 +752,11 @@
   "toriel": {
     "source": "wikidata",
     "title": "Undertale",
+    "type": "game"
+  },
+  "tsunade": {
+    "source": "steam",
+    "title": "NARUTO: Ultimate Ninja STORM",
     "type": "game"
   },
   "ty_lee": {
@@ -693,6 +803,11 @@
     "source": "wikidata",
     "title": "Marvel Cinematic Universe",
     "type": "franchise"
+  },
+  "venti_(genshin_impact)": {
+    "source": "kitsu",
+    "title": "Genshin Impact",
+    "type": "anime"
   },
   "vi": {
     "source": "wikidata",
@@ -743,6 +858,11 @@
     "source": "wikidata",
     "title": "Alien",
     "type": "game"
+  },
+  "yae_miko": {
+    "source": "kitsu",
+    "title": "Genshin Impact",
+    "type": "manga"
   },
   "yang_xiao_long": {
     "source": "wikidata",

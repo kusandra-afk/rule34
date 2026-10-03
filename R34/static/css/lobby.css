@@ -884,6 +884,32 @@ body.can-hover .game-close-btn:hover, body:not(.can-hover) .game-close-btn:activ
   .game-overlay {
     padding: 84px 12px 32px;
   }
+
+  /* Длинный заголовок вроде «Больше / Меньше — Онлайн» рвался в шапке на три
+     строки и раздувал её, прижимая стрелку «назад» и крестик. Уменьшаем и
+     разрешаем перенос максимум на две строки. */
+  .game-app-title {
+    font-size: 0.92rem;
+    line-height: 1.25;
+    gap: 6px;
+  }
+
+  .game-title-group {
+    min-width: 0;
+    max-width: 62vw;
+  }
+
+  /* «— Онлайн» в заголовке рвал его на три строки, хотя слово дублируется
+     подзаголовком «Мультиплеерные Комнаты» прямо под шапкой. */
+  .game-title-suffix {
+    display: none;
+  }
+
+  /* «→ Войти» ломалось на две строки прямо внутри кнопки */
+  .game-btn-primary,
+  .game-btn-secondary {
+    white-space: nowrap;
+  }
 }
 
 .game-menu-container {
@@ -1757,7 +1783,9 @@ body.can-hover .guess-btn:not(:disabled):hover { transform: translateY(-2px); fi
   .guess-count-label { font-size: 0.62rem; }
   .guess-type-chip { font-size: 0.63rem; padding: 2px 8px; }
   .guess-type-skeleton { width: 72px; height: 14px; }
-  .guess-art-nav { width: 26px; height: 26px; left: 5px; }
+  /* 26px — цель для курсора, а не для пальца: листание артов на телефоне
+     было почти непопадаемым. */
+  .guess-art-nav { width: 36px; height: 36px; left: 5px; }
   .guess-art-next { left: auto; right: 5px; }
   .guess-art-counter { font-size: 0.58rem; padding: 2px 9px; bottom: 6px; }
   .guess-riddle-badge { font-size: 0.55rem; padding: 3px 9px; top: 6px; }
@@ -1768,6 +1796,17 @@ body.can-hover .guess-btn:not(:disabled):hover { transform: translateY(-2px); fi
   .guess-chip { padding: 6px 11px; gap: 6px; }
   .guess-chip span { font-size: 0.6rem; }
   .guess-rules { padding: 16px; border-radius: 18px; }
+
+  /* Ширину артов задаёт колонка, а бейдж VS вместе с отступами съедал около
+     50px из 350 — арты выходили по 148px. Выносить VS из потока нельзя:
+     кружок шире зазора и налезает на края картинок. Вместо этого ужимаем
+     сам бейдж и промежутки — арты подрастают, наложения нет. */
+  .guess-vs-row { gap: 6px; }
+  .guess-vs-badge span { width: 26px; height: 26px; font-size: 0.56rem; }
+  .guess-slot { flex: 1 1 0; min-width: 0; }
+
+  /* Карточка висела в верхней части экрана — распределяем пустоту вокруг */
+  .guess-shell { justify-content: center; min-height: 100%; }
   .guess-rule-text { font-size: 0.82rem; }
   .guess-over-title { font-size: 1.55rem; }
   .guess-tiles { gap: 10px; }
@@ -2014,3 +2053,7 @@ body.can-hover .guess-viewer-nav:hover { background: rgba(0, 0, 0, 0.8); }
   border-style: solid;
   animation: tagPopIn 0.28s var(--ease);
 }
+
+/* Метка "в разработке" для игры Больше/Меньше */
+.guess-hero-badges { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.guess-wip-badge { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.4); color: #fcd34d; }

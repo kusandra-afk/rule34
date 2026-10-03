@@ -169,7 +169,10 @@ export function initSettingsModal(options = {}) {
                 combineCheckbox.checked = false;
                 localStorage.setItem('r34_combine_random_likes', 'false');
                 if (combineGroup) {
-                    combineGroup.style.opacity = '0.4';
+                    // 0.4 на тёмном фоне почти не читается, а строка при этом
+                    // остаётся на виду — пользователь видит нечитаемый текст и
+                    // не понимает, настройка сломана или просто недоступна.
+                    combineGroup.style.opacity = '0.6';
                     combineGroup.style.pointerEvents = 'none';
                 }
             }
@@ -266,6 +269,10 @@ export function initSettingsModal(options = {}) {
                 settingsAutoSlideCheckbox.checked = localStorage.getItem('r34_auto_slide') !== 'false';
                 if (settingsAutoVideoSlideCheckbox) {
                     settingsAutoVideoSlideCheckbox.checked = localStorage.getItem('r34_auto_video_slide') !== 'false';
+                }
+                const settingsVrModeCheckboxSync = document.getElementById('settingsVrModeCheckbox');
+                if (settingsVrModeCheckboxSync) {
+                    settingsVrModeCheckboxSync.checked = localStorage.getItem('r34_vr_mode_enabled') === 'true';
                 }
                 settingsLongImageCheckbox.checked = localStorage.getItem('r34_long_image_protection') !== 'false';
                 if (settingsLowPowerCheckbox) {
@@ -528,22 +535,6 @@ export function initSettingsModal(options = {}) {
                 }
                 if (settingsApiRetryDelayManual) settingsApiRetryDelayManual.value = apiRetryDelay;
                 if (settingsApiRetryDelayValue) settingsApiRetryDelayValue.textContent = apiRetryDelay + 'с';
-    
-                // Custom CSS
-                const settingsCustomCssCheckbox = document.getElementById('settingsCustomCssCheckbox');
-                const customCssEditorContainer = document.getElementById('customCssEditorContainer');
-                const customCssEditor = document.getElementById('customCssEditor');
-                
-                if (settingsCustomCssCheckbox) {
-                    const customCssEnabled = localStorage.getItem('r34_custom_css_enabled') === 'true';
-                    settingsCustomCssCheckbox.checked = customCssEnabled;
-                    if (customCssEditorContainer) {
-                        customCssEditorContainer.style.display = customCssEnabled ? 'block' : 'none';
-                    }
-                }
-                if (customCssEditor) {
-                    customCssEditor.value = localStorage.getItem('r34_custom_css') || '';
-                }
     
                 const cardBgBlur = localStorage.getItem('r34_card_bg_blur') || '0';
                 const settingsCardBlurInput = document.getElementById('settingsCardBlurInput');
@@ -1836,6 +1827,15 @@ export function initSettingsModal(options = {}) {
         });
     }
 
+    // VR-просмотр (экспериментально): сама настройка только включает кнопку
+    // "VR" в полноэкранном режиме — всё остальное решается уже там.
+    const settingsVrModeCheckbox = document.getElementById('settingsVrModeCheckbox');
+    if (settingsVrModeCheckbox) {
+        settingsVrModeCheckbox.addEventListener('change', () => {
+            localStorage.setItem('r34_vr_mode_enabled', settingsVrModeCheckbox.checked ? 'true' : 'false');
+        });
+    }
+
     const settingsAutoSlideInterval = document.getElementById('settingsAutoSlideInterval');
     if (settingsAutoSlideInterval) {
         settingsAutoSlideInterval.addEventListener('change', () => {
@@ -2111,8 +2111,6 @@ export function initSettingsModal(options = {}) {
                 'r34_api_timeout': '15',
                 'r34_api_retries': '3',
                 'r34_api_retry_delay': '2',
-                'r34_custom_css_enabled': 'false',
-                'r34_custom_css': '',
                 'r34_card_border_width': '1',
                 'r34_card_border_color': 'var(--glass-border)',
                 'r34_card_transition_speed': '300',
@@ -2208,11 +2206,6 @@ export function initSettingsModal(options = {}) {
                 }
             });
             
-            const checkbox = document.getElementById('settingsAutoplayCheckbox') || document.getElementById('settingsGifAutoplayCheckbox');
-            if (checkbox) {
-                checkbox.checked = false;
-            }
-
             const cardTagsCheckbox = document.getElementById('settingsCardTagsCheckbox');
             if (cardTagsCheckbox) {
                 cardTagsCheckbox.checked = true;

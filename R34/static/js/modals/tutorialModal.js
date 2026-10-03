@@ -3,7 +3,7 @@
  */
 
 export function checkAndRemoveModalOpenClass() {
-    const activeModal = document.querySelector('#settings-modal.open, #tutorial-modal.open, .puzzle-overlay, .puzzle-completed-modal, .puzzle-stats-modal, .tag-modal[style*="display: flex"], .tag-modal[style*="display:flex"]');
+    const activeModal = document.querySelector('#settings-modal.open, #tutorial-modal.open, .puzzle-overlay, .puzzle-completed-modal, .puzzle-stats-modal');
     if (!activeModal) {
         document.body.classList.remove('modal-open');
         document.documentElement.classList.remove('modal-open');
@@ -13,7 +13,6 @@ export function checkAndRemoveModalOpenClass() {
 export function initTutorialModal() {
     const tutorialModal = document.getElementById('tutorial-modal');
     const openTutorialBtn = document.getElementById('openTutorialBtn');
-    const tutorialCloseBtn = document.getElementById('tutorial-close-btn');
     const tutorialGotItBtn = document.getElementById('tutorialGotItBtn');
 
     function showTutorial() {
@@ -33,7 +32,6 @@ export function initTutorialModal() {
     }
 
     if (openTutorialBtn) openTutorialBtn.addEventListener('click', showTutorial);
-    if (tutorialCloseBtn) tutorialCloseBtn.addEventListener('click', closeTutorial);
     if (tutorialGotItBtn) tutorialGotItBtn.addEventListener('click', closeTutorial);
 
     if (tutorialModal) {

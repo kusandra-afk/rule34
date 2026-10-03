@@ -105,6 +105,77 @@
     gap: 6px;
   }
 
+  /* Шапка групп тегов съедала треть первого экрана: заголовок «Исключенные
+     теги» рвался на две строки, стрелка повисала между ним и «Игнорировать»,
+     а отступы списка добавляли ещё десятки пикселей. Ужимаем подписи и
+     интервалы, чтобы карточки начинались выше. */
+  .tags-group-wrapper {
+    gap: 4px;
+  }
+
+  .tags-group-label {
+    font-size: 0.66rem;
+    letter-spacing: 0.05em;
+    gap: 8px;
+    margin-bottom: 0;
+  }
+
+  .tags-group-label > div:first-child {
+    white-space: nowrap;
+  }
+
+  .tags-group-label > div:last-child > span {
+    font-size: 0.6rem !important;
+  }
+
+  .tags-group-list {
+    padding: 5px 2px;
+    gap: 6px;
+  }
+
+  /* Пальцу нужна цель крупнее курсора: развернуть и звук на карточке были
+     36 и 34 px. */
+  .fullscreen-btn {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  .sound-control-wrapper,
+  .sound-toggle-btn {
+    max-height: 42px !important;
+  }
+
+  .sound-control-wrapper {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  /* Пять пресетов длительности в сумме давали 324 px при ширине ряда 332 —
+     с учётом отступов последняя кнопка «5м (300с)» уезжала на вторую строку.
+     Ужимаем, чтобы ряд оставался одной строкой. */
+  .duration-preset-btn {
+    padding: 6px 8px !important;
+    font-size: 0.72rem !important;
+  }
+
+  .duration-preset-row {
+    gap: 5px !important;
+  }
+
+  /* На узкой кнопке метка «в разработке», висящая абсолютом в углу, съедала
+     место под названием и оно обрезалось («Больше /»). Возвращаем её в поток
+     отдельной строкой — высота кнопки чуть больше, зато название целое. */
+  .game-choice-btn--wip .game-choice-btn-text {
+    padding-right: 0 !important;
+  }
+
+  .game-choice-wip-badge {
+    position: static !important;
+    display: inline-block !important;
+    margin-left: 8px !important;
+    vertical-align: middle !important;
+  }
+
   .media-tag {
     font-size: 0.78rem;
     padding: 4px 10px;
@@ -257,16 +328,6 @@
   .settings-close-btn {
     width: 44px !important;
     height: 44px !important;
-  }
-
-  .tag-modal-card {
-    width: 95% !important;
-    max-height: 90vh !important;
-    border-radius: 20px !important;
-  }
-
-  .tag-modal-card {
-    padding: 20px 16px !important;
   }
 
   .settings-modal-header,
@@ -429,19 +490,6 @@
   }
 
   /* Модалка подтверждения тегов */
-  .tag-modal {
-    background: rgba(6, 7, 12, 0.85) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    animation: fadeIn 0.2s var(--ease) !important;
-  }
-
-  .tag-modal-card {
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
-    transform: translate3d(0, 10px, 0) !important;
-    animation: mobileScaleUp 0.22s var(--ease) forwards !important;
-  }
 
   /* Поисковая панель — сочный стеклянный блюр */
   .r34-search-block {
@@ -486,7 +534,6 @@
   .r34-settings-btn:active,
   .scroll-to-top-btn:active,
   .app-mode-btn:active,
-  .preset-btn:active,
   .video-btn:active,
   .sound-btn:active,
   .fullscreen-close-btn:active,
@@ -541,7 +588,6 @@
     box-shadow: 0 0 16px var(--accent-glow) !important;
     transition: transform 0.08s ease-out !important;
   }
-}
   .r34-btn-secondary, .r34-btn-primary, .confirm-btn, .keep-btn {
     min-height: 44px !important;
   }
