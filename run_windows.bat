@@ -43,6 +43,6 @@ if errorlevel 1 (
 echo Done.
 
 echo Starting server...
-call %PYTHON_EXE% server.py
+call %PYTHON_EXE% server.py %*
 
 pause

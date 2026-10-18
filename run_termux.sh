@@ -13,4 +13,4 @@ python -m pip install -r requirements.txt > /dev/null 2>&1
 
 echo "Done."
 echo "Starting server..."
-python server.py
+python server.py "$@"

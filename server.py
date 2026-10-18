@@ -15,6 +15,7 @@ from handlers.proxy_routes import proxy_bp
 from handlers.user_routes import user_bp
 from handlers.safescreen_routes import safescreen_bp
 from handlers.game_routes import game_bp
+from handlers.room_routes import room_bp
 
 # Initialize Flask App
 app = Flask(__name__, static_folder=os.path.join(BASE_DIR, 'R34', 'static'), static_url_path='/static')
@@ -136,6 +137,7 @@ app.register_blueprint(proxy_bp)
 app.register_blueprint(user_bp)
 app.register_blueprint(safescreen_bp)
 app.register_blueprint(game_bp)
+app.register_blueprint(room_bp)
 
 @app.after_request
 def add_cors_headers(response):
