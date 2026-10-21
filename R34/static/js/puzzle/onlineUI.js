@@ -332,7 +332,9 @@ export class OnlineUI {
                                 return;
                             }
                             onlineMgr.roomData.post = toMinimalPost(post);
-                            const newPreviewUrl = post.sample_url || post.preview_url || post.file_url;
+                            // Для GIF-файлов используем file_url (оригинал с анимацией), для остальных - sample_url
+                            const isGif = (post.file_url || '').toLowerCase().endsWith('.gif');
+                            const newPreviewUrl = isGif ? (post.file_url || post.sample_url || post.preview_url) : (post.sample_url || post.preview_url || post.file_url);
                             onlineMgr.roomData.postUrl = newPreviewUrl;
                             onlineMgr.roomData.seamsSeed = Math.floor(Math.random() * 1000000000);
                             

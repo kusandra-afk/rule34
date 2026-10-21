@@ -1594,7 +1594,10 @@ export class PuzzleGame {
                         this.targetPieces = targetPool[Math.floor(Math.random() * targetPool.length)];
                     }
                     
-                    await this.loadPostAndStart(post, this.targetPieces, post.sample_url || post.file_url || post.preview_url || '');
+                    // Для GIF-файлов используем file_url (оригинал с анимацией), для остальных - sample_url
+                    const isGif = (post.file_url || '').toLowerCase().endsWith('.gif');
+                    const imageUrl = isGif ? (post.file_url || post.sample_url || post.preview_url || '') : (post.sample_url || post.file_url || post.preview_url || '');
+                    await this.loadPostAndStart(post, this.targetPieces, imageUrl);
                     this.updateBoardSize();
                     idInput.value = '';
                 } else { showErrorFeedback('ID не найден!'); }

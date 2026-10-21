@@ -2,11 +2,29 @@ import { fetchPuzzleCompleted, savePuzzleCompleted, fetchPostById } from '../api
 
 export class PuzzleStorage {
     static getStableImageUrl(puzzleGame) {
-        return puzzleGame.post?.sample_url || puzzleGame.post?.file_url || puzzleGame.post?.preview_url || puzzleGame.imgUrl || puzzleGame.displayUrl || '';
+        const post = puzzleGame.post;
+        if (!post) return puzzleGame.imgUrl || puzzleGame.displayUrl || '';
+
+        // Для GIF-файлов используем file_url (оригинал с анимацией), для остальных - sample_url
+        const isGif = (post.file_url || '').toLowerCase().endsWith('.gif');
+        if (isGif) {
+            return post.file_url || post.sample_url || post.preview_url || puzzleGame.imgUrl || puzzleGame.displayUrl || '';
+        }
+
+        return post.sample_url || post.file_url || post.preview_url || puzzleGame.imgUrl || puzzleGame.displayUrl || '';
     }
 
     static getPuzzleImageUrl(puzzle) {
-        return puzzle?.imageUrl || puzzle?.thumbnail || puzzle?.post?.sample_url || puzzle?.post?.file_url || puzzle?.post?.preview_url || '';
+        const post = puzzle?.post;
+        if (!post) return puzzle?.imageUrl || puzzle?.thumbnail || '';
+
+        // Для GIF-файлов используем file_url (оригинал с анимацией), для остальных - sample_url
+        const isGif = (post.file_url || '').toLowerCase().endsWith('.gif');
+        if (isGif) {
+            return puzzle?.imageUrl || puzzle?.thumbnail || post.file_url || post.sample_url || post.preview_url || '';
+        }
+
+        return puzzle?.imageUrl || puzzle?.thumbnail || post.sample_url || post.file_url || post.preview_url || '';
     }
 
     static async resolvePuzzleImageUrl(puzzle) {
@@ -17,7 +35,11 @@ export class PuzzleStorage {
         try {
             const post = await fetchPostById(String(postId));
             if (!post) return '';
-            const resolved = post.sample_url || post.file_url || post.preview_url || '';
+
+            // Для GIF-файлов используем file_url (оригинал с анимацией), для остальных - sample_url
+            const isGif = (post.file_url || '').toLowerCase().endsWith('.gif');
+            const resolved = isGif ? (post.file_url || post.sample_url || post.preview_url || '') : (post.sample_url || post.file_url || post.preview_url || '');
+
             if (resolved) {
                 puzzle.imageUrl = resolved;
                 puzzle.thumbnail = resolved;
