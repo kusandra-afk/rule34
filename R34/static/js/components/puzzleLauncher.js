@@ -24,7 +24,7 @@ export function startPuzzleGame() {
             align-items: center;
             justify-content: center;
             z-index: 100000;
-            animation: fadeIn 0.2s ease-out;
+            animation: pzFadeIn 0.2s ease-out;
         `;
         
         const modalContent = document.createElement('div');
@@ -40,7 +40,7 @@ export function startPuzzleGame() {
             box-shadow: var(--shadow-lg);
             border: 1px solid var(--glass-border);
             backdrop-filter: blur(var(--glass-blur));
-            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: pzSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         `;
         modalContent.textContent = "Уберите тэг 'video' из активных тэгов, чтобы играть в пазл!";
         
@@ -57,19 +57,19 @@ export function startPuzzleGame() {
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
-            box-shadow: 0 4px 15px rgba(255, 59, 107, 0.3);
+            box-shadow: 0 4px 15px var(--accent-glow);
         `;
         okBtn.onmouseover = () => {
             okBtn.style.transform = 'translateY(-2px)';
-            okBtn.style.boxShadow = '0 6px 20px rgba(255, 59, 107, 0.4)';
+            okBtn.style.boxShadow = '0 6px 20px var(--accent-glow)';
         };
         okBtn.onmouseout = () => {
             okBtn.style.transform = 'translateY(0)';
-            okBtn.style.boxShadow = '0 4px 15px rgba(255, 59, 107, 0.3)';
+            okBtn.style.boxShadow = '0 4px 15px var(--accent-glow)';
         };
         okBtn.onclick = () => {
-            modal.style.animation = 'fadeOut 0.2s ease-out';
-            modalContent.style.animation = 'slideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+            modal.style.animation = 'pzFadeOut 0.2s ease-out';
+            modalContent.style.animation = 'pzSlideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
             setTimeout(() => modal.remove(), 200);
         };
         
@@ -81,10 +81,10 @@ export function startPuzzleGame() {
             const style = document.createElement('style');
             style.id = 'modal-animations';
             style.textContent = `
-                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-                @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
-                @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-                @keyframes slideDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(30px); opacity: 0; } }
+                @keyframes pzFadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes pzFadeOut { from { opacity: 1; } to { opacity: 0; } }
+                @keyframes pzSlideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+                @keyframes pzSlideDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(30px); opacity: 0; } }
             `;
             document.head.appendChild(style);
         }
@@ -256,11 +256,10 @@ export function startPuzzleGame() {
             const style = document.createElement('style');
             style.id = 'puzzle-library-animations';
             style.textContent = `
-                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-                @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
-                @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-                @keyframes slideDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(30px); opacity: 0; } }
-                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                @keyframes pzFadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes pzFadeOut { from { opacity: 1; } to { opacity: 0; } }
+                @keyframes pzSlideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+                @keyframes pzSlideDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(30px); opacity: 0; } }
             `;
             document.head.appendChild(style);
         }
@@ -321,8 +320,8 @@ export function startPuzzleGame() {
         document.body.appendChild(menuModal);
 
         const closeMenu = () => {
-            menuModal.style.animation = 'fadeOut 0.2s ease-out';
-            card.style.animation = 'slideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+            menuModal.style.animation = 'pzFadeOut 0.2s ease-out';
+            card.style.animation = 'pzSlideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
             if (multiCheckInterval) clearInterval(multiCheckInterval);
             setTimeout(() => menuModal.remove(), 200);
         };

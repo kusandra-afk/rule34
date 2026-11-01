@@ -39,6 +39,11 @@
     "title": "Promare",
     "type": "anime"
   },
+  "anubis": {
+    "source": "steam",
+    "title": "Palworld",
+    "type": "game"
+  },
   "applejack_(mlp)": {
     "source": "wikidata",
     "title": "My Little Pony",
@@ -199,6 +204,11 @@
     "title": "Digimon",
     "type": "franchise"
   },
+  "draenei": {
+    "source": "kitsu",
+    "title": "Warcraft - The Sunwell Trilogy",
+    "type": "manga"
+  },
   "duel_monster": {
     "source": "kitsu",
     "title": "Yu☆Gi☆Oh! Duel Monsters",
@@ -244,6 +254,11 @@
     "title": "Capcom vs. SNK 2: Mark of the Millennium 2001",
     "type": "game"
   },
+  "fern_(sousou_no_frieren)": {
+    "source": "kitsu",
+    "title": "Sousou no Frieren",
+    "type": "anime"
+  },
   "flareon": {
     "source": "wikidata",
     "title": "Pokémon",
@@ -259,10 +274,20 @@
     "title": null,
     "type": "unknown"
   },
+  "frieren": {
+    "source": "kitsu",
+    "title": "Sousou no Frieren",
+    "type": "anime"
+  },
   "fubuki_(one-punch_man)": {
     "source": "steam",
     "title": "ONE PUNCH MAN: A HERO NOBODY KNOWS",
     "type": "game"
+  },
+  "ganyu_(genshin_impact)": {
+    "source": "kitsu",
+    "title": "Genshin Impact",
+    "type": "anime"
   },
   "generation_3_pokemon": {
     "source": "kitsu",
@@ -278,6 +303,11 @@
     "source": "wikidata",
     "title": "Pokémon",
     "type": "franchise"
+  },
+  "girlfriend_(friday_night_funkin)": {
+    "source": "wikidata",
+    "title": "Friday Night Funkin'",
+    "type": "game"
   },
   "glaceon": {
     "source": "wikidata",
@@ -333,6 +363,11 @@
     "source": "wikidata",
     "title": "Splatoon",
     "type": "game"
+  },
+  "inoue_orihime": {
+    "source": "kitsu",
+    "title": "BLEACH",
+    "type": "anime"
   },
   "isabelle_(animal_crossing)": {
     "source": "wikidata",
@@ -398,6 +433,11 @@
     "source": "wikidata",
     "title": "Digimon",
     "type": "franchise"
+  },
+  "kugisaki_nobara": {
+    "source": "kitsu",
+    "title": "Jujutsu Kaisen",
+    "type": "anime"
   },
   "lara_croft": {
     "source": "wikidata",
@@ -499,10 +539,20 @@
     "title": "Pokémon",
     "type": "anime"
   },
+  "mega_evolution": {
+    "source": "kitsu",
+    "title": "Pokemon: The First Movie",
+    "type": "anime"
+  },
   "megumin": {
     "source": "kitsu",
     "title": "Kono Subarashii Sekai ni Shukufuku wo!",
     "type": "anime"
+  },
+  "mei_(overwatch)": {
+    "source": "steam",
+    "title": "Overwatch®",
+    "type": "game"
   },
   "meowscarada": {
     "source": "wikidata",
@@ -574,6 +624,11 @@
     "title": "Pokémon",
     "type": "franchise"
   },
+  "nobara_kugisaki": {
+    "source": "kitsu",
+    "title": "Jujutsu Kaisen",
+    "type": "anime"
+  },
   "peridot_(steven_universe)": {
     "source": "wikidata",
     "title": "Steven Universe",
@@ -614,6 +669,16 @@
     "title": "My Little Pony",
     "type": "franchise"
   },
+  "rachel_roth": {
+    "source": "kitsu",
+    "title": "Aoki Hagane no Arpeggio: Ars Nova DC",
+    "type": "anime"
+  },
+  "raiden_shogun": {
+    "source": "kitsu",
+    "title": "Genshin Impact",
+    "type": "anime"
+  },
   "raikage": {
     "source": "steam",
     "title": "NARUTO: Ultimate Ninja STORM",
@@ -624,14 +689,29 @@
     "title": "My Little Pony",
     "type": "franchise"
   },
+  "ralsei": {
+    "source": "steam",
+    "title": "DELTARUNE",
+    "type": "game"
+  },
   "rarity_(mlp)": {
     "source": "wikidata",
     "title": "My Little Pony",
     "type": "franchise"
   },
+  "raven_(dc)": {
+    "source": "kitsu",
+    "title": "Aoki Hagane no Arpeggio: Ars Nova DC",
+    "type": "anime"
+  },
   "raven_team_leader": {
     "source": "wikidata",
     "title": "Fortnite",
+    "type": "game"
+  },
+  "reisen_udongein_inaba": {
+    "source": "wikidata",
+    "title": "Touhou Project",
     "type": "game"
   },
   "rem": {
@@ -664,6 +744,11 @@
     "title": "Fire Emblem Awakening",
     "type": "game"
   },
+  "roblox_avatar": {
+    "source": "steam",
+    "title": "DELTARUNE",
+    "type": "game"
+  },
   "robloxian": {
     "source": "wikidata",
     "title": "Roblox",
@@ -679,10 +764,25 @@
     "title": null,
     "type": "unknown"
   },
+  "ruby_rose": {
+    "source": "vndb",
+    "title": "RWBY: DAY OUT",
+    "type": "visual_novel"
+  },
   "rumi_usagiyama": {
     "source": "wikidata",
     "title": "My Hero Academia",
     "type": "manga"
+  },
+  "saiyan": {
+    "source": "steam",
+    "title": "DRAGON BALL: Sparking! ZERO",
+    "type": "game"
+  },
+  "saiyan_female": {
+    "source": "steam",
+    "title": "DRAGON BALL: Sparking! ZERO",
+    "type": "game"
   },
   "sakura_haruno": {
     "source": "steam",
@@ -692,6 +792,11 @@
   "sakuya_izayoi": {
     "source": "wikidata",
     "title": "Touhou Project",
+    "type": "game"
+  },
+  "salazzle": {
+    "source": "steam",
+    "title": "Palworld",
     "type": "game"
   },
   "scolipede": {
@@ -774,9 +879,19 @@
     "title": "Pokémon",
     "type": "franchise"
   },
+  "taihou_(azur_lane)": {
+    "source": "kitsu",
+    "title": "Azur Lane",
+    "type": "anime"
+  },
   "tasque_manager_(deltarune)": {
     "source": "wikidata",
     "title": "Deltarune",
+    "type": "game"
+  },
+  "tatsumaki": {
+    "source": "steam",
+    "title": "ONE PUNCH MAN: A HERO NOBODY KNOWS",
     "type": "game"
   },
   "tia_harribel": {
@@ -838,6 +953,16 @@
     "source": "steam",
     "title": "NARUTO: Ultimate Ninja STORM",
     "type": "game"
+  },
+  "vegeta": {
+    "source": "steam",
+    "title": "DRAGON BALL: Sparking! ZERO",
+    "type": "game"
+  },
+  "velma_dinkley": {
+    "source": "wikidata",
+    "title": "Hanna-Barbera Cinematic Universe",
+    "type": "franchise"
   },
   "venom_(marvel)": {
     "source": "wikidata",

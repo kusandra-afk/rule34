@@ -1,16 +1,16 @@
 # CHECKPOINT: Project checkpoint comment added successfully
 import os
+import sys
 import argparse
 from flask import Flask, request, jsonify, redirect
 from handlers.core_utils import (
-    BASE_DIR, is_allowed_origin, get_turso_settings, initialize_turso_tables,
-    get_turso_favorites, load_my_favorites, enrich_favorites_with_post_data,
-    save_turso_favorites, get_turso_puzzles, load_puzzle_completed,
-    optimize_puzzles, save_turso_puzzles, save_puzzle_completed_optimized
+    BASE_DIR, is_allowed_origin,
+    set_network_mode, get_network_mode, NETWORK_MODE_LOCAL, NETWORK_MODE_LAN
 )
+from handlers.startup_sync import run_startup_sync
 
 # Import Blueprints
-from handlers.auth_routes import auth_bp
+from handlers.auth_routes import auth_bp, session_ok as auth_session_ok
 from handlers.proxy_routes import proxy_bp
 from handlers.user_routes import user_bp
 from handlers.safescreen_routes import safescreen_bp
@@ -26,6 +26,76 @@ HOST = os.environ.get('HOST', '0.0.0.0')
 
 CERT_FILE = os.path.join(BASE_DIR, 'R34', '.secrets', 'local-https-cert.pem')
 KEY_FILE = os.path.join(BASE_DIR, 'R34', '.secrets', 'local-https-key.pem')
+
+# Язык интерфейса по умолчанию. Хранится рядом с прочими локальными данными,
+# чтобы при следующем запуске вопрос уже не задавался.
+LANGUAGE_FILE = os.path.join(BASE_DIR, 'R34', '.secrets', 'language.json')
+SUPPORTED_LANGUAGES = ('ru', 'en')
+DEFAULT_LANGUAGE = 'ru'
+
+
+def load_saved_language():
+    """Язык, выбранный в прошлый раз (или None, если его ещё не выбирали)."""
+    import json
+    try:
+        with open(LANGUAGE_FILE, 'r', encoding='utf-8') as f:
+            lang = str(json.load(f).get('lang', '')).strip().lower()
+        return lang if lang in SUPPORTED_LANGUAGES else None
+    except Exception:
+        return None
+
+
+def save_language(lang):
+    """Запоминает язык интерфейса, чтобы не спрашивать его при следующем старте."""
+    import json
+    if lang not in SUPPORTED_LANGUAGES:
+        return False
+    try:
+        os.makedirs(os.path.dirname(LANGUAGE_FILE), exist_ok=True)
+        with open(LANGUAGE_FILE, 'w', encoding='utf-8') as f:
+            json.dump({'lang': lang}, f)
+        return True
+    except Exception as e:
+        print(f'Не удалось сохранить язык интерфейса: {e}')
+        return False
+
+
+def choose_language(explicit_lang):
+    """Определяет язык интерфейса.
+
+    Порядок: флаг --lang -> сохранённый выбор -> вопрос в консоли -> ru.
+    Вопрос задаётся только ОДИН раз: после выбора язык пишется в файл, и при
+    следующих запусках сервер молча берёт его оттуда.
+    """
+    if explicit_lang:
+        save_language(explicit_lang)
+        return explicit_lang
+
+    saved = load_saved_language()
+    if saved:
+        return saved
+
+    try:
+        if not sys.stdin or not sys.stdin.isatty():
+            return DEFAULT_LANGUAGE
+    except Exception:
+        return DEFAULT_LANGUAGE
+
+    print()
+    print('Choose interface language / Выберите язык интерфейса')
+    print('  1  Русский')
+    print('  2  English')
+    print()
+    try:
+        answer = input('Language [1/2], Enter = 1: ').strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        answer = ''
+
+    lang = 'en' if answer == '2' else DEFAULT_LANGUAGE
+    save_language(lang)
+    print('Язык сохранён: / Language saved: ' + lang)
+    return lang
 
 
 def local_ipv4_addresses():
@@ -131,6 +201,26 @@ def ensure_local_certificate():
     print(f'Создан локальный сертификат: {CERT_FILE}')
     return CERT_FILE, KEY_FILE
 
+@auth_bp.route('/api/app-language', methods=['GET', 'POST', 'OPTIONS'])
+def app_language():
+    """Текущий язык интерфейса.
+
+    Стартовая страница спрашивает его, если пользователь ещё ничего не
+    выбирал в браузере, а переключатель в настройках через POST держит
+    серверный выбор в актуальном состоянии — тогда следующий запуск сервера
+    уже не спрашивает язык.
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True})
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        lang = str(data.get('lang', '')).strip().lower()
+        if save_language(lang):
+            return jsonify({'ok': True, 'lang': lang})
+        return jsonify({'ok': False, 'error': 'unsupported_language'}), 400
+    return jsonify({'ok': True, 'lang': load_saved_language() or DEFAULT_LANGUAGE})
+
+
 # Register Blueprints
 app.register_blueprint(auth_bp)
 app.register_blueprint(proxy_bp)
@@ -138,6 +228,41 @@ app.register_blueprint(user_bp)
 app.register_blueprint(safescreen_bp)
 app.register_blueprint(game_bp)
 app.register_blueprint(room_bp)
+
+PROTECTED_API_PREFIXES = (
+    '/api/settings',
+    '/api/excluded-tags',
+    '/api/my-profile',
+    '/api/favorites',
+    '/api/my-favorites',
+    '/api/puzzle-completed',
+    '/api/turso-config',
+    '/api/history',
+    '/api/sync',
+)
+
+
+@app.before_request
+def guard_user_data_api():
+    """Одна точка защиты всех «пользовательских» ручек /api/*.
+
+    Зачем именно здесь, а не в каждом обработчике: если защиту размазать по
+    десятку функций, то следующая новая ручка появится без проверки, и никто
+    этого не заметит. Здесь достаточно один раз добавить префикс в список.
+
+    Полноценной авторизации тут нет и не подразумевается: cookie можно
+    повторить вручную. Задача скромнее — закрыть доступ программам и чужим
+    устройствам в сети, которые страницу входа никогда не проходили.
+    """
+    path = request.path
+    protected = any(path == p or path.startswith(p + '/') or path.startswith(p + '?')
+                    for p in PROTECTED_API_PREFIXES)
+    if not protected:
+        return None
+    if auth_session_ok():
+        return None
+    return jsonify({'ok': False, 'error': 'Требуется вход в приложение'}), 401
+
 
 @app.after_request
 def add_cors_headers(response):
@@ -161,90 +286,83 @@ def page_not_found(e):
         return jsonify({'ok': False, 'error': 'not_found'}), 404
     return redirect('/')
 
+def choose_network_mode(explicit_mode, port):
+    """Определяет режим сетевого доступа.
+
+    Порядок такой: явный флаг --mode -> вопрос в консоли (если она вообще
+    интерактивная) -> lan по умолчанию.
+
+    Спрашивать нужно именно на старте, потому что после того как Flask уже
+    занял 0.0.0.0, поменять это на ходу нельзя — придётся перезапускать.
+    """
+    if explicit_mode:
+        return explicit_mode
+
+    # Консоли нет или она не интерактивная (служба, перенаправленный stdin,
+    # запуск из чужого скрипта) — спрашивать некого. Оставляем прежнее
+    # поведение: сервер доступен в локальной сети.
+    try:
+        if not sys.stdin or not sys.stdin.isatty():
+            return NETWORK_MODE_LAN
+    except Exception:
+        return NETWORK_MODE_LAN
+
+    print()
+    print('Куда открывать доступ к галерее?')
+    print()
+    print(f'  1  Только этот компьютер   http://127.0.0.1:{port}')
+    print('     Другие устройства и посторонние сайты до сервера не достанут.')
+    print()
+    print(f'  2  Этот компьютер и другие устройства в этой же сети')
+    print(f'     http://127.0.0.1:{port} и http://<адрес-в-сети>:{port}')
+    print('     Нужно, если открывать галерею с телефона или другого ПК.')
+    print()
+
+    try:
+        answer = input('Выбор [1/2], Enter = 2: ').strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        answer = ''
+
+    if answer == '1':
+        return NETWORK_MODE_LOCAL
+    return NETWORK_MODE_LAN
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Rule34 Gallery Standalone Flask Server')
     parser.add_argument('--port', '-p', type=int, default=PORT, help='Port to run server on')
-    parser.add_argument('--host', '-H', type=str, default=HOST, help='Host to bind to')
+    parser.add_argument('--host', '-H', type=str, default=None,
+                        help='Host to bind to. Перебивает выбор режима (--mode)')
+    parser.add_argument('--mode', '-m', choices=[NETWORK_MODE_LOCAL, NETWORK_MODE_LAN], default=None,
+                        help="local - сервер слушает только 127.0.0.1; lan - 0.0.0.0, доступен устройствам в этой же сети. Если не указан, сервер спросит при запуске")
+    parser.add_argument('--lang', '-l', choices=list(SUPPORTED_LANGUAGES), default=None,
+                        help='Язык интерфейса: ru или en. Сохраняется и используется при следующих запусках; если не указан, сервер спросит язык при первом запуске')
     parser.add_argument('--https', action='store_true',
                         help='Запустить по HTTPS с самоподписанным сертификатом. Нужно для гироскопа и WebXR с телефона: браузеры дают эти API только в защищённом контексте (требует пакет cryptography)')
     args = parser.parse_args()
 
-    # Initialize Turso tables if enabled
-    url, token, enabled = get_turso_settings()
-    if enabled:
-        print('Turso sync is enabled, initializing tables...')
-        if initialize_turso_tables():
-            print('Turso tables initialized successfully')
-            
-            # Initial sync: merge local and Turso data
-            print('Checking for initial sync...')
-            turso_favorites = get_turso_favorites()
-            local_favorites = load_my_favorites()
-            
-            # Merge favorites by ID, keeping the most recent by change timestamp
-            if turso_favorites is not None and local_favorites is not None:
-                turso_fav_map = {str(f.get('id')): f for f in turso_favorites}
-                local_fav_map = {str(f.get('id')): f for f in local_favorites}
-                
-                merged_favorites = list(turso_fav_map.values())
-                for fid, local_fav in local_fav_map.items():
-                    if fid not in turso_fav_map:
-                        merged_favorites.append(local_fav)
-                    else:
-                        # Keep the one with more recent change timestamp
-                        turso_change = turso_fav_map[fid].get('change', 0)
-                        local_change = local_fav.get('change', 0)
-                        if local_change > turso_change:
-                            merged_favorites = [f for f in merged_favorites if str(f.get('id')) != fid]
-                            merged_favorites.append(local_fav)
-                
-                if len(merged_favorites) > len(turso_favorites):
-                    print(f'Merging favorites: {len(turso_favorites)} in Turso, {len(local_favorites)} local, {len(merged_favorites)} merged')
-                    enriched_favorites = enrich_favorites_with_post_data(merged_favorites)
-                    save_turso_favorites(enriched_favorites)
-            elif turso_favorites is None and local_favorites is not None:
-                print(f'Uploading {len(local_favorites)} local favorites to Turso...')
-                enriched_favorites = enrich_favorites_with_post_data(local_favorites)
-                save_turso_favorites(enriched_favorites)
-            
-            turso_puzzles = get_turso_puzzles()
-            local_puzzles = load_puzzle_completed()
-            
-            # Merge puzzles by ID, keeping the most recent by lastUpdated
-            if turso_puzzles and local_puzzles:
-                turso_map = {str(p.get('postId', p.get('id', ''))): p for p in turso_puzzles if p.get('postId') or p.get('id')}
-                local_map = {str(p.get('postId', p.get('id', ''))): p for p in local_puzzles if p.get('postId') or p.get('id')}
-                
-                merged_map = {}
-                for pid, p in turso_map.items():
-                    merged_map[pid] = p
-                for pid, p in local_map.items():
-                    if pid not in merged_map:
-                        merged_map[pid] = p
-                    else:
-                        try:
-                            t_update = merged_map[pid].get('lastUpdated', '')
-                            l_update = p.get('lastUpdated', '')
-                            if l_update > t_update:
-                                merged_map[pid] = p
-                        except Exception:
-                            pass
-                
-                merged_puzzles = list(merged_map.values())
-                optimized_puzzles = optimize_puzzles(merged_puzzles)
-                
-                if len(optimized_puzzles) > len(turso_puzzles):
-                    print(f'Merging puzzles: {len(turso_puzzles)} in Turso, {len(local_puzzles)} local, {len(optimized_puzzles)} merged')
-                    save_turso_puzzles(optimized_puzzles)
-                    save_puzzle_completed_optimized(optimized_puzzles)
-            elif not turso_puzzles and local_puzzles:
-                print(f'Uploading {len(local_puzzles)} local puzzles to Turso...')
-                optimized_puzzles = optimize_puzzles(local_puzzles)
-                save_turso_puzzles(optimized_puzzles)
-        else:
-            print('Failed to initialize Turso tables')
+    # Язык спрашивается ДО режима сети: это первое, что видит пользователь.
+    ui_lang = choose_language(args.lang)
+
+    # Режим задаётся ДО app.run(): от него зависит и адрес бинда, и то, каким
+    # Origin'ам будет выдаваться CORS с credentials (см. is_allowed_origin).
+    mode = choose_network_mode(args.mode, args.port)
+    set_network_mode(mode)
+
+    if args.host:
+        bind_host = args.host
+    elif os.environ.get('HOST'):
+        bind_host = os.environ['HOST']
+    elif mode == NETWORK_MODE_LOCAL:
+        bind_host = '127.0.0.1'
     else:
-        print('Turso sync is disabled or not configured')
+        bind_host = '0.0.0.0'
+
+    # Синхронизация с Turso (если включена). Вся логика вынесена в
+    # handlers/startup_sync.py — раньше она лежала прямо здесь, из-за чего под
+    # gunicorn не выполнялась вообще.
+    run_startup_sync()
 
     # Гироскоп (DeviceOrientation) и WebXR браузеры отдают только в
     # защищённом контексте: HTTPS либо localhost. При заходе с телефона по
@@ -265,15 +383,22 @@ if __name__ == '__main__':
             print('Продолжаю по обычному HTTP.')
 
     scheme = 'https' if ssl_context else 'http'
-    print(f"Server Rule34 Gallery started at {scheme}://{args.host}:{args.port}")
-    if ssl_context:
-        print('Открыть с телефона (гироскоп и VR работают только так):')
+    print(f"Server Rule34 Gallery started at {scheme}://{bind_host}:{args.port}")
+
+    # Подсказки печатаем по режиму, а не «если https»: в локальном режиме
+    # адресов в сети не существует, и показывать их было бы ложью.
+    if mode == NETWORK_MODE_LOCAL:
+        print(f'Режим: только этот компьютер -> {scheme}://127.0.0.1:{args.port}')
+        print('Другие устройства и посторонние сайты до сервера не достанут.')
+    else:
+        print(f'Режим: доступен в локальной сети -> {scheme}://127.0.0.1:{args.port}')
         for address in local_ipv4_addresses():
             if address != '127.0.0.1':
                 print(f'    {scheme}://{address}:{args.port}')
-        # Только ASCII-совместимые символы: консоль Windows работает в cp1251,
-        # и «экзотика» вроде стрелки U+2192 роняет процесс с UnicodeEncodeError
-        # ещё до app.run() — сервер просто не стартует.
-        print('Телефон один раз предупредит о неизвестном сертификате - это ожидаемо')
-        print('для домашнего сервера: "Дополнительно" -> "Перейти на сайт".')
-    app.run(host=args.host, port=args.port, threaded=True, ssl_context=ssl_context)
+        if ssl_context:
+            # Только ASCII-совместимые символы: консоль Windows работает в cp1251,
+            # и «экзотика» вроде стрелки U+2192 роняет процесс с UnicodeEncodeError
+            # ещё до app.run() — сервер просто не стартует.
+            print('Телефон один раз предупредит о неизвестном сертификате - это ожидаемо')
+            print('для домашнего сервера: "Дополнительно" -> "Перейти на сайт".')
+    app.run(host=bind_host, port=args.port, threaded=True, ssl_context=ssl_context)

@@ -12,7 +12,7 @@ import { GuessUI } from './components/guessUI.js';
 import { initSettingsModal } from './modals/settingsModal.js';
 import { initR34SelectDropdowns } from './components/customDropdown.js';
 import { ApiSettingsManager } from './settings/apiSettings.js';
-import { applyThemeSettings, debouncedApplyThemeSettings, applyAdaptiveText } from './theme/themeManager.js';
+import { applyThemeSettings, debouncedApplyThemeSettings, applyAdaptiveText, setAccent, setBackground } from './theme/themeManager.js';
 import { colorPresets, bgPresets, hoverPresets, fontPresets, getContrastYIQ, getBgLuminance, getAccentGlow, getAccentAlt } from './theme/themePresets.js';
 import { GalleryController } from './controllers/galleryController.js';
 import { ModeController } from './controllers/modeController.js';
@@ -20,9 +20,15 @@ import { initServerSync, getSavedExcludedTags, saveSavedExcludedTags, loadSettin
 import { initSafeScreen } from './init/initSafeScreen.js';
 import { debounce, setRangeGradient } from './utils.js';
 import { tursoSync } from './tursoSync.js';
+import { initEffects } from './effects/ripple.js';
+import { initI18n } from './i18n/i18n.js';
+import { initLanguageSettings } from './settings/languageSettings.js';
 
 // Export globally for backwards compatibility and inline handlers
 window.applyThemeSettings = applyThemeSettings;
+// Единая точка смены акцента — её же используют пресеты в редакторе стилей.
+window.setAccent = setAccent;
+window.setBackground = setBackground;
 window.debouncedApplyThemeSettings = debouncedApplyThemeSettings;
 window.applyAdaptiveText = applyAdaptiveText;
 window.getContrastYIQ = getContrastYIQ;
@@ -40,6 +46,10 @@ window.openPuzzleMenu = startPuzzleGame;
 window.startGuessGame = () => GuessUI.open();
 window.getSavedExcludedTags = getSavedExcludedTags;
 window.saveSavedExcludedTags = saveSavedExcludedTags;
+
+// Язык интерфейса: берём сохранённый выбор (в браузере или на сервере)
+// и, если это английский, переводим страницу до отрисовки контента.
+initI18n();
 
 // Initialize server sync before DOM ready
 initServerSync();
@@ -77,6 +87,202 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Панель поиска: ручного сворачивания стрелкой больше нет — панель
+    // сама уезжает при прокрутке вниз и возвращается при прокрутке вверх
+    // (см. «Умная шапка» ниже). Осталось только найти контейнер и панель.
+    const searchContainer = document.getElementById('searchContainer');
+    const searchBlock = document.getElementById('searchBlock');
+
+    // ── Умная шапка по направлению скролла (ПК и телефоны) ──────────
+    // Вниз по ленте — полная панель уезжает, вместо неё узкая полоска
+    // с лупой и активными тегами. Вверх — панель возвращается.
+    // Клик по полоске, фокус на поиске или Esc-очистка — раскрывают сразу.
+    // Работает одинаково на ПК и на телефоне.
+    if (searchContainer && searchBlock) {
+        const miniBar = document.getElementById('searchMiniBar');
+        const miniTags = document.getElementById('searchMiniTags');
+        const miniWrap = document.getElementById('searchMiniBarWrap');
+        const miniActions = document.getElementById('miniActions');
+        const SCROLL_DELTA = 8;    // порог, чтобы не дёргать на микроскролле
+        const HIDE_AFTER = 120;    // ниже этого от верха не прячем вовсе
+
+        // ── Быстрый доступ к режимам в свёрнутой шапке (ПК) ─────────────
+        // Табы «Галерея / Избранное / Настройки» уезжают вместе с шапкой,
+        // поэтому при скролле их иконки показываются рядом с полоской поиска.
+        // Кнопки не дублируют разметку: иконка берётся из существующего таба,
+        // клик прокидывается в него же, а состояние .active подхватывается.
+        const miniActionButtons = [];
+
+        const syncMiniActions = () => {
+            miniActionButtons.forEach(({ btn, source }) => {
+                btn.classList.toggle('active', source.classList.contains('active'));
+            });
+        };
+
+        if (miniActions) {
+            [
+                { id: 'modeGalleryBtn', label: 'Галерея' },
+                { id: 'modeProfileBtn', label: 'Избранное' },
+                { id: 'settingsBtn', label: 'Настройки' }
+            ].forEach(({ id, label }) => {
+                const source = document.getElementById(id);
+                if (!source) return;
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'r34-mini-action';
+                btn.title = label;
+                btn.setAttribute('aria-label', label);
+
+                const svg = source.querySelector('svg');
+                btn.innerHTML = svg ? svg.outerHTML : label;
+
+                btn.addEventListener('click', (e) => {
+                    // Клик не должен доходить до document: глобальный обработчик
+                    // «клик вне окна» иначе сразу закроет только что открытые
+                    // настройки (кнопка-дубль находится вне модалки).
+                    e.stopPropagation();
+                    source.dispatchEvent(new MouseEvent('click', { bubbles: false, cancelable: true }));
+                    requestAnimationFrame(syncMiniActions);
+                });
+
+                miniActions.appendChild(btn);
+                miniActionButtons.push({ btn, source });
+            });
+
+            // Если режим поменяли не отсюда (нижняя навигация, хоткеи, профиль),
+            // подсветка в полоске должна остаться правдивой.
+            if (typeof MutationObserver !== 'undefined') {
+                const observer = new MutationObserver(syncMiniActions);
+                ['modeGalleryBtn', 'modeProfileBtn'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+                });
+            }
+            syncMiniActions();
+        }
+
+        let lastScrollY = window.scrollY;
+        let ticking = false;
+        let hidden = false;
+
+        const readActiveTagsText = () => {
+            if (!miniTags) return;
+            const tags = document.querySelectorAll('#activeTags .tag');
+            if (!tags.length) {
+                miniTags.textContent = 'Все посты';
+                return;
+            }
+            const parts = [];
+            tags.forEach(t => {
+                const label = (t.textContent || '').trim().replace(/\s+/g, ' ');
+                if (!label) return;
+                const excluded = t.classList.contains('inactive') || t.classList.contains('tag-exclude');
+                parts.push((excluded ? '-' : '') + label);
+            });
+            miniTags.textContent = parts.join(' · ');
+        };
+
+        const setHidden = (next) => {
+            if (hidden === next) return;
+            hidden = next;
+            searchContainer.classList.toggle('is-scrolled-away', next);
+            if (miniWrap) {
+                miniWrap.classList.toggle('is-visible', next);
+            }
+            if (miniBar) {
+                if (next) readActiveTagsText();
+                miniBar.classList.toggle('is-visible', next);
+                miniBar.setAttribute('aria-hidden', String(!next));
+            }
+            if (miniActions) {
+                miniActions.setAttribute('aria-hidden', String(!next));
+            }
+        };
+
+        const revealBlock = () => {
+            setHidden(false);
+            lastScrollY = window.scrollY;
+        };
+
+        const onScroll = () => {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(() => {
+                ticking = false;
+
+                const y = window.scrollY;
+                const delta = y - lastScrollY;
+
+                // В самом верху страницы панель всегда видна
+                if (y <= HIDE_AFTER) {
+                    if (hidden) setHidden(false);
+                    lastScrollY = y;
+                    return;
+                }
+
+                // Пока пользователь печатает (особенно на телефоне, когда
+                // открыта клавиатура), панель не прячем — иначе поле ввода
+                // уезжает из-под пальца. Обратное раскрытие работает всегда.
+                const inputFocused = tagInput && document.activeElement === tagInput;
+
+                if (delta > SCROLL_DELTA && !hidden && !inputFocused) {
+                    // Скролл вниз — прячем
+                    setHidden(true);
+                } else if (delta < -SCROLL_DELTA && hidden) {
+                    // Скролл вверх — показываем
+                    setHidden(false);
+                }
+
+                lastScrollY = y;
+            });
+        };
+
+        window.addEventListener('scroll', onScroll, { passive: true });
+
+        // Клик по полоске — просто раскрыть панель, фокус пользователь поставит сам
+        if (miniBar) {
+            miniBar.addEventListener('click', () => {
+                revealBlock();
+                // tagInput.focus() намеренно не вызываем: на телефоне это сразу
+                // открывает клавиатуру и сдвигает экран, хотя пользователь мог
+                // хотеть просто посмотреть, что в поиске. Тап по самому полю —
+                // его дело.
+            });
+        }
+
+        // Фокус в поле поиска всегда возвращает панель
+        if (tagInput) {
+            tagInput.addEventListener('focus', revealBlock);
+        }
+
+        // Esc в поле — снять фокус и вернуть панель
+        if (tagInput) {
+            tagInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    tagInput.blur();
+                    revealBlock();
+                }
+            });
+        }
+
+        // Держим текст в полоске в актуальном состоянии: теги добавляются,
+        // удаляются и переключаются включ/исключ — обновляем по факту.
+        const activeTagsEl = document.getElementById('activeTags');
+        if (activeTagsEl && miniTags) {
+            const refreshMiniTags = () => { if (hidden) readActiveTagsText(); };
+            if (typeof MutationObserver !== 'undefined') {
+                new MutationObserver(refreshMiniTags).observe(activeTagsEl, {
+                    childList: true,
+                    subtree: true,
+                    characterData: true,
+                    attributes: true,
+                    attributeFilter: ['class']
+                });
+            }
+        }
+    }
+
     // 3. Инициализация Turso Sync
     tursoSync.init();
 
@@ -112,6 +318,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Загрузка настроек с сервера
     loadSettingsFromServer().then(() => {
         applyThemeSettings();
+        // Настройки с сервера могли принести язык, выбранный на другом
+        // устройстве, — повторно применяем его, чтобы интерфейс совпадал.
+        initI18n();
     });
     loadTursoConfigFromServer();
 
@@ -265,6 +474,9 @@ document.addEventListener('DOMContentLoaded', () => {
         showConfirmModal: (title, msg) => showConfirmModal(title, msg)
     });
 
+    // Переключатель языка в настройках (RU / EN)
+    initLanguageSettings();
+
     // Заменяем нативные <select> настроек на кастомные стилизованные дропдауны
     initR34SelectDropdowns();
 
@@ -280,7 +492,65 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     initAllRangeGradients();
 
-    // 19. Кнопка "Наверх"
+    // 19. Эффекты: ripple, scroll-to-top, smooth entrance
+    initEffects();
+
+    // 21. Мобильная нижняя навигация — синхронизация с табами режимов
+    const mobileNavGallery = document.getElementById('mobileNavGallery');
+    const mobileNavFavorites = document.getElementById('mobileNavFavorites');
+    const mobileNavSettings = document.getElementById('mobileNavSettings');
+    const modeGalleryBtn = document.getElementById('modeGalleryBtn');
+    const modeProfileBtn = document.getElementById('modeProfileBtn');
+    const settingsBtn = document.getElementById('settingsBtn');
+
+    const mobileNavItems = [mobileNavGallery, mobileNavFavorites, mobileNavSettings].filter(Boolean);
+
+    // Единственное место, где решается «кто активен». Смена класса и
+    // запускает анимации пункта (прорастающая чёрточка + подскок иконки
+    // в adaptive.css).
+    function setMobileNavActive(activeBtn) {
+      mobileNavItems.forEach(btn => btn.classList.toggle('active', btn === activeBtn));
+    }
+
+    // Источник правды — табы режимов: и клики отсюда прокидываются в них,
+    // и класс .active выставляет общий ModeController. Поэтому читаем
+    // состояние табов, а не запоминаем его у себя. Иначе подсветка
+    // «Избранного» никогда не включалась: раньше обновление слушало
+    // только таб галереи.
+    function syncMobileNavFromTabs() {
+      const profileActive = modeProfileBtn && modeProfileBtn.classList.contains('active');
+      setMobileNavActive(profileActive ? mobileNavFavorites : mobileNavGallery);
+    }
+
+    // Синхронизация: мобильные кнопки -> десктоп табы.
+    // Клик отправляем без всплытия (как в свёрнутой шапке): обычный .click()
+    // всплывал до document, глобальный обработчик «клик вне окна» принимал
+    // его за клик снаружи и сразу закрывал только что открытые настройки —
+    // на телефоне шестерёнка мигала и ничего не открывала.
+    const clickTab = (source) => {
+      if (!source) return;
+      source.dispatchEvent(new MouseEvent('click', { bubbles: false, cancelable: true }));
+    };
+
+    if (mobileNavGallery && modeGalleryBtn) {
+      mobileNavGallery.addEventListener('click', () => clickTab(modeGalleryBtn));
+    }
+    if (mobileNavFavorites && modeProfileBtn) {
+      mobileNavFavorites.addEventListener('click', () => clickTab(modeProfileBtn));
+    }
+    if (mobileNavSettings && settingsBtn) {
+      mobileNavSettings.addEventListener('click', () => clickTab(settingsBtn));
+    }
+
+    // Переключили режим не с нижней панели (свёрнутая шапка, хоткей,
+    // профиль) — подсветка и капсула всё равно должны переехать.
+    const mobileNavObserver = new MutationObserver(syncMobileNavFromTabs);
+    [modeGalleryBtn, modeProfileBtn].forEach(el => {
+      if (el) mobileNavObserver.observe(el, { attributes: true, attributeFilter: ['class'] });
+    });
+    syncMobileNavFromTabs();
+
+    // 22. Кнопка "Наверх" (если есть в HTML)
     const scrollToTopBtn = document.getElementById('scrollToTopBtn');
     if (scrollToTopBtn) {
         window.addEventListener('scroll', () => {

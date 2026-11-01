@@ -13,6 +13,7 @@ from handlers.core_utils import (
 
 user_bp = Blueprint('user_bp', __name__)
 
+
 @user_bp.route('/api/my-profile', methods=['GET', 'OPTIONS'])
 def api_my_profile():
     if request.method == 'OPTIONS':
@@ -307,13 +308,21 @@ def api_puzzle_completed():
         if request.method == 'GET':
             turso_puzzles = get_turso_puzzles()
             local_puzzles = load_puzzle_completed()
-            
+
             print(f'[Puzzles Sync] GET puzzles: Turso={len(turso_puzzles) if turso_puzzles else 0}, Local={len(local_puzzles)}')
-            
+
+            # По умолчанию в библиотеку попадают только активные (не-томбстоны).
+            # С параметром includeDeleted=1 отдаём и удалённые — это «корзина»:
+            # клиент показывает их с кнопкой восстановления.
+            include_deleted = request.args.get('includeDeleted', '').lower() in ('1', 'true', 'yes')
+            def _active(puzzles):
+                return [p for p in (puzzles or []) if not p.get('is_deleted')]
+
+            enriched = []
             if turso_puzzles and local_puzzles:
                 turso_map = {str(p.get('postId', p.get('id', ''))): p for p in turso_puzzles if p.get('postId') or p.get('id')}
                 local_map = {str(p.get('postId', p.get('id', ''))): p for p in local_puzzles if p.get('postId') or p.get('id')}
-                
+
                 merged_map = {}
                 for pid, p in turso_map.items():
                     merged_map[pid] = p
@@ -322,32 +331,68 @@ def api_puzzle_completed():
                         merged_map[pid] = p
                     else:
                         try:
-                            t_update = merged_map[pid].get('lastUpdated', '')
-                            l_update = p.get('lastUpdated', '')
-                            if l_update > t_update:
+                            if p.get('lastUpdated', '') > merged_map[pid].get('lastUpdated', ''):
                                 merged_map[pid] = p
                         except Exception:
                             pass
-                
-                merged_puzzles = list(merged_map.values())
-                optimized_puzzles = optimize_puzzles(merged_puzzles)
-                
+
+                optimized_puzzles = optimize_puzzles(list(merged_map.values()))
                 save_puzzle_completed_optimized(optimized_puzzles)
                 save_turso_puzzles(optimized_puzzles)
-                
-                enriched_puzzles = enrich_puzzles_with_post_data(optimized_puzzles)
-                return jsonify({'ok': True, 'puzzles': enriched_puzzles})
+                enriched = enrich_puzzles_with_post_data(optimized_puzzles)
             elif turso_puzzles:
                 optimized_puzzles = optimize_puzzles(turso_puzzles)
                 save_puzzle_completed_optimized(optimized_puzzles)
-                enriched_puzzles = enrich_puzzles_with_post_data(optimized_puzzles)
-                return jsonify({'ok': True, 'puzzles': enriched_puzzles})
+                enriched = enrich_puzzles_with_post_data(optimized_puzzles)
             else:
                 optimized_puzzles = optimize_puzzles(local_puzzles)
-                enriched_puzzles = enrich_puzzles_with_post_data(optimized_puzzles)
-                return jsonify({'ok': True, 'puzzles': enriched_puzzles})
+                enriched = enrich_puzzles_with_post_data(optimized_puzzles)
+
+            result = enriched if include_deleted else _active(enriched)
+            return jsonify({'ok': True, 'puzzles': result})
         else:
             data = request.json or {}
+            # Удаление: библиотека шлёт { action: 'delete', postId: '...' }.
+            # Восстановление: { action: 'restore', postId: '...' }.
+            # Ключом записи в хранилище служит postId (см. optimize_puzzles).
+            #
+            # ВАЖНО: физически запись не стирается, а помечается is_deleted=1 со
+            # свежим change. Это ровно та же mark-then-purge модель, что у
+            # избранного (см. FAVORITES_PURGE_DAYS): томбстон живёт ещё
+            # PUZZLES_PURGE_DAYS дней, чтобы удаление успело доехать до других
+            # устройств через Turso и не «воскресло» от старой копии, после чего
+            # purge_old_deleted_puzzles (и DELETE в get_turso_puzzles) вычищает
+            # его насовсем. Пока он жив — его можно вернуть (как корзина).
+            if data.get('action') in ('delete', 'restore'):
+                pid = str(data.get('postId') or data.get('id') or '').strip()
+                if not pid:
+                    return jsonify({'ok': False, 'error': 'postId is required'}), 400
+
+                now_ms = int(time.time() * 1000)
+                local_puzzles = load_puzzle_completed()
+                found = False
+                for p in local_puzzles:
+                    if isinstance(p, dict) and str(p.get('postId', p.get('id', ''))) == pid:
+                        found = True
+                        p['is_deleted'] = 0 if data.get('action') == 'restore' else 1
+                        p['change'] = now_ms
+                        # Восстановление — это «снова активно», но и последнее
+                        # касание: lastUpdated не трогаем, чтобы не менять
+                        # позицию в сортировке «сначала новые».
+                        if data.get('action') == 'restore':
+                            p.pop('deleted_at', None)
+
+                if not found:
+                    return jsonify({'ok': False, 'error': 'puzzle_not_found'}), 404
+
+                save_puzzle_completed_optimized(local_puzzles)
+                try:
+                    save_turso_puzzles(optimize_puzzles(local_puzzles))
+                except Exception:
+                    pass
+                active = len([p for p in local_puzzles if not p.get('is_deleted')])
+                return jsonify({'ok': True, 'remaining': active, 'action': data.get('action')})
+
             puzzles = data.get('puzzles')
             if not isinstance(puzzles, list):
                 return jsonify({'ok': False, 'error': 'Invalid puzzles format'}), 400

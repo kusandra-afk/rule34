@@ -14,6 +14,49 @@
   padding: 0 24px;
 }
 
+/* Панель прилипает к верху при прокрутке, а при движении вниз
+   уезжает вверх и уступает место компактной полоске (.r34-search-mini).
+   Так при чтении ленты ничто не занимает экран, но поиск в один клик.
+   На телефоне sticky задан в adaptive.css (с учётом safe-area). */
+@media (min-width: 601px) {
+  .search-container {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+}
+
+/* Панель при скрытии полностью выходит из потока (position: absolute),
+   иначе она продолжала бы занимать высоту и полоска уезжала бы вслед
+   за ней. absolute — потому что сама панель прилипла бы к верху.
+   Работает и на ПК, и на телефоне. */
+.search-container.is-scrolled-away .r34-search-block {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  top: 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-100%);
+  pointer-events: none;
+}
+
+.r34-search-block {
+  transition: border-color var(--transition-speed, 0.2s) var(--ease),
+              box-shadow var(--transition-speed, 0.2s) var(--ease),
+              padding var(--dur-slow) var(--ease),
+              opacity var(--dur) var(--ease),
+              visibility var(--dur) var(--ease),
+              transform var(--dur) var(--ease);
+}
+
+/* Скрытая панель вышла из потока (absolute), поэтому контейнер держит
+   только полоску — высоту задаёт она сама. */
+.search-container.is-scrolled-away {
+  min-height: 0;
+}
+
+
 /* ---------- Стеклянная панель поиска ---------- */
 .r34-search-block {
   position: relative;
@@ -29,8 +72,247 @@
   backdrop-filter: blur(var(--glass-blur, 28px)) saturate(1.2);
   -webkit-backdrop-filter: blur(var(--glass-blur, 28px)) saturate(1.2);
   box-shadow: var(--shadow-md), var(--glass-highlight);
-  animation: fadeInUp 0.6s 0.1s var(--ease) backwards;
-  transition: border-color var(--transition-speed, 0.2s) var(--ease), box-shadow var(--transition-speed, 0.2s) var(--ease);
+  animation: r34-search-fadeInUp 0.6s 0.1s var(--ease) backwards;
+  transition: border-color var(--transition-speed, 0.2s) var(--ease), box-shadow var(--transition-speed, 0.2s) var(--ease), padding var(--dur-slow) var(--ease);
+}
+
+/* Ручное сворачивание панели (кнопка-стрелка, .is-collapsed) удалено:
+   панель теперь уезжает и возвращается только по направлению скролла
+   («умная шапка», см. main.js и .is-scrolled-away ниже). Вместе с ним
+   ушла и grid-обёртка .r34-search-block-body — она существовала только
+   ради анимации высоты 0fr↔1fr, теперь это обычный контейнер. */
+
+/* ---------- Компактная полоска поиска ---------- */
+/* Появляется, когда панель спряталась при прокрутке вниз: узкая полоса
+   с иконкой лупы и списком активных тегов. Клик возвращает полную панель.
+   Работает одинаково на ПК и на телефоне. */
+.r34-search-mini {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 16px;
+  background: var(--glass-bg-strong, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.09));
+  border-radius: 999px;
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  box-shadow: var(--shadow-sm), var(--glass-highlight);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+
+  /* Скрыта по умолчанию: JS вешает .is-visible.
+     Сворачиваем через max-height, а не height: 0 → auto: так полоска
+     выезжает и уезжает плавно, а не появляется рывком. overflow: hidden
+     нужен, чтобы содержимое не вылезало при сворачивании. */
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px) scale(0.985);
+  pointer-events: none;
+  overflow: hidden;
+  max-height: 0;
+  min-height: 0;
+  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-width: 0;
+  transition: opacity 0.2s var(--ease), visibility 0s linear 0.3s,
+              transform 0.3s var(--ease), max-height 0.3s var(--ease),
+              padding 0.3s var(--ease), border-width 0.2s var(--ease),
+              background-color var(--dur) var(--ease), border-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+.r34-search-mini.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+  max-height: 60px;
+  min-height: 44px;
+  margin-bottom: 12px;
+  padding: 8px 16px;
+  border-width: 1px;
+  /* при раскрытии видимость нужна сразу, без задержки */
+  transition-delay: 0s;
+}
+
+body.can-hover .r34-search-mini:hover,
+body:not(.can-hover) .r34-search-mini:active {
+  background: rgba(var(--accent-rgb), 0.12);
+  border-color: rgba(var(--accent-rgb), 0.4);
+  color: #fff;
+}
+
+.r34-search-mini:active {
+  transform: var(--press-transform);
+  transition-duration: var(--press-duration);
+}
+
+.r34-search-mini-icon {
+  flex-shrink: 0;
+  stroke: var(--accent);
+}
+
+.r34-search-mini-text {
+  flex-shrink: 0;
+}
+
+/* Список активных тегов внутри полоски — обрезается многоточием,
+   чтобы не раздувать высоту при длинном запросе. */
+.r34-search-mini-tags {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ---------- Свёрнутая шапка: полоска + кнопки режимов ---------- */
+/* Когда шапка уезжает при прокрутке, на ПК пропадают и табы
+   «Галерея / Избранное / Настройки». Держим их рядом с полоской поиска:
+   одна строка, одна высота, ничего не занимает на экране в покое. */
+.r34-mini-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.r34-mini-bar .r34-search-mini,
+.r34-mini-bar .r34-search-mini.is-visible {
+  flex: 1 1 auto;
+  min-width: 0;
+  /* Отступ снизу у полоски выравнивал её одну; теперь его держит общий ряд,
+     иначе полоска и группа кнопок стоят на разной высоте. */
+  margin-bottom: 0;
+}
+
+.r34-mini-bar.is-visible {
+  margin-bottom: 12px;
+}
+
+.r34-mini-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--glass-bg-strong, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.09));
+  border-radius: 999px;
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  box-shadow: var(--shadow-sm), var(--glass-highlight);
+  overflow: hidden;
+  max-height: 46px;
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0) scale(1);
+  pointer-events: auto;
+  transition: opacity 0.2s var(--ease), transform 0.28s var(--ease),
+              max-height 0.28s var(--ease), padding 0.28s var(--ease),
+              border-width 0.2s var(--ease), visibility 0s;
+}
+
+/* Пока шапка на месте — группа сворачивается в ноль (но не display:none,
+   иначе нечего анимировать), при прокрутке — выезжает справа вместе
+   с полоской. */
+.r34-mini-bar:not(.is-visible) .r34-mini-actions {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-width: 0;
+  opacity: 0;
+  transform: translateX(14px) scale(0.9);
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.16s var(--ease), transform 0.22s var(--ease),
+              max-height 0.22s var(--ease), padding 0.22s var(--ease),
+              border-width 0.16s var(--ease), visibility 0s linear 0.22s;
+}
+
+/* Иконки влетают по очереди — так появление читается как одно
+   движение полоски, а не как три рывка. */
+@keyframes pzMiniActionIn {
+  from { opacity: 0; transform: translateX(10px) scale(0.85); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+.r34-mini-bar.is-visible .r34-mini-action {
+  animation: pzMiniActionIn 0.32s var(--ease) backwards;
+}
+
+.r34-mini-bar.is-visible .r34-mini-action:nth-child(1) { animation-delay: 0.03s; }
+.r34-mini-bar.is-visible .r34-mini-action:nth-child(2) { animation-delay: 0.08s; }
+.r34-mini-bar.is-visible .r34-mini-action:nth-child(3) { animation-delay: 0.13s; }
+
+.r34-mini-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.66);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease),
+              transform var(--dur-fast) var(--ease);
+}
+
+.r34-mini-action svg {
+  width: 19px;
+  height: 19px;
+  stroke: currentColor;
+}
+
+body.can-hover .r34-mini-action:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.r34-mini-action:active {
+  transform: var(--press-transform);
+  transition-duration: var(--press-duration);
+}
+
+/* Активный режим — та же капсула, что у табов сверху. */
+.r34-mini-action.active {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-alt) 100%);
+  color: var(--btn-primary-color, #fff);
+  box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.35);
+}
+
+/* На телефоне эти же три действия есть в нижней навигации:
+   дублировать их в узкой полоске незачем. */
+@media (max-width: 600px) {
+  .r34-mini-actions { display: none !important; }
+}
+
+/* Системное «уменьшить движение»: полоска просто переключается без выезда. */
+@media (prefers-reduced-motion: reduce) {
+  .r34-search-mini,
+  .r34-mini-actions {
+    transition-duration: 0.01ms !important;
+  }
+  .r34-mini-bar.is-visible .r34-mini-action {
+    animation: none !important;
+  }
+}
+
+/* ---------- Обёртка счётчика результатов ---------- */
+/* Счётчик живёт ВНЕ sticky-контейнера поиска, поэтому не прилипает
+   к верху экрана и остаётся обычным элементом в потоке ленты. */
+.r34-results-count-bar {
+  width: 100%;
+  text-align: center;
 }
 
 .r34-search-block:focus-within {
@@ -38,7 +320,7 @@
   box-shadow: var(--shadow-md), 0 0 0 1px rgba(var(--accent-rgb), 0.25), 0 0 44px rgba(var(--accent-rgb), 0.08);
 }
 
-@keyframes fadeInUp {
+@keyframes r34-search-fadeInUp {
   from { opacity: 0; transform: translateY(24px); }
   to   { opacity: 1; transform: translateY(0); }
 }
@@ -48,7 +330,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  animation: fadeIn 0.5s 0.2s var(--ease) backwards;
+  animation: fadeIn 0.5s var(--dur) var(--ease) backwards;
 }
 
 .r34-toggle-label {
@@ -72,7 +354,7 @@
   font-size: 0.85rem;
   cursor: pointer;
   user-select: none;
-  transition: color 0.2s;
+  transition: color var(--dur);
 }
 
 body.can-hover .r34-hide-tags-label:hover, body:not(.can-hover) .r34-hide-tags-label:active {
@@ -92,7 +374,7 @@ body.can-hover .r34-hide-tags-label:hover, body:not(.can-hover) .r34-hide-tags-l
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all var(--dur);
 }
 
 .r34-hide-tags-label input[type="checkbox"]:checked {
@@ -113,10 +395,22 @@ body.can-hover .r34-hide-tags-label:hover, body:not(.can-hover) .r34-hide-tags-l
 /* ---------- Активные теги ---------- */
 .active-tags {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
   width: 100%;
+  min-height: 0;
 }
+
+.active-tags .tag {
+  animation: tagAppear var(--dur-slow) var(--ease-bounce) backwards;
+}
+
+/* Staggered animation для тегов */
+.active-tags .tag:nth-child(1) { animation-delay: 0ms; }
+.active-tags .tag:nth-child(2) { animation-delay: 40ms; }
+.active-tags .tag:nth-child(3) { animation-delay: 80ms; }
+.active-tags .tag:nth-child(4) { animation-delay: 120ms; }
+.active-tags .tag:nth-child(n+5) { animation-delay: 160ms; }
 
 .tags-group-wrapper {
   display: flex;
@@ -136,7 +430,7 @@ body.can-hover .r34-hide-tags-label:hover, body:not(.can-hover) .r34-hide-tags-l
   letter-spacing: 0.12em;
   color: rgba(255, 255, 255, 0.45);
   user-select: none;
-  transition: color 0.2s;
+  transition: color var(--dur);
   cursor: pointer;
 }
 
@@ -148,7 +442,7 @@ body.can-hover .tags-group-label:hover, body:not(.can-hover) .tags-group-label:a
   display: inline-block;
   margin-left: 2px;
   color: var(--accent);
-  transition: transform 0.35s var(--ease);
+  transition: transform var(--dur-slow) var(--ease);
   will-change: transform;
 }
 
@@ -178,7 +472,7 @@ body.can-hover .tags-group-label:hover, body:not(.can-hover) .tags-group-label:a
   display: grid;
   grid-template-rows: 1fr;
   opacity: 1;
-  transition: grid-template-rows 0.35s var(--ease), opacity 0.3s var(--ease);
+  transition: grid-template-rows var(--dur-slow) var(--ease), opacity var(--dur-slow) var(--ease);
   will-change: grid-template-rows, opacity;
 }
 
@@ -195,7 +489,7 @@ body.can-hover .tags-group-label:hover, body:not(.can-hover) .tags-group-label:a
   padding: 8px 4px;
   overflow: hidden;
   min-height: 0;
-  transition: padding 0.35s var(--ease);
+  transition: padding var(--dur-slow) var(--ease);
 }
 
 .tags-group-list-wrapper.collapsed .tags-group-list {
@@ -231,21 +525,43 @@ body.can-hover .tags-group-label:hover, body:not(.can-hover) .tags-group-label:a
   user-select: none;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  transition: all 0.25s var(--ease);
-  animation: tagPopIn 0.3s var(--ease-bounce);
+  transition: all var(--dur) var(--ease);
+  animation: tagPopIn var(--dur-slow) var(--ease-bounce);
+  position: relative;
+}
+
+.tag::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  opacity: 0;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(var(--accent-rgb), 0.2) 0%,
+    transparent 70%
+  );
+  transition: opacity var(--dur) var(--ease);
+  pointer-events: none;
+  z-index: -1;
+}
+
+body.can-hover .tag:hover::before {
+  opacity: 1;
 }
 
 .tag:focus, .tag:active, .tag:focus-visible,
 .media-tag:focus, .media-tag:active, .media-tag:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
+  outline: none;
+  box-shadow: none;
 }
 
 body.can-hover .tag:hover, body:not(.can-hover) .tag:active {
-  background: rgba(var(--accent-rgb), 0.12);
-  border-color: rgba(var(--accent-rgb), 0.4);
+  background: rgba(var(--accent-rgb), 0.18);
+  border-color: rgba(var(--accent-rgb), 0.5);
   color: #fff;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(var(--accent-rgb), 0.2);
 }
 
 .tag.inactive {
@@ -280,7 +596,12 @@ body.can-hover .tag.inactive:hover, body:not(.can-hover) .tag.inactive:active {
   font-size: 0.74rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  transition: all var(--transition-speed, 0.2s) var(--ease);
+  transition: all var(--dur-fast) var(--ease);
+}
+
+body.can-hover .tag:hover .tag-count, body:not(.can-hover) .tag:active .tag-count {
+  background: rgba(var(--accent-rgb), 0.3);
+  border-color: rgba(var(--accent-rgb), 0.6);
 }
 
 body.can-hover .tag:hover .tag-count, body:not(.can-hover) .tag:active .tag-count {
@@ -307,8 +628,13 @@ body.can-hover .tag:hover .tag-count, body:not(.can-hover) .tag:active .tag-coun
   background: var(--glass-bg-strong);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md, 14px);
-  overflow: visible; /* саджесты вылетают наружу */
-  transition: border-color 0.3s, box-shadow 0.3s;
+  /* Саджесты вылетают наружу — их контейнер позиционируется отдельно,
+     а бегущее кольцо (:focus-within::after) живёт на собственном слое
+     и не обрезается, потому что inset отрицательный и z-index выше. */
+  overflow: visible;
+  transition: border-color var(--dur-slow), box-shadow var(--dur-slow);
+  /* изоляция создаёт слой для кольца, чтобы его не срезал родитель */
+  isolation: isolate;
 }
 
 .r34-search-row:focus-within {
@@ -330,6 +656,12 @@ body.can-hover .tag:hover .tag-count, body:not(.can-hover) .tag:active .tag-coun
 
 .r34-search-input::placeholder {
   color: rgba(255, 255, 255, 0.3);
+  transition: color var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+
+.r34-search-input:focus::placeholder {
+  color: rgba(255, 255, 255, 0.15);
+  opacity: 0;
 }
 
 .r34-search-arrow-btn {
@@ -366,7 +698,8 @@ body.can-hover .r34-search-arrow-btn:hover, body:not(.can-hover) .r34-search-arr
 }
 
 .r34-search-arrow-btn:active {
-  transform: translateY(1px) scale(0.97) translateZ(0);
+  transform: var(--press-transform) translateZ(0);
+  transition-duration: var(--press-duration);
 }
 
 /* ---------- Кнопка переключения режима тегов (+ / -) ---------- */
@@ -396,7 +729,7 @@ body.can-hover .r34-search-arrow-btn:hover, body:not(.can-hover) .r34-search-arr
   stroke: currentColor;
   stroke-width: 2;
   fill: none;
-  transition: transform 0.2s var(--ease);
+  transition: transform var(--dur) var(--ease);
 }
 
 body.can-hover .r34-tag-mode-btn:hover, body:not(.can-hover) .r34-tag-mode-btn:active {
@@ -408,7 +741,8 @@ body.can-hover .r34-tag-mode-btn:hover, body:not(.can-hover) .r34-tag-mode-btn:a
 }
 
 .r34-tag-mode-btn:active {
-  transform: translateY(1px) scale(0.96) translateZ(0);
+  transform: var(--press-transform) translateZ(0);
+  transition-duration: var(--press-duration);
 }
 
 /* Режим исключения (минус) */
@@ -469,7 +803,7 @@ body.can-hover .r34-tag-mode-btn.mode-exclude:hover, body:not(.can-hover) .r34-t
   font-weight: 500;
   border-radius: var(--radius-xs, 6px);
   cursor: pointer;
-  transition: background-color 0.18s var(--ease), color 0.18s var(--ease);
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 
 .suggestion-item:last-child {
@@ -493,7 +827,7 @@ body.can-hover .suggestion-item:hover, body:not(.can-hover) .suggestion-item:act
   font-size: 0.74rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  transition: all 0.18s var(--ease);
+  transition: all var(--dur-fast) var(--ease);
 }
 
 body.can-hover .suggestion-item:hover span, body:not(.can-hover) .suggestion-item:active span {
@@ -504,6 +838,12 @@ body.can-hover .suggestion-item:hover span, body:not(.can-hover) .suggestion-ite
 
 .suggestion-item * {
   pointer-events: none;
+}
+
+/* ---------- Анимация появления suggestions ---------- */
+.suggestions-container.visible {
+  display: block;
+  animation: r34-base-slideDown var(--dur) var(--ease) backwards;
 }
 
 /* ---------- Счётчик результатов ---------- */
@@ -518,7 +858,7 @@ body.can-hover .suggestion-item:hover span, body:not(.can-hover) .suggestion-ite
   background-clip: text;
   -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 2px 10px rgba(var(--accent-rgb), 0.3));
-  animation: fadeIn 0.8s 0.3s var(--ease) backwards;
+  animation: fadeIn 0.8s var(--dur-slow) var(--ease) backwards;
 }
 
 /* ---------- Кнопка настроек в строке поиска ---------- */
@@ -536,7 +876,7 @@ body.can-hover .suggestion-item:hover span, body:not(.can-hover) .suggestion-ite
   border-radius: var(--radius-sm, 12px);
   color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
-  transition: all 0.25s var(--ease);
+  transition: all var(--dur) var(--ease);
 }
 
 body.can-hover .r34-settings-btn:hover, body:not(.can-hover) .r34-settings-btn:active {
@@ -550,7 +890,7 @@ body.can-hover .r34-settings-btn:hover, body:not(.can-hover) .r34-settings-btn:a
 }
 
 .r34-settings-btn svg {
-  transition: transform 0.4s var(--ease);
+  transition: transform var(--dur-slow) var(--ease);
 }
 
 body.can-hover .r34-settings-btn:hover svg, body:not(.can-hover) .r34-settings-btn:active svg {
@@ -560,6 +900,10 @@ body.can-hover .r34-settings-btn:hover svg, body:not(.can-hover) .r34-settings-b
 /* ============================================================
    СКРЫТИЕ ПОЛЗУНКА ОСНОВНОЙ СТРАНИЦЫ ПРИ ОТКРЫТИИ МОДАЛОК И ПАЗЛОВ
    ============================================================ */
+/* `overflow: hidden` на html/body при открытой модалке — это принудительная
+   блокировка прокрутки подложки, а не перебивание стиля. !important здесь
+   нужен, чтобы перекрыть inline-стили, которые JS мог навесить на body
+   (например, overflow при полноэкранном просмотре). */
 html.modal-open,
 body.modal-open,
 html:has(#settings-modal.open),
@@ -601,13 +945,14 @@ body:has(.puzzle-stats-modal) {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: var(--modal-bg, rgba(0, 0, 0, 0.72));
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(0, 0, 0, 0.72);
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s var(--ease), visibility 0.3s var(--ease);
+  /* visibility — с задержкой: при закрытии фон остаётся видимым, пока
+     карточка схлопывается обратно в шестерёнку (в .open — мгновенно,
+     чтобы раскрытие не ждало) */
+  transition: opacity var(--dur-slow) var(--ease), visibility 0s linear 0.5s;
   will-change: opacity, visibility;
   transform: translateZ(0);
 }
@@ -616,6 +961,7 @@ body:has(.puzzle-stats-modal) {
   visibility: visible;
   opacity: 1;
   pointer-events: auto;
+  transition: opacity var(--dur-slow) var(--ease), visibility 0s linear 0s;
 }
 
 .settings-modal-card {
@@ -626,16 +972,17 @@ body:has(.puzzle-stats-modal) {
   height: auto;
   max-height: 90vh;
   overflow: hidden;
-  background: var(--modal-bg, rgba(13, 15, 22, 0.95));
+  background: var(--modal-bg-solid, #14161f);
   color: var(--modal-text-color, var(--adaptive-text-main, #fff));
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
   border-radius: 20px;
-  backdrop-filter: blur(40px) saturate(1.5);
-  -webkit-backdrop-filter: blur(40px) saturate(1.5);
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  /* Без backdrop-filter: размытие фона под окном — дорогая композитная
+     операция на каждом кадре, а толку от неё нет, когда окно и так
+     перекрывает страницу плотным фоном. */
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(var(--accent-rgb), 0.16);
   opacity: 0;
   transform: translate3d(0, 18px, 0) scale(0.96);
-  transition: transform 0.35s var(--ease), opacity 0.35s var(--ease);
+  transition: transform var(--dur-slow) var(--ease), opacity var(--dur-slow) var(--ease);
   will-change: transform, opacity;
 }
 
@@ -659,6 +1006,68 @@ body:has(.puzzle-stats-modal) {
 .settings-modal.open .settings-modal-card {
   opacity: 1;
   transform: translate3d(0, 0, 0) scale(1);
+}
+
+/* ════════════════════════════════════════════════════════════
+   ОТКРЫТИЕ «ИЗ ШЕСТЕРЁНКИ» (как iOS-поповер)
+   settingsModal.js при клике пишет --gear-x/--gear-y — координаты
+   центра иконки настроек в системе координат карточки. Закрытая
+   карточка сжата в эту точку (scale 0.07) и раскрывается оттуда;
+   закрытие — обратный полёт в шестерёнку (те же переходы).
+   Только для не-мобильных: на ≤768px adaptive.css держит своё
+   полноэкранное выезжающее окно (translate !important).
+   ════════════════════════════════════════════════════════════ */
+@media (min-width: 769px) {
+  #settings-modal .settings-modal-card {
+    transform-origin: var(--gear-x, 50%) var(--gear-y, 50%);
+    transform: translate3d(0, 0, 0) scale(0.07);
+    opacity: 0;
+    transition: transform 0.5s var(--ease), opacity 0.24s var(--ease-out);
+  }
+
+  #settings-modal.open .settings-modal-card {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Содержимое окна догоняет вылет с лёгким каскадом: шапка, вкладки,
+   тело — каждая строка чуть позже предыдущей */
+@keyframes settingsPartIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.settings-modal.open .settings-modal-card > * {
+  animation: settingsPartIn 0.5s var(--ease) backwards;
+}
+
+.settings-modal.open .settings-modal-card > *:nth-child(1) { animation-delay: 0.18s; }
+.settings-modal.open .settings-modal-card > *:nth-child(2) { animation-delay: 0.26s; }
+.settings-modal.open .settings-modal-card > *:nth-child(3) { animation-delay: 0.34s; }
+.settings-modal.open .settings-modal-card > *:nth-child(n + 4) { animation-delay: 0.4s; }
+
+/* Прокрутка иконки-шестерёнки при открытии (класс вешает
+   prepareSettingsFlyOut в settingsModal.js). Полный оборот 0→360°
+   заканчивается в той же ориентации — снап на ховер-поворот не виден. */
+@keyframes gearSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+#settingsBtn.gear-spin svg {
+  animation: gearSpin 0.7s var(--ease);
+}
+
+/* Уменьшить движение — без полёта, прокрутки и каскада */
+@media (prefers-reduced-motion: reduce) {
+  #settings-modal .settings-modal-card {
+    transform: none !important;
+    transition: opacity var(--dur-slow) var(--ease) !important;
+  }
+  #settings-modal.open .settings-modal-card { transform: none !important; }
+  .settings-modal.open .settings-modal-card > * { animation: none !important; }
+  #settingsBtn.gear-spin svg { animation: none !important; }
 }
 
 .settings-modal-header {
@@ -690,7 +1099,7 @@ body:has(.puzzle-stats-modal) {
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--dur);
 }
 
 body.can-hover .settings-close-btn:hover, body:not(.can-hover) .settings-close-btn:active {
@@ -722,7 +1131,7 @@ body.can-hover .settings-close-btn:hover, body:not(.can-hover) .settings-close-b
   font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
-  transition: all 0.2s var(--ease);
+  transition: all var(--dur) var(--ease);
 }
 
 body.can-hover .settings-tab-btn:hover, body:not(.can-hover) .settings-tab-btn:active {
@@ -753,7 +1162,7 @@ body.can-hover .settings-tab-btn:hover, body:not(.can-hover) .settings-tab-btn:a
   border-radius: var(--radius-sm, 10px);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  transition: all 0.2s var(--ease);
+  transition: all var(--dur) var(--ease);
 }
 
 body.can-hover .settings-option:hover {
@@ -807,7 +1216,7 @@ body.can-hover .settings-option:hover {
   font-size: 0.92rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s var(--ease);
+  transition: all var(--dur) var(--ease);
 }
 
 body.can-hover .col-btn:hover, body:not(.can-hover) .col-btn:active {
@@ -817,8 +1226,10 @@ body.can-hover .col-btn:hover, body:not(.can-hover) .col-btn:active {
 
 .col-btn.active {
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-alt) 100%);
-  color: #ffffff;
-  box-shadow: 0 2px 10px var(--accent-glow);
+  border-color: transparent;
+  color: var(--btn-primary-color, #ffffff);
+  font-weight: 800;
+  box-shadow: 0 4px 16px rgba(var(--accent-rgb), 0.45);
 }
 
 /* Некоторые значения колонок не помещаются на текущей ширине экрана
@@ -829,9 +1240,9 @@ body.can-hover .col-btn:hover, body:not(.can-hover) .col-btn:active {
 .col-btn.col-btn-unavailable {
   opacity: 0.35;
   cursor: not-allowed;
-  background: transparent !important;
-  box-shadow: none !important;
-  transform: none !important;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
 }
 
 [data-theme="light"] .col-btn,
@@ -848,28 +1259,20 @@ body.can-hover .col-btn:hover, body:not(.can-hover) .col-btn:active {
   transform: translateY(-1px);
 }
 
-.col-btn.active {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-alt) 100%) !important;
-  border-color: transparent !important;
-  color: var(--btn-primary-color, #ffffff) !important;
-  font-weight: 800;
-  box-shadow: 0 4px 16px rgba(var(--accent-rgb), 0.45) !important;
-}
-
 /* ---------- Инфо-кнопки и подсказки ---------- */
 .info-btn {
-  transition: all var(--transition-speed, 0.2s) var(--ease) !important;
+  transition: all var(--transition-speed, 0.2s) var(--ease);
 }
 
 body.can-hover .info-btn:hover, body:not(.can-hover) .info-btn:active {
-  background: rgba(var(--accent-rgb), 0.15) !important;
-  color: var(--accent) !important;
+  background: rgba(var(--accent-rgb), 0.15);
+  color: var(--accent);
   transform: scale(1.12);
   box-shadow: 0 0 8px var(--accent-glow);
 }
 
 .info-help-box {
-  animation: fadeInSlide 0.25s var(--ease);
+  animation: fadeInSlide var(--dur) var(--ease);
 }
 
 @keyframes fadeInSlide {
@@ -930,14 +1333,17 @@ body.can-hover .info-btn:hover, body:not(.can-hover) .info-btn:active {
   }
 }
 
-/* Мини-карточки в живом предпросмотре */
+/* Мини-карточки в живом предпросмотре.
+   Специфичность `.preview-card` здесь совпадает с `.preview-card` в ui.css —
+   но этот файл подключён ПОСЛЕ ui.css (см. index.html), поэтому при равной
+   специфичности побеждает более позднее правило. !important не нужен. */
 .preview-card {
-  background: rgba(13, 15, 22, var(--card-bg-opacity, 0.55)) !important;
+  background: rgba(13, 15, 22, var(--card-bg-opacity, 0.55));
   border: var(--card-border-width, 1px) solid var(--card-border-color, rgba(255, 255, 255, 0.08));
   backdrop-filter: blur(var(--card-bg-blur, 14px));
   -webkit-backdrop-filter: blur(var(--card-bg-blur, 14px));
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-  transition: all var(--card-transition-speed, 0.3s) ease;
+  transition: all var(--card-transition-speed, 0.3s) var(--ease);
 }
 
 body.can-hover .preview-card:hover, body:not(.can-hover) .preview-card:active {
@@ -947,7 +1353,7 @@ body.can-hover .preview-card:hover, body:not(.can-hover) .preview-card:active {
 }
 
 .preview-card .preview-tag {
-  font-size: calc(var(--tag-font-size, 11px) * 0.55) !important;
+  font-size: calc(var(--tag-font-size, 11px) * 0.55);
 }
 
 #settingsPreviewArea::-webkit-scrollbar {
@@ -970,7 +1376,7 @@ body.can-hover #settingsPreviewArea::-webkit-scrollbar-thumb:hover, body:not(.ca
 
 /* Точки-пресеты акцентного цвета */
 .theme-color-dot {
-  transition: all 0.2s var(--ease);
+  transition: all var(--dur) var(--ease);
 }
 
 body.can-hover .theme-color-dot:hover, body:not(.can-hover) .theme-color-dot:active {
@@ -1003,8 +1409,8 @@ body.can-hover .theme-color-dot:hover, body:not(.can-hover) .theme-color-dot:act
   visibility: hidden;
   pointer-events: none;
   transform: translateY(20px);
-  transition: opacity 0.3s var(--ease), transform 0.3s var(--ease),
-              visibility 0.3s var(--ease), box-shadow 0.3s;
+  transition: opacity var(--dur-slow) var(--ease), transform var(--dur-slow) var(--ease),
+              visibility var(--dur-slow) var(--ease), box-shadow var(--dur-slow);
 }
 
 .scroll-to-top-btn.visible {
@@ -1032,19 +1438,25 @@ body.can-hover .scroll-to-top-btn:hover svg, body:not(.can-hover) .scroll-to-top
   transform: translateY(-2px);
 }
 
-/* ---------- Долгое нажатие на тег ---------- */
-.long-pressed-feedback {
-  transform: scale(0.9) !important;
-  background: rgba(var(--accent-rgb), 0.4) !important;
-  border-color: var(--accent) !important;
-  transition: all 0.15s var(--ease) !important;
+/* ---------- Долгое нажатие на тег ----------
+   Класс вешается на `.tag` (см. tagSearch.js). Специфичность
+   `.tag.long-pressed-feedback` (2 класса) выше, чем у `.tag` и его hover —
+   поэтому перекрывает их штатно, !important не нужен. */
+.tag.long-pressed-feedback {
+  transform: scale(0.9);
+  background: rgba(var(--accent-rgb), 0.4);
+  border-color: var(--accent);
+  transition: all var(--dur-fast) var(--ease);
 }
 
 /* ============================================================
    АДАПТАЦИЯ ЦВЕТА И СИНХРОНИЗАЦИЯ КОНТРОЛОВ В МОДАЛЬНЫХ ОКНАХ
    ============================================================ */
 
-/* Устанавливаем дефолты на основе вычисленных адаптивных переменных */
+/* Устанавливаем дефолты на основе вычисленных адаптивных переменных.
+   Специфичность `.settings-modal-card .r34-input` (2 класса) выше, чем у
+   одиночного `.r34-input` в base.css, поэтому перекрывает его штатно —
+   !important не нужен. */
 .settings-modal-card,
 .puzzle-completed-modal,
 .puzzle-stats-modal {
@@ -1054,11 +1466,11 @@ body.can-hover .scroll-to-top-btn:hover svg, body:not(.can-hover) .scroll-to-top
   --ctrl-hover-border: var(--modal-control-hover-border, rgba(255, 255, 255, 0.18));
   --ctrl-placeholder: var(--modal-placeholder-color, rgba(255, 255, 255, 0.28));
   --divider-border: var(--modal-border, rgba(255, 255, 255, 0.08));
-  
-  color: var(--modal-text-color, var(--adaptive-text-main, #ffffff)) !important;
+
+  color: var(--modal-text-color, var(--adaptive-text-main, #ffffff));
 }
 
-/* Принудительная адаптация всех инпутов, селектов и кнопок внутри модальных окон */
+/* Адаптация всех инпутов, селектов и кнопок внутри модальных окон */
 .settings-modal-card .r34-input,
 .settings-modal-card .r34-input-mini,
 .settings-modal-card .r34-select,
@@ -1067,9 +1479,9 @@ body.can-hover .scroll-to-top-btn:hover svg, body:not(.can-hover) .scroll-to-top
 .puzzle-stats-modal select,
 .puzzle-completed-modal input,
 .puzzle-stats-modal input {
-  background-color: var(--ctrl-bg) !important;
-  border-color: var(--ctrl-border) !important;
-  color: var(--modal-text-color, var(--adaptive-text-main, #ffffff)) !important;
+  background-color: var(--ctrl-bg);
+  border-color: var(--ctrl-border);
+  color: var(--modal-text-color, var(--adaptive-text-main, #ffffff));
 }
 
 /* Ховеры контролов */
@@ -1081,84 +1493,77 @@ body.can-hover .settings-modal-card .r34-select:hover,
 body:not(.can-hover) .settings-modal-card .r34-select:active,
 body.can-hover .settings-modal-card .col-btn:hover,
 body:not(.can-hover) .settings-modal-card .col-btn:active {
-  background-color: var(--ctrl-hover-bg) !important;
-  border-color: var(--ctrl-hover-border) !important;
+  background-color: var(--ctrl-hover-bg);
+  border-color: var(--ctrl-hover-border);
 }
 
 /* Слайдер (круглый тумблер) выключенного переключателя должен быть контрастным */
 .settings-modal-card .r34-slider:before {
-  background: var(--modal-text-color, #ffffff) !important;
-}
-
-/* Акцентная заливка включенного переключателя с учетом всех тем и акцентов */
-.r34-toggle-switch input:checked + .r34-slider {
-  background-color: var(--accent) !important;
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 16px var(--accent-glow) !important;
+  background: var(--modal-text-color, #ffffff);
 }
 
 /* Плейсхолдеры */
 .settings-modal-card .r34-input::placeholder,
 .settings-modal-card .r34-input-mini::placeholder {
-  color: var(--ctrl-placeholder) !important;
+  color: var(--ctrl-placeholder);
 }
 
 /* Границы и разделители разделов и вкладок в модалках */
 .settings-modal-card .settings-modal-header,
 .settings-modal-card .settings-tabs {
-  border-bottom-color: var(--divider-border) !important;
+  border-bottom-color: var(--divider-border);
 }
 
 /* Инфо-кнопка закрытия */
 .settings-modal-card .settings-close-btn {
-  background: var(--ctrl-bg) !important;
-  color: var(--modal-text-muted, var(--adaptive-text-muted, rgba(255,255,255,0.7))) !important;
-  border-color: var(--ctrl-border) !important;
+  background: var(--ctrl-bg);
+  color: var(--modal-text-muted, var(--adaptive-text-muted, rgba(255,255,255,0.7)));
+  border-color: var(--ctrl-border);
 }
 body.can-hover .settings-modal-card .settings-close-btn:hover, body:not(.can-hover) .settings-modal-card .settings-close-btn:active {
-  background: rgba(var(--accent-rgb), 0.15) !important;
-  color: var(--accent) !important;
-  border-color: var(--accent) !important;
+  background: rgba(var(--accent-rgb), 0.15);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 /* Информационные плашки-подсказки (info-help-box) */
 .settings-modal-card .info-help-box {
-  background: rgba(var(--accent-rgb), 0.08) !important;
-  border-left: 3px solid var(--accent) !important;
-  color: var(--modal-text-color, var(--adaptive-text-main, #ffffff)) !important;
+  background: rgba(var(--accent-rgb), 0.08);
+  border-left: 3px solid var(--accent);
+  color: var(--modal-text-color, var(--adaptive-text-main, #ffffff));
 }
 
 /* Блоки кода `code` в инфо-подсказках */
 .settings-modal-card .info-help-box code {
-  background: var(--ctrl-bg) !important;
-  border-color: var(--ctrl-border) !important;
-  color: var(--accent) !important;
+  background: var(--ctrl-bg);
+  border-color: var(--ctrl-border);
+  color: var(--accent);
 }
 
 /* Блоки Expert-режима внутри модального окна настроек */
 .settings-modal-card .expert-container,
 .settings-modal-card .expert-controls-bar,
 .settings-modal-card .expert-help-panel {
-  background-color: var(--ctrl-bg) !important;
-  border-color: var(--ctrl-border) !important;
-  color: var(--modal-text-color, var(--adaptive-text-main, #ffffff)) !important;
+  background-color: var(--ctrl-bg);
+  border-color: var(--ctrl-border);
+  color: var(--modal-text-color, var(--adaptive-text-main, #ffffff));
 }
 
 .settings-modal-card .expert-hint,
 .settings-modal-card .expert-var-desc {
-  color: var(--modal-text-muted, var(--adaptive-text-muted, rgba(255,255,255,0.7))) !important;
+  color: var(--modal-text-muted, var(--adaptive-text-muted, rgba(255,255,255,0.7)));
 }
 
 .settings-modal-card .expert-help-panel {
-  border-left: 3px solid var(--accent) !important;
+  border-left: 3px solid var(--accent);
 }
 
-/* Опции выпадающего списка select - должны наследовать цвета модального окна, а не быть жестко черными */
+/* Опции выпадающего списка select — наследуют цвета модального окна */
 .settings-modal-card select option,
 .puzzle-completed-modal select option,
 .puzzle-stats-modal select option {
-  background-color: var(--modal-bg, #0c0d12) !important;
-  color: var(--modal-text-color, var(--adaptive-text-main, #ffffff)) !important;
+  background-color: var(--modal-bg, #0c0d12);
+  color: var(--modal-text-color, var(--adaptive-text-main, #ffffff));
 }
 
 /* Улучшение видимости скроллбара в модалках */
@@ -1180,4 +1585,84 @@ body:not(.can-hover) .settings-modal-body::-webkit-scrollbar-thumb:active,
 body.can-hover .modal-tag-preview-grid::-webkit-scrollbar-thumb:hover,
 body:not(.can-hover) .modal-tag-preview-grid::-webkit-scrollbar-thumb:active {
   background: var(--accent);
+}
+
+/* ============================================================
+   ФУТУРИСТИЧНЫЙ СЛОЙ — ПОИСК И ТЕГИ
+   Энергетическое кольцо вокруг строки поиска при фокусе,
+   голографический блик по тегам, «заряд» при нажатии.
+   ============================================================ */
+
+@property --r34-ring {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* В фокусе по контуру строки бежит дуга света (белое ядро → акцент) */
+.r34-search-row:focus-within::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: 2;
+  padding: 1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--r34-ring),
+    transparent 0deg 294deg,
+    rgba(255, 255, 255, 0.9) 330deg,
+    var(--accent) 348deg,
+    transparent 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: r34RingSpin 3.4s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes r34RingSpin {
+  to { --r34-ring: 360deg; }
+}
+
+/* Кнопка поиска дополнительно «нагревается» в фокусе */
+.r34-search-row:focus-within .r34-search-arrow-btn {
+  box-shadow: 0 6px 22px rgba(var(--accent-rgb), 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+
+/* ── Теги: голографический блик ── */
+.tag {
+  position: relative;
+  overflow: hidden;
+}
+
+.tag::after {
+  content: '';
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: -40%;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  transform: translateX(-160%) skewX(-16deg);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.5s var(--ease), opacity 0.2s var(--ease);
+}
+
+body.can-hover .tag:hover::after,
+body:not(.can-hover) .tag:active::after {
+  opacity: 1;
+  transform: translateX(360%) skewX(-16deg);
+}
+
+/* Нажатие: короткий «заряд» — энергия расходится кольцом от чипа */
+.tag:active {
+  animation: tagCharge 0.4s var(--ease-out, ease-out);
+}
+
+@keyframes tagCharge {
+  0%   { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.5), 0 0 0 rgba(var(--accent-rgb), 0.35); }
+  100% { box-shadow: 0 0 0 9px rgba(var(--accent-rgb), 0), 0 0 20px rgba(var(--accent-rgb), 0.25); }
 }

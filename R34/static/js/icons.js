@@ -90,6 +90,14 @@ const PATHS = {
   info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
   flag: '<path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 8 2a6 6 0 0 0 3.6-1.2A1 1 0 0 1 21 3.6v10.8a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-3.6 1.2"/>',
   medal: '<path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><circle cx="12" cy="17" r="5"/><path d="M12 18v-2h-.5"/>',
+  trash: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
+  trashOpen: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/><path d="M5 9h14" opacity="0"/><path d="M5.5 2.5l2 1.5M18.5 2.5l-2 1.5" opacity="0"/>',
+  broom: '<path d="m7 2 13 13-2 2-13-13z"/><path d="M5 7 2 2l5 3 3 5z"/><path d="M17 12l2 2-3 3-2-2"/><path d="M20 3l-1 1M21 7l-1-1M18 2l-1 1"/>',
+  blur: '<circle cx="12" cy="12" r="10"/><path d="M12 2c2 4 2 16 0 20M12 2c-2 4-2 16 0 20"/>',
+  shadow: '<rect x="3" y="3" width="18" height="18" rx="3" opacity="0.45"/><rect x="5" y="5" width="18" height="18" rx="3"/>',
+  roundedCorner: '<rect x="3" y="3" width="18" height="18" rx="5"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  checkmark: '<polyline points="20 6 9 17 4 12"/>',
+  lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
 };
 
 export function icon(name, opts = {}) {

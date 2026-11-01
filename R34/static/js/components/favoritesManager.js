@@ -78,7 +78,7 @@ export class FavoritesManager {
             document.body.setAttribute('data-gallery-cols', savedCols);
             delete document.body.dataset.savedGalleryCols;
         } else {
-            const cols = localStorage.getItem('r34_columns') || '3';
+            const cols = localStorage.getItem('r34_gallery_cols') || '1';
             document.body.setAttribute('data-gallery-cols', cols);
         }
 

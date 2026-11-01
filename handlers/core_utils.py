@@ -79,6 +79,10 @@ TURSO_CONFIG_FILE = os.path.join(BASE_DIR, 'R34', '.secrets', 'turso_config.json
 # permanently purged (physically removed from both my_favorites.json and the
 # Turso 'favorites' table), instead of lingering forever as a hidden row.
 FAVORITES_PURGE_DAYS = 20
+# То же для пазлов: удалённая запись помечается is_deleted=1 и живёт ещё столько
+# дней, чтобы удаление успело доехать до других устройств (см. ту же логику у
+# избранного), после чего вычищается физически и из файла, и из Turso.
+PUZZLES_PURGE_DAYS = 20
 SAFE_SCREEN_DIR = os.path.join(BASE_DIR, 'safe_screen')
 os.makedirs(SAFE_SCREEN_DIR, exist_ok=True)
 
@@ -88,6 +92,38 @@ os.makedirs(SAFE_SCREEN_DIR, exist_ok=True)
 GAME_DATA_DIR = os.path.join(BASE_DIR, 'game_data')
 os.makedirs(GAME_DATA_DIR, exist_ok=True)
 CHARACTER_FRANCHISE_CACHE_FILE = os.path.join(GAME_DATA_DIR, 'character_franchise_cache.json')
+
+# Режим сетевого доступа. Выбирается один раз при запуске server.py (флаг
+# --mode или вопрос в консоли) и дальше только читается.
+#
+#   'local' — сервер слушает ТОЛЬКО 127.0.0.1. Достучаться до него может лишь
+#             программа на этой же машине, а CORS пускает только localhost.
+#             Чужой сайт, открытый в браузере, до API не допрыгнется.
+#   'lan'   — сервер слушает 0.0.0.0 и дополнительно пускает частные сети
+#             (см. is_allowed_origin). Нужен, когда галерею открывают с
+#             телефона по адресу вида 192.168.x.x:3000.
+#
+# Режим влияет на две вещи сразу: на какой адрес биндится Flask и каким
+# Origin'ам выдаётся Access-Control-Allow-Origin с credentials. Держать это
+# в одном переключателе важно: разнести их по разным местам — верный способ
+# однажды получить сервер на 127.0.0.1 с CORS, пускающим всю локальную сеть.
+NETWORK_MODE = 'lan'
+NETWORK_MODE_LOCAL = 'local'
+NETWORK_MODE_LAN = 'lan'
+
+
+def set_network_mode(mode):
+    """Задаёт режим доступа. Любое значение кроме 'local' считается 'lan' —
+    так поведение по умолчанию остаётся прежним (сервер доступен в сети)."""
+    global NETWORK_MODE
+    normalized = (mode or '').strip().lower()
+    NETWORK_MODE = NETWORK_MODE_LOCAL if normalized == NETWORK_MODE_LOCAL else NETWORK_MODE_LAN
+    return NETWORK_MODE
+
+
+def get_network_mode():
+    return NETWORK_MODE
+
 
 # Locks
 CACHE_LOCK = threading.RLock()
@@ -135,7 +171,18 @@ def is_allowed_origin(origin):
     host = (parsed.hostname or '').lower()
     if not host:
         return False
-    
+
+    # Локальный адрес пускается всегда: это тот самый случай, когда галерею
+    # открыли на этой же машине.
+    is_local_host = host in {'localhost', '127.0.0.1', '::1'} or host.endswith('.localhost')
+
+    # В режиме 'local' дальше не идём: сервер слушает только 127.0.0.1, и
+    # страница, открытая на другом устройстве, до него всё равно не дотянется.
+    # Пускать её по CORS здесь значило бы разрешить чужому сайту, открытому на
+    # этой же машине, читать API с credentials.
+    if NETWORK_MODE == NETWORK_MODE_LOCAL:
+        return is_local_host
+
     # Check for private LAN IP ranges (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
     is_lan_ip = False
     if host.startswith('192.168.') or host.startswith('10.'):
@@ -145,8 +192,7 @@ def is_allowed_origin(origin):
         if len(parts) == 4 and parts[1].isdigit():
             is_lan_ip = 16 <= int(parts[1]) <= 31
 
-    return (host in {'localhost', '127.0.0.1'} or
-            host.endswith('.localhost') or
+    return (is_local_host or
             host.endswith('.run.app') or
             host == 'google.com' or host.endswith('.google.com') or
             host == 'aistudio.google.com' or host.endswith('.aistudio.google.com') or
@@ -233,31 +279,47 @@ def get_saved_api_key():
 
 @with_file_lock
 def save_api_creds(user_id, api_key):
+    """Сохраняет креды, зашифровав api_key.
+
+    Пишем через временный файл и os.replace: если процесс упадёт или питание
+    пропадёт посреди записи, на диске останется либо старый полный файл, либо
+    новый полный — но не обрезанный JSON, из которого креды уже не прочитать.
+
+    Раньше здесь после ошибки записи шёл ВТОРОЙ такой же блок записи (просто
+    продублированный), а за ним второй `except` — синтаксически недостижимый.
+    Повторять ровно ту же операцию, которая только что упала, смысла нет:
+    если диск недоступен или нет прав, второй заход упадёт так же. Поэтому
+    ошибка теперь просто логируется и возвращается False — вызывающий код
+    (auth_routes) по False поймёт, что креды не сохранены.
+    """
+    tmp_path = API_KEY_FILE + '.tmp'
     try:
         os.makedirs(os.path.dirname(API_KEY_FILE), exist_ok=True)
         key = get_encryption_key()
-        encrypted_api_key = aes_encrypt(key, api_key)
         creds_data = {
             'user_id': user_id,
-            'encrypted_api_key': encrypted_api_key
+            'encrypted_api_key': aes_encrypt(key, api_key)
         }
-        with open(API_KEY_FILE, 'w', encoding='utf-8') as f:
+        with open(tmp_path, 'w', encoding='utf-8') as f:
             json.dump(creds_data, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, API_KEY_FILE)
         try:
             os.chmod(API_KEY_FILE, 0o600)
         except Exception:
+            # На Windows chmod меняет только read-only-флаг, реальных прав
+            # файл этим не получает. Не критично: креды и так зашифрованы.
             pass
+        return True
     except Exception as e:
         print('Error saving API creds:', e)
-        
-        with open(API_KEY_FILE, 'w', encoding='utf-8') as f:
-            json.dump(creds_data, f, ensure_ascii=False, indent=2)
         try:
-            os.chmod(API_KEY_FILE, 0o600)
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
         except Exception:
             pass
-    except Exception as e:
-        print('Error saving API creds:', e)
+        return False
 
 @with_file_lock
 def clear_creds():
@@ -615,8 +677,16 @@ def load_puzzle_completed():
                 if content:
                     data = json.loads(content)
                     if isinstance(data, list):
-                        if data and isinstance(data[0], dict) and 'postId' in data[0]:
-                            return data
+                        if not data:
+                            return []
+                        if isinstance(data[0], dict) and 'postId' in data[0]:
+                            # Оптимизированный формат. Заодно подчищаем
+                            # томбстоны, которым уже пора уйти насовсем.
+                            purged, changed = purge_old_deleted_puzzles(data)
+                            if changed:
+                                print(f'[Puzzles Purge] Removed {len(data) - len(purged)} tombstoned puzzle(s) older than {PUZZLES_PURGE_DAYS} days (local)')
+                                save_puzzle_completed_optimized(purged)
+                            return purged
                         print('Converting old puzzle format to new optimized format...')
                         return convert_puzzles_to_optimized(data)
         else:
@@ -647,7 +717,14 @@ def optimize_puzzles(puzzles):
                     'width': int(width) if str(width).isdigit() else 1000,
                     'height': int(height) if str(height).isdigit() else 1000,
                     'variants': puzzle.get('variants', []),
-                    'lastUpdated': puzzle.get('lastUpdated', '')
+                    'lastUpdated': puzzle.get('lastUpdated', ''),
+                    # Томбстоун удаления: is_deleted=1 помечает пазл как удалённый,
+                    # change — когда это случилось (мс). См. пояснение к
+                    # FAVORITES_PURGE_DAYS: запись живёт ещё PUZZLES_PURGE_DAYS
+                    # дней, чтобы удаление доехало до других устройств, а потом
+                    # вычищается физически (purge_old_deleted_puzzles).
+                    'is_deleted': puzzle.get('is_deleted', 0),
+                    'change': puzzle.get('change', 0)
                 })
     return optimized
 
@@ -656,6 +733,25 @@ def convert_puzzles_to_optimized(old_puzzles):
     optimized = optimize_puzzles(old_puzzles)
     save_puzzle_completed_optimized(optimized)
     return optimized
+
+
+def purge_old_deleted_puzzles(puzzles, days=PUZZLES_PURGE_DAYS):
+    """Физически выбрасывает томбстон-пазлы (is_deleted=1), чей change старше
+    `days` дней. Это финальный шаг жизненного цикла удаления — ровно как
+    purge_old_deleted_favorites для избранного.
+
+    Трогает только записи, уже помеченные is_deleted=1; живой пазл тут не
+    удалится, сколько бы он ни лежал. Возвращает (оставшееся, было_изменение).
+    """
+    if not puzzles:
+        return puzzles, False
+    cutoff = int(time.time() * 1000) - days * 24 * 60 * 60 * 1000
+    kept = [
+        p for p in puzzles
+        if not (isinstance(p, dict) and p.get('is_deleted', 0) == 1 and p.get('change', 0) < cutoff)
+    ]
+    return kept, len(kept) != len(puzzles)
+
 
 @with_file_lock
 def save_puzzle_completed_optimized(puzzles):
@@ -774,6 +870,9 @@ def enrich_puzzles_with_post_data(optimized_puzzles):
     for puzzle in optimized_puzzles:
         if not isinstance(puzzle, dict):
             continue
+        # Удалённые не тянем: картинка им больше не нужна.
+        if puzzle.get('is_deleted', 0) == 1:
+            continue
         post_id, image_url, _, _ = _puzzle_source_fields(puzzle)
         if post_id and not image_url:
             need_ids.append(str(post_id))
@@ -782,10 +881,17 @@ def enrich_puzzles_with_post_data(optimized_puzzles):
     enriched = []
     for puzzle in optimized_puzzles:
         if isinstance(puzzle, dict):
+            # Томбстон переживает enrichment как есть — картинку для него
+            # не добираем, но и не теряем флаг удаления.
+            if puzzle.get('is_deleted', 0) == 1:
+                enriched.append(puzzle)
+                continue
             post_id, image_url, width, height = _puzzle_source_fields(puzzle)
             if not post_id:
                 continue
 
+            # Не тянуть API за картинкой удалённого пазла уже обработано выше,
+            # но добирать её для ЖИВОГО пазла по-прежнему надо.
             if not image_url:
                 post_data = posts_by_id.get(str(post_id))
                 if post_data:
@@ -818,7 +924,12 @@ def enrich_puzzles_with_post_data(optimized_puzzles):
                 'height': height,
                 'post': minimal_post,
                 'variants': puzzle.get('variants', []),
-                'lastUpdated': puzzle.get('lastUpdated', '')
+                'lastUpdated': puzzle.get('lastUpdated', ''),
+                # Томбстон должен пережить enrichment-раундтрип, иначе удаление
+                # (is_deleted=1) потеряется на пути файл -> /api/puzzle-completed
+                # -> клиент и пазл «воскреснет».
+                'is_deleted': puzzle.get('is_deleted', 0),
+                'change': puzzle.get('change', 0)
             })
         else:
             enriched.append(puzzle)
@@ -881,7 +992,7 @@ def save_turso_favorites(favorites):
     return turso_handler.save_turso_favorites(favorites, session, load_settings, load_turso_config)
 
 def get_turso_puzzles():
-    return turso_handler.get_turso_puzzles(session, load_settings, load_turso_config)
+    return turso_handler.get_turso_puzzles(session, load_settings, load_turso_config, purge_days=PUZZLES_PURGE_DAYS)
 
 def save_turso_puzzles(puzzles):
     return turso_handler.save_turso_puzzles(puzzles, session, load_settings, load_turso_config)

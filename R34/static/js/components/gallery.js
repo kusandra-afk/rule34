@@ -72,11 +72,23 @@ export class Gallery {
     }
 
     isLowPowerMode() {
+        // Источник истины — флаг в памяти: его ставит updateLowPowerMode()
+        // ДО перерисовки. Раньше проверка шла только в localStorage, и если
+        // переключатель менял флаг раньше записи в хранилище (или режим
+        // включали из кода), свежий рендер строился по старому состоянию —
+        // карточки оставались с маркером режима и без reveal-анимации.
+        if (typeof this._lowPowerMode === 'boolean') return this._lowPowerMode;
         return localStorage.getItem('r34_low_power_mode') === 'true';
     }
 
     updateLowPowerMode(enabled) {
         this._lowPowerMode = enabled;
+        // Класс ставим сразу — до перерисовки ленты: так тяжёлые эффекты
+        // (blur, анимации) гаснут уже к первому кадру нового рендера,
+        // а не после него.
+        document.body.classList.toggle('r34-low-power-mode', !!enabled);
+        // Заглушки старого режима не должны остаться с чужими зазорами.
+        this._virtualTransitionAt.clear();
         this.refreshCurrentView();
     }
 
@@ -220,6 +232,13 @@ export class Gallery {
 
     getObserverRootMargin() {
         const isMobile = window.innerWidth < 900 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+        // Режим слабых устройств: запас предзагрузки не масштабируется настройкой.
+        // На «страницу» он тянет 1200px карточек вперёд — на слабом телефоне это
+        // десятки декодированных картинок и видео в памяти одновременно. Тут
+        // грузим только то, что вот-вот покажется.
+        if (this.isLowPowerMode()) {
+            return isMobile ? '120px' : '220px';
+        }
         if (this.preloadMode === 'page') {
             return isMobile ? '700px' : '1200px';
         }
@@ -309,7 +328,7 @@ export class Gallery {
             const cols = this.getDisplayedColumns();
             const currentCols = this.resultsDiv.style.getPropertyValue('--gallery-cols');
             if (currentCols !== `${cols}`) {
-                this.resultsDiv.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+                this.resultsDiv.style.gridTemplateColumns = cols === 1 ? '1fr' : `repeat(${cols}, minmax(0, 1fr))`;
                 this.resultsDiv.style.setProperty('--gallery-cols', `${cols}`);
                 // Set attribute on body for CSS targeting
                 document.body.setAttribute('data-gallery-cols', cols);
@@ -469,10 +488,21 @@ export class Gallery {
             this._playbackObserver = null;
             if (this._virtualObserver) this._virtualObserver.disconnect();
             this._virtualObserver = null;
+            if (this._revealObserver) this._revealObserver.disconnect();
+            this._revealObserver = null;
             // Set dynamic columns on initial render with responsive limitations
             this.applyColumnsStyle();
         }
         if (!this.observer) {
+            // Scroll-reveal карточек: отдельный наблюдатель с «узким» rootMargin.
+            // У this.observer запас большой (грузит медиа заранее) — для reveal
+            // нужен момент, когда карточка реально входит в экран.
+            this._revealObserver = new window.IntersectionObserver(this._handleReveal.bind(this), {
+                root: null,
+                rootMargin: '0px 0px -30px 0px',
+                threshold: 0.12
+            });
+
             this.observer = new window.IntersectionObserver(this.handleIntersection.bind(this), {
                 root: null,
                 rootMargin: this.getObserverRootMargin(),
@@ -489,17 +519,33 @@ export class Gallery {
             // Отступ намного больше, чем у this.observer — карточка сначала
             // выгружает медиа (уже существующая логика), и только когда она
             // уедет ЕЩЁ дальше, целиком подменяется на лёгкую заглушку.
+            // В режиме слабых устройств карточки сворачиваются в заглушки
+            // раньше: живых карточек в DOM заметно меньше, а значит меньше
+            // декодированных медиа и composited-слоёв.
             this._virtualObserver = new window.IntersectionObserver(this.handleVirtualIntersection.bind(this), {
                 root: null,
-                rootMargin: '4000px 0px 4000px 0px',
+                rootMargin: this.isLowPowerMode() ? '1500px 0px 1500px 0px' : '4000px 0px 4000px 0px',
                 threshold: 0
             });
         }
         
         const fragment = document.createDocumentFragment();
+        // Карточки копим и подключаем к наблюдателям ПОСЛЕ вставки в DOM:
+        // иначе первый entry IntersectionObserver приходит, пока элемент ещё
+        // в <fragment> (геометрия 0×0, «не пересекается») — из-за этого
+        // виртуализация ошибочно подменяла видимые карточки заглушкой,
+        // а scroll-reveal не срабатывал.
+        const observeTargets = [];
         const posts = this.currentPosts.slice(offset);
         const lowPowerMode = this.isLowPowerMode();
-        const initialLimit = this.loadLimitEnabled ? (append ? 100 : 150) : Infinity;
+        // «Ограничить число карточек за раз»: за один проход рендерится не больше
+        // 100 карточек. Это ровно максимум, который отдаёт API Rule34 за один
+        // запрос (см. apiSettings.js), поэтому при первичной загрузке и догрузке
+        // ограничение совпадает с размером одной страницы. Реальный эффект оно
+        // даёт на полной перерисовке накопленной ленты (например, refreshCurrentView
+        // при смене темы): без лимита все накопившиеся за прокрутку посты рисуются
+        // разом, с лимитом — только первые 100, остальное подтягивается дальше.
+        const initialLimit = this.loadLimitEnabled ? 100 : Infinity;
         const postsToRender = lowPowerMode && !append ? posts.slice(0, 24) : posts.slice(0, initialLimit);
         postsToRender.forEach((post, idx) => {
             const index = offset + idx;
@@ -522,20 +568,72 @@ export class Gallery {
                 }
                 fragment.appendChild(extraInfo);
             }
-            this.observer.observe(container);
-
-            // Also observe for playback control
-            if (this._playbackObserver) {
-                this._playbackObserver.observe(container);
+            // Scroll-reveal: прячем до появления; подключение к наблюдателю — ниже,
+            // после вставки фрагмента в DOM.
+            // В режиме слабых устройств появление не анимируем вообще: лишний
+            // IntersectionObserver-колбэк на каждую карточку и лишний кадр
+            // «скрыто → видимо» там, где анимация всё равно отключена.
+            if (this._revealObserver && !lowPowerMode) {
+                container.classList.add('card-reveal');
             }
-            if (this._virtualObserver) {
-                this._virtualObserver.observe(container);
-            }
+            observeTargets.push(container);
         });
         if (this.resultsDiv) {
             this.resultsDiv.appendChild(fragment);
         }
+        // Подключаем наблюдатели уже к вставленным (разложенным) карточкам —
+        // первый entry теперь отражает реальный лэйаут. Видимая часть сетки
+        // выезжает сразу со стаггером, остальные — при долистывании (scroll-reveal).
+        observeTargets.forEach(container => {
+            this.observer.observe(container);
+            if (this._playbackObserver) this._playbackObserver.observe(container);
+            if (this._virtualObserver) this._virtualObserver.observe(container);
+            if (this._revealObserver) this._revealObserver.observe(container);
+        });
         this.updateDeveloperPanel();
+    }
+
+    // Scroll-reveal: карточки, вошедшие во вьюпорт одним кадром, выезжают
+    // каскадом (стаггер до 8 штук по 55мс). Одиночная карточка при долистывании
+    // выезжает сразу (без задержки). Вызывается только при наличии наблюдателя.
+    _handleReveal(entries) {
+        if (!this._revealObserver) return;
+        let i = 0;
+        for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            const el = entry.target;
+            el.style.setProperty('--reveal-delay', (Math.min(i, 7) * 55) + 'ms');
+            el.classList.add('card-revealed');
+            this._scheduleRevealFinish(el);
+            this._revealObserver.unobserve(el);
+            i++;
+        }
+    }
+
+    /* Снимает reveal-классы после того, как анимация появления отыграла.
+       Пока .card-revealed висит на карточке, правило hover
+       (`animation: var(--hover-animation, none)`) его выключает, а при уходе
+       курсора/пальца анимация cardReveal ЗАПУСКАЕТСЯ ЗАНОВО с нулевого кадра —
+       карточка дёргается при каждом наведении и нажатии. Как только классы
+       сняты (base-состояние карточки само видимое), hover нечего отменять. */
+    _scheduleRevealFinish(el) {
+        let done = false;
+        let timer = null;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            el.removeEventListener('animationend', onEnd);
+            el.classList.remove('card-revealed', 'card-reveal');
+        };
+        const onEnd = (e) => {
+            if (e.target === el && e.animationName === 'cardReveal') finish();
+        };
+        el.addEventListener('animationend', onEnd);
+        // Страховка: при prefers-reduced-motion анимации нет (animationend не
+        // придёт), и на случай прерванной анимации — снимаем по таймеру.
+        const delay = parseInt(el.style.getPropertyValue('--reveal-delay'), 10) || 0;
+        timer = setTimeout(finish, delay + 720);
     }
 
     handleIntersection(entries) {
@@ -692,6 +790,15 @@ export class Gallery {
         if (!post) return;
 
         const container = this.createCard(post, idx);
+        // Гидратация происходит далеко за пределами экрана (у виртуализации
+        // rootMargin в 4000px), но карточка создаётся «с нуля» — reveal-класса
+        // у неё нет. После первого же круга «свернул в заглушку → развернул»
+        // появление переставало анимироваться: карточка уже видима, а reveal
+        // для неё больше никогда не срабатывает. Возвращаем тот же цикл, что
+        // и в renderGallery: скрыта → ждёт пересечения с экраном → выезжает.
+        // Наблюдатель снимает класс сам (см. _handleReveal / _scheduleRevealFinish).
+        const lowPowerMode = this.isLowPowerMode();
+        if (this._revealObserver && !lowPowerMode) container.classList.add('card-reveal');
         placeholder.replaceWith(container);
 
         if (this._virtualObserver) {
@@ -700,6 +807,7 @@ export class Gallery {
         }
         if (this.observer) this.observer.observe(container);
         if (this._playbackObserver) this._playbackObserver.observe(container);
+        if (this._revealObserver) this._revealObserver.observe(container);
     }
 
     // Высота заглушек считалась при текущей раскладке (ширине окна,
@@ -965,6 +1073,12 @@ export class Gallery {
     // синхронно с анимацией, а не прыгали на место только в конце.
     _animateHideInfoBlock(el) {
         if (!el || el.hidden) return;
+        // Если блок ещё открывается — останавливаем рост на текущей высоте
+        if (el._openTimer) {
+            clearTimeout(el._openTimer);
+            el._openTimer = null;
+        }
+        el.classList.remove('is-opening');
         if (el._closeTimer) {
             clearTimeout(el._closeTimer);
             el._closeTimer = null;
@@ -973,6 +1087,9 @@ export class Gallery {
         el.style.height = startHeight + 'px';
         el.style.overflow = 'hidden';
         el.classList.add('is-closing');
+        // Сдвиг открытия доезжает до нуля вместе со схлопыванием, а не
+        // обрывается (transform входит в transition у .is-closing)
+        el.style.transform = '';
         void el.offsetHeight; // форсируем reflow, чтобы стартовая высота зафиксировалась до перехода
         el.style.height = '0px';
         el.style.marginTop = '0px';
@@ -990,12 +1107,104 @@ export class Gallery {
             el.style.paddingTop = '';
             el.style.paddingBottom = '';
             el.style.opacity = '';
+            el.style.transform = '';
             el._closeTimer = null;
         };
         el.addEventListener('transitionend', (e) => {
             if (e.target === el && e.propertyName === 'height') finish();
         }, { once: true });
         el._closeTimer = setTimeout(finish, 400);
+    }
+
+    /* Ставит инфо-блок в «нулевое» состояние сразу после показа
+       (hidden = false): высота/отступы/прозрачность — ноль, сдвиг — чуть
+       выше. Блок уже в DOM, но не мелькает в полный размер до старта
+       анимации (в том числе пока готовится содержимое — categorizeTagsForCard).
+       Переходы здесь НЕ включаются — только инлайн-старт. */
+    _beginShowInfoBlock(el) {
+        if (!el) return;
+        if (el._openTimer) {
+            clearTimeout(el._openTimer);
+            el._openTimer = null;
+        }
+        if (el._closeTimer) {
+            clearTimeout(el._closeTimer);
+            el._closeTimer = null;
+        }
+        el.classList.remove('is-opening', 'is-closing');
+        el.style.overflow = 'hidden';
+        el.style.height = '0px';
+        el.style.marginTop = '0px';
+        el.style.marginBottom = '0px';
+        el.style.paddingTop = '0px';
+        el.style.paddingBottom = '0px';
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(-10px)';
+    }
+
+    /* Плавное открытие: замеряем естественную высоту (сняв стартовые
+       инлайн-значения — в одном кадре, без перерисовки) и плавно доводим
+       высоту/отступы/сдвиг/прозрачность до финальных. Панель «вырастает»
+       из-под карточки, соседние карточки уезжают вниз без рывка.
+       Пара к этому — _animateHideInfoBlock (зеркальное закрытие). */
+    _animateShowInfoBlock(el) {
+        if (!el) return;
+        if (el._openTimer) {
+            clearTimeout(el._openTimer);
+            el._openTimer = null;
+        }
+        el.style.height = '';
+        el.style.marginTop = '';
+        el.style.marginBottom = '';
+        el.style.paddingTop = '';
+        el.style.paddingBottom = '';
+        el.style.opacity = '';
+        el.style.transform = '';
+        const fullHeight = el.offsetHeight; // естественная высота (box-sizing: border-box → с отступами)
+        const cs = window.getComputedStyle(el);
+        const marginTop = cs.marginTop;
+        const marginBottom = cs.marginBottom;
+        const paddingTop = cs.paddingTop;
+        const paddingBottom = cs.paddingBottom;
+
+        el.style.height = '0px';
+        el.style.marginTop = '0px';
+        el.style.marginBottom = '0px';
+        el.style.paddingTop = '0px';
+        el.style.paddingBottom = '0px';
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(-10px)';
+        void el.offsetHeight; // фиксируем стартовый кадр до включения перехода
+        el.classList.add('is-opening');
+        el.style.height = fullHeight + 'px';
+        el.style.marginTop = marginTop;
+        el.style.marginBottom = marginBottom;
+        el.style.paddingTop = paddingTop;
+        el.style.paddingBottom = paddingBottom;
+        el.style.opacity = '1';
+        el.style.transform = 'translateY(0)';
+
+        const finish = () => {
+            clearTimeout(el._openTimer);
+            el._openTimer = null;
+            el.removeEventListener('transitionend', onEnd);
+            el.classList.remove('is-opening');
+            el.style.height = '';
+            el.style.overflow = '';
+            el.style.marginTop = '';
+            el.style.marginBottom = '';
+            el.style.paddingTop = '';
+            el.style.paddingBottom = '';
+            el.style.opacity = '';
+            el.style.transform = '';
+        };
+        const onEnd = (e) => {
+            if (e.target === el && e.propertyName === 'height') finish();
+        };
+        el.addEventListener('transitionend', onEnd);
+        // Страховка: при prefers-reduced-motion / низкой мощности перехода нет
+        // (transitionend не придёт) — снимаем инлайн-состояние по таймеру
+        el._openTimer = setTimeout(finish, 500);
     }
 
     // Отменяет анимацию скрытия (если блок открывают заново, пока он ещё закрывается)
@@ -1013,6 +1222,7 @@ export class Gallery {
         el.style.paddingTop = '';
         el.style.paddingBottom = '';
         el.style.opacity = '';
+        el.style.transform = '';
     }
 
     async toggleExtraInfo(index, targetContainer) {
@@ -1069,16 +1279,23 @@ export class Gallery {
             if (targetInfo) {
                 this._cancelHideInfoBlock(targetInfo);
                 targetInfo.hidden = false;
+                this._beginShowInfoBlock(targetInfo);
             }
             if (targetSourceBlock) {
                 this._cancelHideInfoBlock(targetSourceBlock);
                 targetSourceBlock.hidden = false;
+                this._beginShowInfoBlock(targetSourceBlock);
             }
             this.openedInfoIndex = index;
             
             if (targetInfo && targetInfo.dataset.categorized !== "1") {
                 await this.categorizeTagsForCard(targetInfo, index);
             }
+            // Раскрытие — ПОСЛЕ подготовки содержимого, чтобы высота
+            // считалась по финальной вёрстке и панель не подстраивалась
+            // второй раз посреди анимации.
+            this._animateShowInfoBlock(targetInfo);
+            this._animateShowInfoBlock(targetSourceBlock);
         }
     }
 

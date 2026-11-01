@@ -1,6 +1,132 @@
 import { fetchPuzzleCompleted, savePuzzleCompleted, fetchPostById } from '../api.js';
 
 export class PuzzleStorage {
+    // Единственная формула «сколько деталей в варианте». Была продублирована в
+    // puzzleUI.js (строки 171 и 266) — теперь все считают через неё.
+    static getVariantPieces(variant) {
+        if (!variant || typeof variant !== 'object') return 0;
+        if (variant.targetPieces) return variant.targetPieces;
+        if (variant.cols && variant.rows) return variant.cols * variant.rows;
+        if (variant.size) return variant.size * variant.size;
+        return 0;
+    }
+
+    // Сколько деталей у варианта по размеру сетки (для подписи "N×M").
+    static getVariantGrid(variant) {
+        if (!variant || typeof variant !== 'object') return { cols: 0, rows: 0 };
+        const cols = variant.cols || variant.size || 0;
+        const rows = variant.rows || variant.size || 0;
+        return { cols, rows };
+    }
+
+    // Безопасное чтение lastUpdated: битая/пустая дата не должна ронять
+    // отрисовку всей библиотеки.
+    static getPuzzleDate(puzzle) {
+        const raw = puzzle?.lastUpdated;
+        if (!raw) return null;
+        const d = new Date(raw);
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    // Удаление пазла: сервер помечает is_deleted=1 (tombstone), физически
+    // запись стирается только через PUZZLES_PURGE_DAYS. UI просто убирает
+    // карточку из активного списка. Возвращает новый активный список.
+    static async deletePuzzle(puzzle, completedPuzzles) {
+        const pid = String(puzzle?.postId || puzzle?.id || puzzle?.post?.id || '');
+        if (!pid) {
+            console.warn('[Puzzle Library] deletePuzzle: no post id');
+            return completedPuzzles;
+        }
+        const next = (completedPuzzles || []).filter(p =>
+            String(p.postId || p.id || p.post?.id) !== pid
+        );
+        await PuzzleStorage._postAction('delete', pid);
+        return next;
+    }
+
+    // Восстановление из «корзины»: снимает is_deleted. Возвращает свежий список
+    // активных пазлов, перечитанный с сервера.
+    static async restorePuzzle(puzzle) {
+        const pid = String(puzzle?.postId || puzzle?.id || puzzle?.post?.id || '');
+        if (!pid) return null;
+        await PuzzleStorage._postAction('restore', pid);
+        return PuzzleStorage.fetchActive();
+    }
+
+    // Общий POST-хелпер для delete/restore.
+    static async _postAction(action, postId) {
+        try {
+            await fetch('/api/puzzle-completed', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, postId })
+            });
+        } catch (e) {
+            console.error(`[Puzzle Library] failed to ${action} on server:`, e);
+        }
+    }
+
+    // Перечитывает активные пазлы с сервера (после restore/clear).
+    static async fetchActive() {
+        try {
+            const data = await fetchPuzzleCompleted();
+            return Array.isArray(data) ? data.filter(p => !p.is_deleted) : [];
+        } catch (e) {
+            console.error('[Puzzle Library] fetchActive failed:', e);
+            return [];
+        }
+    }
+
+    // Достаёт «корзину»: удалённые, но ещё не вычищенные пазлы.
+    static async fetchTrash() {
+        try {
+            const resp = await fetch('/api/puzzle-completed?includeDeleted=1');
+            if (!resp.ok) return [];
+            const data = await resp.json();
+            const list = Array.isArray(data.puzzles) ? data.puzzles : [];
+            return list.filter(p => p.is_deleted);
+        } catch (e) {
+            console.error('[Puzzle Library] fetchTrash failed:', e);
+            return [];
+        }
+    }
+
+    // Сводная статистика библиотеки: суммы по всем вариантам всех пазлов.
+    static summarize(puzzles) {
+        const list = Array.isArray(puzzles) ? puzzles : [];
+        let totalTime = 0;
+        let totalMoves = 0;
+        let totalVariants = 0;
+        let bestTime = Infinity;
+        let bestTimeMoves = 0;
+
+        for (const p of list) {
+            const variants = Array.isArray(p.variants) ? p.variants : [];
+            totalVariants += variants.length;
+            for (const v of variants) {
+                const t = Number(v.time);
+                const m = Number(v.moves);
+                if (isFinite(t) && t >= 0) {
+                    totalTime += t;
+                    if (t < bestTime) {
+                        bestTime = t;
+                        bestTimeMoves = isFinite(m) ? m : 0;
+                    }
+                }
+                if (isFinite(m) && m >= 0) totalMoves += m;
+            }
+        }
+
+        return {
+            total: list.length,
+            totalVariants,
+            totalTime,
+            totalMoves,
+            bestTime: isFinite(bestTime) ? bestTime : null,
+            bestTimeMoves
+        };
+    }
+
     static getStableImageUrl(puzzleGame) {
         const post = puzzleGame.post;
         if (!post) return puzzleGame.imgUrl || puzzleGame.displayUrl || '';
@@ -128,10 +254,6 @@ export class PuzzleStorage {
             puzzleEntry.variants.push(puzzleRecord);
         }
         puzzleEntry.lastUpdated = new Date().toISOString();
-        if (completedPuzzles.length > 100) {
-            completedPuzzles.sort((a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated));
-            completedPuzzles.splice(100);
-        }
         await savePuzzleCompleted(completedPuzzles);
     }
 

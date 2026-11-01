@@ -16,6 +16,106 @@ import { recalculateAllAdaptiveText } from '../components/expertStylesEditor.js'
 
 let isApplyingTheme = false;
 
+function parseRgbList(colorStr) {
+    if (!colorStr) return null;
+    const str = String(colorStr).trim();
+    if (str.startsWith('#')) {
+        let hex = str.slice(1);
+        if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+        if (hex.length !== 6) return null;
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        return [r, g, b].some(n => Number.isNaN(n)) ? null : [r, g, b];
+    }
+    const m = str.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+}
+
+// Смешиваем базовый цвет поверхности с акцентом — получаем тон,
+// который «принадлежит» выбранному акценту, а не нейтральный серый.
+function mixRgb(colorStr, accentRgb, amount) {
+    const base = parseRgbList(colorStr);
+    if (!base || !accentRgb) return colorStr;
+    const out = base.map((c, i) => Math.round(c + (accentRgb[i] - c) * amount));
+    return `rgb(${out.join(', ')})`;
+}
+
+/**
+ * Акцентная тройка. Раньше эти переменные могли независимо переопределяться
+ * из редактора стилей (режим разработчика) и побеждали выбор цвета в
+ * настройках — из-за этого «смена акцента» почти ничего не меняла.
+ * Теперь источник правды один: r34_theme_accent, а alt/glow всегда выводятся
+ * из него.
+ */
+export const ACCENT_KEYS = ['--accent', '--accent-alt', '--accent-glow'];
+
+// Старые сборки писали акцент в r34_expert_--accent. Чтобы такая настройка
+// не потерялась молча, перенимаем её как основной акцент.
+// Проверка идёт по фактическому состоянию localStorage, а не по флагу модуля:
+// настройки могут приехать с сервера уже после первого применения темы.
+function migrateLegacyAccentOverride() {
+    if (localStorage.getItem('r34_theme_migrated_v2') === 'true') return;
+    localStorage.setItem('r34_theme_migrated_v2', 'true');
+    // Старые пресеты из редактора стилей писали фон и цвет текста в экспертные
+    // переменные, и они навсегда перекрывали тему (выбираешь новый акцент —
+    // полотно остаётся изумрудным). Переносим фон в общую настройку.
+    const legacyBg = localStorage.getItem('r34_expert_--body-bg');
+    if (legacyBg) {
+        localStorage.setItem('r34_theme_bg', legacyBg);
+        ['--body-bg', '--dark', '--light'].forEach(k => localStorage.removeItem('r34_expert_' + k));
+    }
+
+    const legacy = localStorage.getItem('r34_expert_--accent');
+    if (!legacy) return;
+    const val = legacy.trim();
+    if (/^#([0-9a-f]{3}){1,2}$/i.test(val)) {
+        localStorage.setItem('r34_theme_accent', val);
+    }
+    // Парные значения того же акцента теперь выводятся из него самого —
+    // иначе старый пресет продолжал бы «подкрашивать» градиент и свечение.
+    ACCENT_KEYS.forEach(k => localStorage.removeItem('r34_expert_' + k));
+}
+
+/**
+ * Единственная точка смены акцентного цвета — для настроек, пикера,
+ * ручного ввода и пресетов в режиме разработчика.
+ */
+export function setAccent(value) {
+    if (typeof value !== 'string' || !value.trim()) return;
+    const val = value.trim();
+    localStorage.setItem('r34_theme_accent', val);
+    ACCENT_KEYS.forEach(k => localStorage.removeItem('r34_expert_' + k));
+
+    // Готовый пресет меняет акцент ВМЕСТЕ с фоном — и обычный выбор цвета
+    // теперь делает то же самое: базовые темы пересобираются от акцента.
+    // Собственный фон пользователя (картинка/градиент/цвет) не трогаем.
+    const currentBg = localStorage.getItem('r34_theme_bg') || 'auto';
+    if (bgPresets[currentBg] && !currentBg.startsWith('#')) {
+        localStorage.setItem('r34_theme_bg', 'auto');
+    }
+
+    applyThemeSettings();
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('r34:accent-changed', { detail: { accent: val } }));
+    }
+}
+
+/**
+ * Смена темы фона из любого места (в т.ч. пресетов в редакторе стилей).
+ * Отдельная функция нужна, чтобы подписанные на событие поля настроек
+ * не показывали устаревшее значение.
+ */
+export function setBackground(value) {
+    if (typeof value !== 'string' || !value.trim()) return;
+    const val = value.trim();
+    localStorage.setItem('r34_theme_bg', val);
+    applyThemeSettings();
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('r34:bg-changed', { detail: { bg: val } }));
+    }
+}
+
 export function applyAdaptiveText(varName, activeVal) {
     if (isApplyingTheme) {
         if (typeof recalculateAllAdaptiveText === 'function') {
@@ -32,6 +132,8 @@ export function applyAdaptiveText(varName, activeVal) {
 }
 
 export function applyThemeSettings() {
+    migrateLegacyAccentOverride();
+
     // Accent Color
     const activeColor = localStorage.getItem('r34_theme_accent') || 'pink';
     const glowIntensity = parseInt(localStorage.getItem('r34_card_glow_intensity') || '45', 10);
@@ -43,36 +145,54 @@ export function applyThemeSettings() {
             glow: getAccentGlow(activeColor, glowIntensity)
         };
     } else {
+        // Свечение считаем от самого цвета пресета. Раньше для него был
+        // отдельный список с несуществующими ключами (violet/blue/emerald),
+        // поэтому cyan, green, purple и gold светились розовым.
         preset = Object.assign({}, colorPresets[activeColor] || colorPresets.pink);
-        const presetGlowColors = {
-            pink: '255, 59, 107',
-            violet: '167, 139, 250',
-            blue: '59, 130, 246',
-            cyan: '6, 182, 212',
-            emerald: '16, 185, 129',
-            orange: '249, 115, 22'
-        };
-        const rgb = presetGlowColors[activeColor] || '255, 59, 107';
-        preset.glow = `rgba(${rgb}, ${(glowIntensity / 100) * 0.5})`;
+        preset.glow = getAccentGlow(preset.accent, glowIntensity);
     }
     document.documentElement.style.setProperty('--accent', preset.accent);
     document.documentElement.style.setProperty('--accent-alt', preset.alt);
     document.documentElement.style.setProperty('--accent-glow', preset.glow);
+
+    const accentRgb = parseRgbList(preset.accent) || [255, 59, 107];
+    const accentRgbStr = accentRgb.join(', ');
+    document.documentElement.style.setProperty('--accent-rgb', accentRgbStr);
     applyAdaptiveText('--accent', preset.accent);
 
     // Background Theme
-    const activeBg = localStorage.getItem('r34_theme_bg') || 'midnight';
+    // Смена акцента должна перекрашивать не только кнопки, но и всё полотно:
+    // поверх выбранного фона кладём акцентное свечение, а тон поверхностей (--dark)
+    // подмешиваем от акцента. Раньше фон и карточки оставались такими, какими
+    // их задал стандартный или ранее выбранный пресет.
+    const activeBg = localStorage.getItem('r34_theme_bg') || 'auto';
     const bgPreset = bgPresets[activeBg];
+    const bgWash = `radial-gradient(ellipse 120% 75% at 76% -12%, rgba(${accentRgbStr}, 0.22) 0%, rgba(${accentRgbStr}, 0.07) 45%, transparent 72%)`;
     let bgForLum = '#0a0b10';
-    if (bgPreset) {
-        document.documentElement.style.setProperty('--dark', bgPreset.dark);
-        document.documentElement.style.setProperty('--body-bg', bgPreset.bodyBg);
+    let bgLum = null;
+    if (bgPreset && bgPreset.fromAccent) {
+        // «Авто»: и полотно, и тон поверхностей целиком собираются из акцента
+        const autoDark = mixRgb(bgPreset.dark, accentRgb, 0.18);
+        const autoBase = `linear-gradient(180deg, ${mixRgb('#0b0c13', accentRgb, 0.20)} 0%, #05060a 65%)`;
+        document.documentElement.style.setProperty('--dark', autoDark);
+        document.documentElement.style.setProperty('--body-bg', `${bgWash}, ${autoBase}`);
         bgForLum = bgPreset.dark;
+        bgLum = getBgLuminance(bgPreset.dark);
+    } else if (bgPreset) {
+        const tintedDark = mixRgb(bgPreset.dark, accentRgb, 0.09);
+        document.documentElement.style.setProperty('--dark', tintedDark);
+        document.documentElement.style.setProperty('--body-bg', `${bgWash}, ${bgPreset.bodyBg}`);
+        bgForLum = bgPreset.dark;
+        // Светлоту темы считаем по базовому цвету темы, а не по итоговой строке
+        // с акцентным свечением — иначе rgba() акцента принимался бы за фон.
+        bgLum = getBgLuminance(bgPreset.dark);
     } else {
         // Custom typed background
-        document.documentElement.style.setProperty('--dark', '#000000');
-        document.documentElement.style.setProperty('--body-bg', activeBg);
+        const tintedDark = mixRgb(activeBg, accentRgb, 0.09) || '#000000';
+        document.documentElement.style.setProperty('--dark', tintedDark.startsWith('rgb(') ? tintedDark : '#000000');
+        document.documentElement.style.setProperty('--body-bg', `${bgWash}, ${activeBg}`);
         bgForLum = activeBg;
+        bgLum = getBgLuminance(activeBg);
     }
     applyAdaptiveText('--dark', bgForLum);
 
@@ -262,7 +382,7 @@ export function applyThemeSettings() {
 
     // 8. Expert Developer Parameters
     const expertKeys = [
-        '--accent', '--accent-alt', '--accent-glow', '--dark', '--light',
+        '--accent-alt', '--accent-glow', '--dark', '--light',
         '--body-bg', '--modal-bg', '--error', '--success', '--tag-bg',
         '--suggestion-bg', '--glass', '--header-bg', '--header-backdrop-filter',
         '--media-radius', '--media-gap', '--grid-col-width', '--site-font',
@@ -317,8 +437,9 @@ export function applyThemeSettings() {
     // выбранной пользователем темы, см. --modal-bg / --suggestion-bg ниже)
     const [dr, dg, db] = parseColorToRgb(activeDark, [4, 5, 9]);
 
-    // Background luminance check
-    const lum = getBgLuminance(activeBodyBg);
+    // Background luminance check (base theme color — фон с акцентным свечением
+    // для этого не годится)
+    const lum = bgLum !== null ? bgLum : getBgLuminance(activeBodyBg);
     const isLightBg = lum > 135;
 
     if (isLightBg) {

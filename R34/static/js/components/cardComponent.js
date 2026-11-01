@@ -11,8 +11,8 @@ export class CardComponent {
             container.style.alignItems = 'center';
             container.style.justifyContent = 'center';
             container.style.padding = '20px';
-            container.style.background = 'rgba(255, 59, 107, 0.08)';
-            container.style.border = '1px solid rgba(255, 59, 107, 0.25)';
+            container.style.background = 'rgba(var(--accent-rgb), 0.08)';
+            container.style.border = '1px solid rgba(var(--accent-rgb), 0.25)';
             container.style.borderRadius = 'var(--radius-sm)';
             container.style.minHeight = '200px';
             
@@ -23,7 +23,7 @@ export class CardComponent {
             
             const warningText = document.createElement('div');
             warningText.textContent = 'API устал';
-            warningText.style.color = '#ff3b6b';
+            warningText.style.color = 'var(--accent)';
             warningText.style.fontSize = '0.9rem';
             warningText.style.fontWeight = '600';
             warningText.style.textAlign = 'center';
@@ -48,10 +48,13 @@ export class CardComponent {
         if (aspectRatio > 2.2) aspectRatio = 2.2;
         
         const container = document.createElement('div');
+        container.className = 'media-container';
+        // Маркер режима слабых устройств. Раньше он добавлялся ДО присвоения
+        // className и тут же затирался следующей строкой — класс не появлялся
+        // на карточке никогда.
         if (gallery && typeof gallery.isLowPowerMode === 'function' && gallery.isLowPowerMode()) {
             container.classList.add('low-power-card');
         }
-        container.className = 'media-container';
         container.style.setProperty('--card-aspect', aspectRatio);
         container.style.zIndex = '2';
         if (gallery && gallery.isCustomColumns) {

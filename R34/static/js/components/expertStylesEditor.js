@@ -4,6 +4,17 @@
 
 import { icon } from '../icons.js';
 
+// Акцентная тройка управляется из одного места (settingsAccent / r34_theme_accent),
+// а --accent-alt и --accent-glow выводятся из основного цвета. Поэтому пресеты
+// ниже задают только сам акцент, иначе ручной цвет и пресеты конфликтовали.
+const ACCENT_FAMILY = ['--accent', '--accent-alt', '--accent-glow'];
+
+const applyAccentColor = (value) => {
+    if (typeof window.setAccent === 'function') {
+        window.setAccent(value);
+    }
+};
+
 // Helper to parse any CSS color (HEX, RGB, HSL, var(...), named, gradients)
 export function parseColor(colorStr) {
     if (!colorStr) return { r: 12, g: 13, b: 18, a: 1 };
@@ -723,6 +734,11 @@ export class ExpertStylesEditor {
                     this.applyAdaptiveText(varName, defaultVariables[varName].val);
                 });
                 this.renderEditor();
+                // После сброса экспертных значений надо пересобрать тему целиком:
+                // иначе на экране остаются устаревшие токены (акцент, стекло,
+                // адаптивные тексты), пока пользователь не дёрнет другую настройку.
+                // applyThemeSettings доступна глобально (main.js вешает её на window).
+                if (typeof window.applyThemeSettings === 'function') window.applyThemeSettings();
             }
         });
 
@@ -766,23 +782,16 @@ export class ExpertStylesEditor {
         presetsRow.style.cssText = 'display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 0.75rem; color: rgba(255,255,255,0.6);';
         presetsRow.innerHTML = '<span style="font-weight: bold; margin-right: 4px; color: var(--accent);">Пресеты:</span>';
 
+        // Пресет = акцент + тема фона. Раньше он писал в экспертные переменные
+        // весь набор (--body-bg, --dark, --light...), и эти значения навсегда
+        // перекрывали тему: сменишь акцент — полотно останется прежним.
+        // Теперь всё идёт через общие настройки, а свечение и тон поверхностей
+        // выводятся из акцента автоматически (см. themeManager).
         const presets = [
-            {
-                name: 'Стандарт (Розовый)',
-                vars: { '--accent': '#ff3b6b', '--accent-alt': '#ff5e8c', '--body-bg': 'radial-gradient(circle at top center, #1c1828 0%, #0c0d12 100%)', '--dark': '#0a0b10', '--light': '#f6f7fb' }
-            },
-            {
-                name: 'Киберпанк (Неон)',
-                vars: { '--accent': '#00f0ff', '--accent-alt': '#ff007f', '--body-bg': 'radial-gradient(circle at top center, #0d0221 0%, #05010d 100%)', '--dark': '#0a0518', '--light': '#e0f7fc', '--accent-glow': 'rgba(0, 240, 255, 0.5)' }
-            },
-            {
-                name: 'Изумрудный',
-                vars: { '--accent': '#10b981', '--accent-alt': '#059669', '--body-bg': 'radial-gradient(circle at top center, #062016 0%, #020b07 100%)', '--dark': '#03140e', '--light': '#ecfdf5', '--accent-glow': 'rgba(16, 185, 129, 0.4)' }
-            },
-            {
-                name: 'Светлая тема',
-                vars: { '--accent': '#6366f1', '--accent-alt': '#4f46e5', '--body-bg': '#f8fafc', '--dark': '#ffffff', '--light': '#0f172a', '--tag-bg': 'rgba(0,0,0,0.05)', '--glass-bg': 'rgba(255,255,255,0.8)', '--card-border-color': 'rgba(0,0,0,0.1)', '--accent-glow': 'rgba(99, 102, 241, 0.25)' }
-            }
+            { name: 'Стандарт (Розовый)', accent: '#ff3b6b' },
+            { name: 'Киберпанк (Неон)', accent: '#00f0ff' },
+            { name: 'Изумрудный', accent: '#10b981' },
+            { name: 'Светлая тема', accent: '#6366f1', bg: '#f8fafc' }
         ];
 
         presets.forEach(preset => {
@@ -790,11 +799,15 @@ export class ExpertStylesEditor {
             pBtn.className = 'expert-preset-btn';
             pBtn.textContent = preset.name;
             pBtn.addEventListener('click', () => {
-                Object.entries(preset.vars).forEach(([key, val]) => {
-                    localStorage.setItem('r34_expert_' + key, val);
-                    document.documentElement.style.setProperty(key, val);
-                    this.applyAdaptiveText(key, val);
-                });
+                // Пресет = тот же набор параметров, что и «Акцентный цвет»:
+                // акцент + производный от него фон. Светлая тема — единственное
+                // исключение, там фон задаётся явно.
+                applyAccentColor(preset.accent);
+                // Фон пресета ставим после акцента: выбор цвета сам переключает
+                // базу на «авто», а пресет должен задать свою явно.
+                const presetBg = preset.bg || 'auto';
+                if (typeof window.setBackground === 'function') window.setBackground(presetBg);
+                else localStorage.setItem('r34_theme_bg', presetBg);
                 this.renderEditor();
             });
             presetsRow.appendChild(pBtn);
@@ -975,22 +988,9 @@ export class ExpertStylesEditor {
                     infoBtn.classList.toggle('active', isHidden);
                 });
 
-                // На ПК подсказка раскрывается уже при наведении — клик
-                // остаётся единственным способом на тач-устройствах.
-                infoBtn.addEventListener('mouseenter', () => {
-                    if (!document.body.classList.contains('can-hover')) return;
-                    helpBox.style.display = 'block';
-                    infoBtn.classList.add('active');
-                });
-                const hideExpertHelpUnlessMovingBetweenBoth = (e) => {
-                    if (!document.body.classList.contains('can-hover')) return;
-                    const to = e.relatedTarget;
-                    if (to === infoBtn || to === helpBox || helpBox.contains(to)) return;
-                    helpBox.style.display = 'none';
-                    infoBtn.classList.remove('active');
-                };
-                infoBtn.addEventListener('mouseleave', hideExpertHelpUnlessMovingBetweenBoth);
-                helpBox.addEventListener('mouseleave', hideExpertHelpUnlessMovingBetweenBoth);
+                // Подсказки открываются только по клику (как и в основных
+                // настройках) — без hover, чтобы ссылки внутри можно было
+                // спокойно навести и открыть, не боясь, что панель закроется.
 
                 labelContainer.appendChild(labelRow);
                 labelContainer.appendChild(desc);
@@ -1018,6 +1018,10 @@ export class ExpertStylesEditor {
                     colorPicker.addEventListener('input', (e) => {
                         const val = e.target.value;
                         input.value = val;
+                        if (varName === '--accent') {
+                            applyAccentColor(val);
+                            return;
+                        }
                         document.documentElement.style.setProperty(varName, val);
                         this.applyAdaptiveText(varName, val);
                         localStorage.setItem('r34_expert_' + varName, val);
@@ -1038,6 +1042,14 @@ export class ExpertStylesEditor {
                 input.addEventListener('input', (e) => {
                     const val = e.target.value.trim();
                     const activeVal = val || defaultVariables[varName].val;
+
+                    if (varName === '--accent') {
+                        // Основной акцент меняем через общий путь, чтобы он
+                        // синхронизировался с настройками и всей палитрой.
+                        if (/^#([0-9a-f]{3}){1,2}$/i.test(activeVal)) applyAccentColor(activeVal);
+                        return;
+                    }
+
                     document.documentElement.style.setProperty(varName, activeVal);
 
                     this.applyAdaptiveText(varName, activeVal);

@@ -11,6 +11,9 @@ import { icon } from '../icons.js';
 // на странице настроек) — та же идея, что уже используется для видео-плееров.
 const portalRepositionCallbacks = new Set();
 let portalListenersBound = false;
+// Сквозной счётчик для уникальных id панелей: они нужны для связки
+// aria-controls / aria-activedescendant между кнопкой и списком.
+let dropdownSeq = 0;
 function ensurePortalListeners() {
     if (portalListenersBound) return;
     portalListenersBound = true;
@@ -29,7 +32,7 @@ export function makeCustomDropdown(selectEl, { classPrefix = 'game-custom-dropdo
     // Служебные классы отступов/ширины (например .select-min-150) переносим
     // на обёртку — сам select скрыт и больше не участвует в вёрстке
     selectEl.classList.forEach(cls => {
-        if (cls !== 'r34-select' && cls !== 'game-select' && cls !== 'game-input') {
+        if (cls !== 'r34-select' && cls !== 'game-select' && cls !== 'game-input' && cls !== 'puzzle-lib-sort') {
             wrapper.classList.add(cls);
         }
     });
@@ -54,12 +57,30 @@ export function makeCustomDropdown(selectEl, { classPrefix = 'game-custom-dropdo
 
     const panel = document.createElement('div');
     panel.className = `${classPrefix}-panel`;
+    // Панель может уезжать порталом в body — связывать её с кнопкой
+    // для читалок нужно через id.
+    panel.id = `${classPrefix}-panel-${++dropdownSeq}`;
+    panel.setAttribute('role', 'listbox');
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.setAttribute('aria-controls', panel.id);
+
+    // Индекс пункта, на который смотрит клавиатура (не путать с выбранным)
+    let activeIndex = -1;
 
     const renderItems = () => {
         panel.innerHTML = '';
         Array.from(selectEl.options).forEach((opt, idx) => {
             const item = document.createElement('div');
-            item.className = `${classPrefix}-item` + (idx === selectEl.selectedIndex ? ' selected' : '');
+            item.className = `${classPrefix}-item`
+                + (idx === selectEl.selectedIndex ? ' selected' : '')
+                + (idx === activeIndex ? ' kb-active' : '');
+            item.id = `${panel.id}-opt-${idx}`;
+            item.setAttribute('role', 'option');
+            item.setAttribute('aria-selected', idx === selectEl.selectedIndex ? 'true' : 'false');
+            // Задержка каскада появления: не больше 8 шагов, иначе длинный
+            // список визуально «догоняет» дольше, чем открывается.
+            item.style.setProperty('--i', Math.min(idx, 8));
 
             const itemText = document.createElement('span');
             itemText.textContent = opt.textContent;
@@ -74,19 +95,22 @@ export function makeCustomDropdown(selectEl, { classPrefix = 'game-custom-dropdo
 
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (selectEl.selectedIndex !== idx) {
-                    selectEl.selectedIndex = idx;
-                    selectEl.value = opt.value;
-                    updateTriggerLabel();
-                    selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-                wrapper.classList.remove('open');
-                panel.classList.remove('open');
-                renderItems();
+                selectIndex(idx);
             });
 
             panel.appendChild(item);
         });
+    };
+
+    const selectIndex = (idx) => {
+        if (idx < 0 || idx >= selectEl.options.length) return;
+        const changed = selectEl.selectedIndex !== idx;
+        selectEl.selectedIndex = idx;
+        selectEl.value = selectEl.options[idx].value;
+        updateTriggerLabel();
+        if (changed) selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+        closePanel();
+        renderItems();
     };
 
     renderItems();
@@ -99,15 +123,63 @@ export function makeCustomDropdown(selectEl, { classPrefix = 'game-custom-dropdo
     const positionPanel = () => {
         if (!portal) return;
         const rect = trigger.getBoundingClientRect();
-        panel.style.top = (rect.bottom + 6) + 'px';
-        panel.style.left = rect.left + 'px';
+        const panelH = Math.min(panel.offsetHeight || 280, 280);
+        // Панель не должна уезжать за границу экрана: если внизу места меньше,
+        // чем вверху, раскрываем список вверх (иначе у нижних строк настроек
+        // последние пункты просто оказывались за краем).
+        const spaceBelow = window.innerHeight - rect.bottom - 8;
+        const spaceAbove = rect.top - 8;
+        const openUp = spaceBelow < panelH + 6 && spaceAbove > spaceBelow;
+        panel.style.top = openUp
+            ? Math.max(8, rect.top - panelH - 6) + 'px'
+            : (rect.bottom + 6) + 'px';
+        panel.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - rect.width - 8)) + 'px';
         panel.style.width = rect.width + 'px';
         panel.style.minWidth = rect.width + 'px';
+        panel.classList.toggle('up', openUp);
     };
 
-    const closePanel = () => {
+    const setExpanded = (open) => {
+        trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (!open) trigger.removeAttribute('aria-activedescendant');
+    };
+
+    const closePanel = (refocus = false) => {
+        const wasOpen = wrapper.classList.contains('open');
         wrapper.classList.remove('open');
         panel.classList.remove('open');
+        activeIndex = -1;
+        setExpanded(false);
+        if (refocus && wasOpen) trigger.focus();
+    };
+
+    const setActive = (idx) => {
+        const count = selectEl.options.length;
+        if (!count) return;
+        activeIndex = ((idx % count) + count) % count;
+        Array.from(panel.children).forEach((el, i) => {
+            el.classList.toggle('kb-active', i === activeIndex);
+        });
+        const activeEl = panel.children[activeIndex];
+        if (activeEl) {
+            trigger.setAttribute('aria-activedescendant', activeEl.id);
+            activeEl.scrollIntoView({ block: 'nearest' });
+        }
+    };
+
+    const openPanel = () => {
+        document.querySelectorAll(`.${classPrefix}.open`).forEach(d => {
+            if (d !== wrapper) d.classList.remove('open');
+        });
+        document.querySelectorAll(`.${classPrefix}-panel.open`).forEach(p => {
+            if (p !== panel) p.classList.remove('open');
+        });
+        wrapper.classList.add('open');
+        if (portal) document.body.appendChild(panel);
+        positionPanel();
+        panel.classList.add('open');
+        setExpanded(true);
+        setActive(selectEl.selectedIndex >= 0 ? selectEl.selectedIndex : 0);
     };
 
     // Скрытый select() не показывает своё disabled само по себе — его
@@ -123,20 +195,60 @@ export function makeCustomDropdown(selectEl, { classPrefix = 'game-custom-dropdo
     trigger.addEventListener('click', (e) => {
         e.stopPropagation();
         if (selectEl.disabled) return;
+        if (wrapper.classList.contains('open')) closePanel();
+        else openPanel();
+    });
+
+    // ── Клавиатура ──
+    // Раньше список управлялся только мышью: кнопка получала фокус с Tab,
+    // но стрелки/Enter внутри списка не работали, а читалка видела обычную
+    // кнопку без связи со списком.
+    let typeBuffer = '';
+    let typeTimer = null;
+    trigger.addEventListener('keydown', (e) => {
+        if (selectEl.disabled) return;
         const isOpen = wrapper.classList.contains('open');
-        document.querySelectorAll(`.${classPrefix}.open`).forEach(d => {
-            if (d !== wrapper) d.classList.remove('open');
-        });
-        document.querySelectorAll(`.${classPrefix}-panel.open`).forEach(p => {
-            if (p !== panel) p.classList.remove('open');
-        });
-        const nextOpen = !isOpen;
-        wrapper.classList.toggle('open', nextOpen);
-        if (portal && nextOpen) {
-            document.body.appendChild(panel);
-            positionPanel();
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                if (!isOpen) openPanel(); else setActive(activeIndex + 1);
+                return;
+            case 'ArrowUp':
+                e.preventDefault();
+                if (!isOpen) openPanel(); else setActive(activeIndex - 1);
+                return;
+            case 'Home':
+                if (isOpen) { e.preventDefault(); setActive(0); }
+                return;
+            case 'End':
+                if (isOpen) { e.preventDefault(); setActive(selectEl.options.length - 1); }
+                return;
+            case 'Enter':
+            case ' ':
+                e.preventDefault();
+                if (!isOpen) openPanel();
+                else if (activeIndex >= 0) selectIndex(activeIndex);
+                return;
+            case 'Tab':
+                if (isOpen) closePanel();
+                return;
+            case 'Escape':
+                if (isOpen) { e.preventDefault(); closePanel(true); }
+                return;
         }
-        panel.classList.toggle('open', nextOpen);
+        // Быстрый поиск по первым буквам, как в нативном <select>
+        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            typeBuffer += e.key.toLowerCase();
+            clearTimeout(typeTimer);
+            typeTimer = setTimeout(() => { typeBuffer = ''; }, 500);
+            const opts = Array.from(selectEl.options);
+            const found = opts.findIndex(o => o.textContent.trim().toLowerCase().startsWith(typeBuffer));
+            if (found !== -1) {
+                e.preventDefault();
+                if (!isOpen) openPanel();
+                setActive(found);
+            }
+        }
     });
 
     if (portal) {
@@ -155,6 +267,12 @@ export function makeCustomDropdown(selectEl, { classPrefix = 'game-custom-dropdo
     if (portal) {
         panel.style.position = 'fixed';
         document.body.appendChild(panel);
+        // Портальная панель живёт в document.body и переживает удаление wrapper'а
+        // (например, когда модалка, в которой лежал select, удаляется из DOM).
+        // Кладём ссылку на неё, чтобы вызывающий код мог явно убрать панель при
+        // закрытии модалки — иначе при каждом пересоздании модалки в body будет
+        // накапливаться сиротская панель.
+        wrapper._portalPanel = panel;
     }
 
     const onOutsideClick = (e) => {
@@ -174,7 +292,9 @@ export function makeCustomDropdown(selectEl, { classPrefix = 'game-custom-dropdo
     const onEscKey = (e) => {
         if (e.key === 'Escape' && panel.classList.contains('open')) {
             e.stopPropagation();
-            closePanel();
+            // Возвращаем фокус на кнопку: иначе после Esc он оставался на
+            // body и Tab начинал обход страницы с самого начала.
+            closePanel(true);
         }
     };
     document.addEventListener('keydown', onEscKey, true);

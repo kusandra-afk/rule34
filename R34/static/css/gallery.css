@@ -14,15 +14,17 @@
   max-width: var(--gallery-max-width, 1400px);
   margin: 0 auto;
   padding: 24px;
-  transition: gap 0.3s var(--ease), padding 0.3s var(--ease);
+  transition: gap var(--dur-slow) var(--ease), padding var(--dur-slow) var(--ease);
 }
 
 /* Режим с фиксированным количеством колонок - естественное соотношение сторон */
 #results.multi-cols-mode,
+body[data-gallery-cols="1"] #results,
 body[data-gallery-cols="2"] #results,
 body[data-gallery-cols="3"] #results,
-body[data-gallery-cols="4"] #results {
-  grid-template-columns: repeat(var(--gallery-cols, 2), minmax(0, 1fr)) !important;
+body[data-gallery-cols="4"] #results,
+body[data-gallery-cols="5"] #results {
+  grid-template-columns: repeat(var(--gallery-cols, 1), minmax(0, 1fr)) !important;
 }
 
 /* Режим низкой мощности (включает снижение анимаций и быстрое открытие) */
@@ -42,13 +44,65 @@ body.can-hover.r34-low-power-mode .media-container:hover {
   box-shadow: 0 0 0 2px var(--accent) !important;
 }
 
-body.r34-low-power-mode *:not(.video-loading-spinner):not(.loading):not(.spinner):not(.puzzle-loader-spinner):not(.puzzle-loader-progress-bar):not(.loader):not(.pagination-loader):not(.searching):not(.loading-spinner):not(.skeleton):not(.shimmer):not(.progress-bar):not(.keep-animation):not(.animate-spin):not(.animate-pulse):not(.animate-bounce):not(.fa-spin):not(.spinning),
-body.r34-low-power-mode *:not(.video-loading-spinner):not(.loading):not(.spinner):not(.puzzle-loader-spinner):not(.puzzle-loader-progress-bar):not(.loader):not(.pagination-loader):not(.searching):not(.loading-spinner):not(.skeleton):not(.shimmer):not(.progress-bar):not(.keep-animation):not(.animate-spin):not(.animate-pulse):not(.animate-bounce):not(.fa-spin):not(.spinning)::before,
-body.r34-low-power-mode *:not(.video-loading-spinner):not(.loading):not(.spinner):not(.puzzle-loader-spinner):not(.puzzle-loader-progress-bar):not(.loader):not(.pagination-loader):not(.searching):not(.loading-spinner):not(.skeleton):not(.shimmer):not(.progress-bar):not(.keep-animation):not(.animate-spin):not(.animate-pulse):not(.animate-bounce):not(.fa-spin):not(.spinning)::after {
+/* Раньше здесь стоял селектор `*:not(...)` с 17 исключениями: на каждой
+   перерисовке он проверял все 17 классов у КАЖДОГО элемента документа —
+   сам по себе дорогой, что для режима экономии абсурдно. Теперь — голый
+   `*` (сопоставление почти бесплатное), а спиннеры загрузки возвращаем
+   точечно: им движение действительно нужно. */
+body.r34-low-power-mode *,
+body.r34-low-power-mode *::before,
+body.r34-low-power-mode *::after {
   animation-duration: 0.001ms !important;
+  animation-delay: 0ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
   scroll-behavior: auto !important;
+  /* Блюр (backdrop-filter) — самая дорогая операция для слабого GPU.
+     Рашьше он снимался только у карточек, а шапка, модалки, поиск,
+     теги и стеклянные панели продолжали размывать фон на каждом кадре. */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  /* Слои под композитинг не резервируем: will-change на сотнях
+     карточек — это сотни лишних текстур в видеопамяти. */
+  will-change: auto !important;
+}
+
+/* Индикаторы загрузки без вращения бессмысленны */
+body.r34-low-power-mode .loader,
+body.r34-low-power-mode .video-loading-spinner,
+body.r34-low-power-mode .spinner,
+body.r34-low-power-mode .loading-spinner,
+body.r34-low-power-mode .pagination-loader,
+body.r34-low-power-mode .puzzle-loader-spinner,
+body.r34-low-power-mode .searching {
+  animation-duration: 0.9s !important;
+  animation-iteration-count: infinite !important;
+}
+
+/* Футуристичный слой — живой фон, скан-линия по карточке, блик по
+   тегам, энергетическое кольцо поиска, блики на кнопках — в этом
+   режиме не рисуем совсем: анимации погашены, но псевдоэлементы
+   с mix-blend-mode всё равно стоят денег на каждом кадре. */
+body.r34-low-power-mode::before,
+body.r34-low-power-mode .media-container::after,
+body.r34-low-power-mode .tag::after,
+body.r34-low-power-mode .r34-search-row::after {
+  display: none !important;
+}
+
+body.r34-low-power-mode :is(
+  .r34-btn-primary, .r34-btn-secondary, .r34-btn-danger, .modal-btn,
+  .keep-btn, .confirm-btn, .app-mode-btn, .settings-tab-btn,
+  .duration-preset-btn, .r34-search-arrow-btn, .r34-tag-mode-btn,
+  .r34-settings-btn
+)::after {
+  opacity: 0 !important;
+}
+
+/* Заголовок: без текущего градиента и без drop-shadow */
+body.r34-low-power-mode h1 {
+  animation: none !important;
+  filter: none !important;
 }
 
 /* ---------- Медиа-карточка (стекло) ---------- */
@@ -74,7 +128,7 @@ body.r34-low-power-mode *:not(.video-loading-spinner):not(.loading):not(.spinner
   transform: translateZ(0);
   will-change: transform, border-color, box-shadow;
   backface-visibility: hidden;
-  transition: transform var(--card-transition-speed, 0.25s) var(--ease), border-color var(--card-transition-speed, 0.25s) var(--ease), box-shadow var(--card-transition-speed, 0.25s) var(--ease);
+  transition: transform var(--card-transition-speed, 0.3s) var(--ease), border-color var(--card-transition-speed, 0.3s) var(--ease), box-shadow var(--card-transition-speed, 0.3s) var(--ease), opacity var(--dur-enter) var(--ease);
 }
 
 /* Applied to a card while its media is unloaded (scrolled far off-screen, see
@@ -106,10 +160,15 @@ body.r34-low-power-mode *:not(.video-loading-spinner):not(.loading):not(.spinner
   box-sizing: border-box;
 }
 
-body.can-hover .media-container:hover {
-  transform: var(--hover-transform, translateY(-4px)) translateZ(0);
-  border-color: var(--hover-border-color, var(--accent));
-  box-shadow: var(--hover-box-shadow, 0 16px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--accent));
+/* :not(.card-reveal) — пока идёт анимация появления (cardReveal), hover не
+   вмешивается: раньше `animation: var(--hover-animation, none)` отменял её
+   посреди хода, а при уходе курсора класс .card-revealed снова включал
+   анимацию С НАЧАЛА — карточка видимо дёргалась при наведении и тапе.
+   После завершения reveal-классы снимает _finishReveal в gallery.js. */
+body.can-hover .media-container:not(.card-reveal):hover {
+  transform: var(--hover-transform, translateY(-6px)) translateZ(0);
+  border-color: var(--hover-border-color, rgba(var(--accent-rgb), 0.5));
+  box-shadow: var(--hover-box-shadow, 0 24px 48px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(var(--accent-rgb), 0.35), 0 0 32px rgba(var(--accent-rgb), 0.12)), var(--hover-border-glow);
   animation: var(--hover-animation, none);
 }
 
@@ -273,7 +332,7 @@ body.can-hover .media-container.custom-cols:hover, body:not(.can-hover) .media-c
   backdrop-filter: blur(12px) brightness(0.85) contrast(1.1);
   -webkit-backdrop-filter: blur(12px) brightness(0.85) contrast(1.1);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.2);
-  transition: all 0.2s var(--ease);
+  transition: all var(--dur) var(--ease);
 }
 
 .fullscreen-btn svg {
@@ -289,7 +348,7 @@ body.can-hover .fullscreen-btn:hover, body:not(.can-hover) .fullscreen-btn:activ
   background: var(--accent, #ff3b6b) !important;
   border-color: var(--accent, #ff3b6b) !important;
   transform: scale(1.06);
-  box-shadow: 0 6px 18px rgba(255, 59, 107, 0.5);
+  box-shadow: 0 6px 18px var(--accent-glow);
 }
 
 .fullscreen-btn:active {
@@ -314,10 +373,10 @@ body.can-hover .fullscreen-btn:hover, body:not(.can-hover) .fullscreen-btn:activ
   -webkit-backdrop-filter: blur(12px) brightness(0.85) contrast(1.1);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.2);
   overflow: hidden;
-  transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: height var(--dur-slow) var(--ease-in-out),
+              background var(--dur-slow) var(--ease-in-out),
+              border-color var(--dur-slow) var(--ease-in-out),
+              box-shadow var(--dur-slow) var(--ease-in-out);
   box-sizing: border-box;
 }
 
@@ -355,8 +414,8 @@ body.can-hover .sound-control-wrapper:hover .sound-toggle-btn, body:not(.can-hov
   opacity: 0;
   pointer-events: none;
   transform: translateY(-8px) scale(0.9);
-  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-              transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity var(--dur) var(--ease-in-out),
+              transform var(--dur) var(--ease-in-out);
 }
 
 body.can-hover .sound-control-wrapper:hover .sound-volume-slider-container, body:not(.can-hover) .sound-control-wrapper:active .sound-volume-slider-container {
@@ -388,7 +447,7 @@ body.can-hover .sound-control-wrapper:hover .sound-volume-slider-container, body
   background: var(--accent, #ff3b6b);
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-  transition: transform 0.15s var(--ease);
+  transition: transform var(--dur-fast) var(--ease);
 }
 
 body.can-hover .sound-volume-slider::-webkit-slider-thumb:hover, body:not(.can-hover) .sound-volume-slider::-webkit-slider-thumb:active {
@@ -403,7 +462,7 @@ body.can-hover .sound-volume-slider::-webkit-slider-thumb:hover, body:not(.can-h
   background: var(--accent, #ff3b6b);
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-  transition: transform 0.15s var(--ease);
+  transition: transform var(--dur-fast) var(--ease);
 }
 
 /* Кнопка звука (значок): при наведении смещается сверху вниз */
@@ -427,7 +486,7 @@ body.can-hover .sound-volume-slider::-webkit-slider-thumb:hover, body:not(.can-h
   padding: 0 !important;
   margin: 0 !important;
   box-sizing: border-box;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+  transition: transform var(--dur-slow) var(--ease-in-out),
               color var(--transition-speed, 0.2s) var(--ease),
               background var(--transition-speed, 0.2s) var(--ease);
 }
@@ -463,7 +522,7 @@ body.can-hover .sound-toggle-btn:hover svg, body:not(.can-hover) .sound-toggle-b
   bottom: 12px;
   right: 12px;
   z-index: 12;
-  padding: 3px 9px;
+  padding: 3px 8px;
   background: var(--dark);
   border: 1px solid var(--glass-border);
   border-radius: 999px;
@@ -546,7 +605,7 @@ body.can-hover .sound-toggle-btn:hover svg, body:not(.can-hover) .sound-toggle-b
   font-size: 1.05rem;
   cursor: pointer;
   overflow: hidden;
-  transition: all 0.25s var(--ease);
+  transition: all var(--dur) var(--ease);
   flex-shrink: 0;
 }
 
@@ -572,7 +631,7 @@ body.can-hover .like-btn:hover, body:not(.can-hover) .like-btn:active {
   border-color: var(--accent);
   color: var(--accent);
   box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.25);
-  animation: likePulse 0.4s var(--ease);
+  animation: likePulse var(--dur-slow) var(--ease);
 }
 
 .like-btn.liked svg {
@@ -597,7 +656,7 @@ body.can-hover .like-btn.liked:hover, body:not(.can-hover) .like-btn.liked:activ
 .like-btn.sync-error {
   color: var(--error) !important;
   text-shadow: 0 0 15px var(--error);
-  animation: shake 0.4s ease-in-out;
+  animation: shake var(--dur-slow) var(--ease-in-out);
 }
 
 @keyframes shake {
@@ -616,7 +675,7 @@ body.can-hover .like-btn.liked:hover, body:not(.can-hover) .like-btn.liked:activ
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   box-shadow: var(--shadow-lg), inset 0 0 12px var(--glass-highlight) !important;
-  animation: heart-pulse-glass 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: heart-pulse-glass 1.2s var(--ease-in-out) infinite;
 }
 
 @keyframes heart-pulse-glass {
@@ -644,7 +703,7 @@ body.can-hover .like-btn.liked:hover, body:not(.can-hover) .like-btn.liked:activ
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: center;
-  transition: color 0.25s var(--ease);
+  transition: color var(--dur) var(--ease);
 }
 
 .like-btn.liked + .like-count {
@@ -668,24 +727,61 @@ body.can-hover .like-btn.liked:hover, body:not(.can-hover) .like-btn.liked:activ
   font-size: 1rem;
   text-align: left;
   box-shadow: var(--shadow-md), var(--glass-highlight);
-  animation: slideDown 0.35s var(--ease);
+  /* Анимации открытия/закрытия задают классы .is-opening/.is-closing
+     (см. ниже и _animateShowInfoBlock / _animateHideInfoBlock в gallery.js) */
 }
 
 .media-extra-info[hidden] {
   display: none !important;
 }
 
-.media-extra-info.is-closing {
+.media-extra-info.is-closing,
+.media-source-block.is-closing {
   transition: height var(--card-transition-speed, 300ms) var(--ease),
               margin var(--card-transition-speed, 300ms) var(--ease),
               padding var(--card-transition-speed, 300ms) var(--ease),
+              transform var(--card-transition-speed, 300ms) var(--ease),
               opacity var(--card-transition-speed, 300ms) var(--ease);
   pointer-events: none;
 }
 
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-12px); }
+/* ── Открытие инфо-блока: панель ВЫРАСТАЕТ из-под карточки ──
+   Высота, отступы и прозрачность идут от нуля к финальным значениям
+   (стартовые инлайн-значения ставит _beginShowInfoBlock, к финальным
+   доводит _animateShowInfoBlock) — соседние карточки мягко уезжают вниз,
+   а не дёргаются одним кадром. Закрытие зеркальное (.is-closing). */
+.media-extra-info.is-opening,
+.media-source-block.is-opening {
+  transition: height var(--dur-slow) var(--ease),
+              margin var(--dur-slow) var(--ease),
+              padding var(--dur-slow) var(--ease),
+              transform var(--dur-slow) var(--ease),
+              opacity var(--dur) var(--ease-out);
+  pointer-events: none;
+}
+
+/* Содержимое панели проявляется лёгким каскадом строк, пока она вырастает */
+@keyframes infoChildIn {
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+.media-extra-info.is-opening > * {
+  animation: infoChildIn var(--dur-slow) var(--ease) backwards;
+}
+
+.media-extra-info.is-opening > *:nth-child(2) { animation-delay: 45ms; }
+.media-extra-info.is-opening > *:nth-child(3) { animation-delay: 90ms; }
+.media-extra-info.is-opening > *:nth-child(4) { animation-delay: 135ms; }
+.media-extra-info.is-opening > *:nth-child(n + 5) { animation-delay: 180ms; }
+
+/* Низкая мощность и «уменьшить движение» — раскрытие без анимаций */
+body.r34-low-power-mode .media-extra-info.is-opening > * { animation: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .media-extra-info.is-opening,
+  .media-source-block.is-opening { transition: none !important; }
+  .media-extra-info.is-opening > * { animation: none !important; }
 }
 
 /* ---------- Теги карточки ---------- */
@@ -706,9 +802,9 @@ body.can-hover .like-btn.liked:hover, body:not(.can-hover) .like-btn.liked:activ
   max-height: 0;
   overflow: hidden;
   transform: translateY(8px);
-  transition: opacity var(--card-transition-speed, 0.3s) ease,
-              max-height var(--card-transition-speed, 0.3s) ease,
-              transform var(--card-transition-speed, 0.3s) ease;
+  transition: opacity var(--card-transition-speed, 0.3s) var(--ease),
+              max-height var(--card-transition-speed, 0.3s) var(--ease),
+              transform var(--card-transition-speed, 0.3s) var(--ease);
 }
 
 body.can-hover .r34-tags-hover-only .media-extra-info:hover .media-tags-list, body:not(.can-hover) .r34-tags-hover-only .media-extra-info:active .media-tags-list {
@@ -719,7 +815,7 @@ body.can-hover .r34-tags-hover-only .media-extra-info:hover .media-tags-list, bo
 
 .r34-tags-hover-only .media-extra-info .media-tags-title {
   opacity: 0.3;
-  transition: opacity var(--card-transition-speed, 0.3s) ease;
+  transition: opacity var(--card-transition-speed, 0.3s) var(--ease);
 }
 
 body.can-hover .r34-tags-hover-only .media-extra-info:hover .media-tags-title, body:not(.can-hover) .r34-tags-hover-only .media-extra-info:active .media-tags-title {
@@ -741,7 +837,7 @@ body.can-hover .r34-tags-hover-only .media-extra-info:hover .media-tags-title, b
   line-height: 1.2;
   cursor: pointer;
   user-select: none;
-  transition: all var(--card-transition-speed, 0.2s) ease;
+  transition: all var(--card-transition-speed, 0.2s) var(--ease);
 }
 
 body.can-hover .media-tag:hover, body:not(.can-hover) .media-tag:active {
@@ -791,9 +887,11 @@ body.can-hover .media-tag:hover, body:not(.can-hover) .media-tag:active {
     inset 0 1px 0 var(--glass-highlight);
   overflow: hidden;
   text-align: center;
-  transition: all 0.4s var(--ease);
-  animation: endBlockIntro 0.6s var(--ease-bounce) forwards,
-             pulseGlow 4s infinite ease-in-out;
+  transition: all var(--dur-slow) var(--ease);
+  /* Один медленный блик (shineLight) вместо трёх параллельных бесконечных
+     анимаций: intro + pulseGlow + shineLight давали визуальный шум и
+     лишнюю перерисовку одного и того же блока на каждом кадре. */
+  animation: endBlockIntro 0.6s var(--ease-bounce) forwards;
 }
 
 /* Блик, пробегающий по блоку */
@@ -811,7 +909,7 @@ body.can-hover .media-tag:hover, body:not(.can-hover) .media-tag:active {
     rgba(255, 255, 255, 0) 100%
   );
   transform: skewX(-25deg);
-  animation: shineLight 6s infinite ease-in-out;
+  animation: shineLight 6s infinite var(--ease-in-out);
   pointer-events: none;
 }
 
@@ -831,17 +929,6 @@ body.can-hover .media-tag:hover, body:not(.can-hover) .media-tag:active {
   50% { transform: scale(1.06); }
 }
 
-@keyframes pulseGlow {
-  0%, 100% {
-    border-color: rgba(var(--accent-rgb), 0.35);
-    box-shadow: var(--shadow-lg), 0 0 30px rgba(var(--accent-rgb), 0.1);
-  }
-  50% {
-    border-color: rgba(var(--accent-rgb), 0.7);
-    box-shadow: var(--shadow-lg), 0 0 45px rgba(var(--accent-rgb), 0.3);
-  }
-}
-
 .end-of-results-icon {
   display: flex;
   align-items: center;
@@ -853,7 +940,7 @@ body.can-hover .media-tag:hover, body:not(.can-hover) .media-tag:active {
   border: 1px solid rgba(var(--accent-rgb), 0.3);
   border-radius: 50%;
   box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.15);
-  animation: floatIcon 3s infinite ease-in-out;
+  animation: floatIcon 3s infinite var(--ease-in-out);
 }
 
 @keyframes floatIcon {
@@ -903,7 +990,7 @@ body.can-hover .media-tag:hover, body:not(.can-hover) .media-tag:active {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  transition: all 0.25s var(--ease);
+  transition: all var(--dur) var(--ease);
 }
 
 body.can-hover .zoom-close-btn:hover, body:not(.can-hover) .zoom-close-btn:active {
@@ -939,12 +1026,12 @@ body.can-hover .zoom-close-btn:hover, body:not(.can-hover) .zoom-close-btn:activ
   backdrop-filter: blur(var(--card-bg-blur, 14px));
   -webkit-backdrop-filter: blur(var(--card-bg-blur, 14px));
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
-  animation: slideDown var(--card-transition-speed, 300ms) var(--ease);
-  transition: background var(--card-transition-speed, 300ms) ease,
-              border-color var(--card-transition-speed, 300ms) ease,
-              border-radius var(--card-transition-speed, 300ms) ease,
-              margin-bottom var(--card-transition-speed, 300ms) ease,
-              box-shadow var(--card-transition-speed, 300ms) ease;
+  /* Открытие/закрытие: .is-opening / .is-closing (см. инфо-блок выше) */
+  transition: background var(--card-transition-speed, 300ms) var(--ease),
+              border-color var(--card-transition-speed, 300ms) var(--ease),
+              border-radius var(--card-transition-speed, 300ms) var(--ease),
+              margin-bottom var(--card-transition-speed, 300ms) var(--ease),
+              box-shadow var(--card-transition-speed, 300ms) var(--ease);
 }
 
 .media-source-block[hidden] {
@@ -970,7 +1057,7 @@ body.can-hover .zoom-close-btn:hover, body:not(.can-hover) .zoom-close-btn:activ
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
-  transition: color var(--card-transition-speed, 300ms) ease;
+  transition: color var(--card-transition-speed, 300ms) var(--ease);
 }
 
 .r34-source-header svg {
@@ -1007,7 +1094,7 @@ body.can-hover .zoom-close-btn:hover, body:not(.can-hover) .zoom-close-btn:activ
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 16px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 4px 15px rgba(0, 0, 0, 0.15);
-  transition: border-color 0.25s var(--ease), background-color 0.25s var(--ease);
+  transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease);
 }
 
 body.can-hover .r34-source-plain-text-wrapper:hover, body:not(.can-hover) .r34-source-plain-text-wrapper:active {
@@ -1057,7 +1144,7 @@ body.can-hover .r34-source-plain-text-wrapper:hover, body:not(.can-hover) .r34-s
   gap: 12px;
   width: 100%;
   min-width: 0;
-  padding: 11px 18px;
+  padding: 12px 18px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--card-border-color, rgba(255, 255, 255, 0.08));
   border-radius: calc(var(--media-radius, 20px) / 1.5);
@@ -1110,8 +1197,8 @@ body.can-hover .r34-source-link-btn:hover, body:not(.can-hover) .r34-source-link
   flex-shrink: 0;
   color: var(--accent);
   filter: drop-shadow(0 0 4px var(--accent-glow));
-  transition: transform var(--card-transition-speed, 300ms) ease,
-              filter var(--card-transition-speed, 300ms) ease;
+  transition: transform var(--card-transition-speed, 300ms) var(--ease),
+              filter var(--card-transition-speed, 300ms) var(--ease);
 }
 
 body.can-hover .r34-source-link-btn:hover svg.link-icon, body:not(.can-hover) .r34-source-link-btn:active svg.link-icon {
@@ -1122,7 +1209,7 @@ body.can-hover .r34-source-link-btn:hover svg.link-icon, body:not(.can-hover) .r
 .r34-source-action-label {
   opacity: 0.95;
   min-width: 0;
-  transition: color var(--card-transition-speed, 300ms) ease;
+  transition: color var(--card-transition-speed, 300ms) var(--ease);
 }
 
 /* Бейдж домена */
@@ -1144,7 +1231,7 @@ body.can-hover .r34-source-link-btn:hover svg.link-icon, body:not(.can-hover) .r
   letter-spacing: 0.5px;
   text-transform: lowercase;
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.4);
-  transition: all var(--card-transition-speed, 300ms) ease;
+  transition: all var(--card-transition-speed, 300ms) var(--ease);
 }
 
 body.can-hover .r34-source-link-btn:hover .r34-domain-badge, body:not(.can-hover) .r34-source-link-btn:active .r34-domain-badge {
@@ -1160,7 +1247,7 @@ body.can-hover .r34-source-link-btn:hover .r34-domain-badge, body:not(.can-hover
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
   font-size: 1rem;
   transition: transform var(--card-transition-speed, 300ms) var(--ease-bounce),
-              color var(--card-transition-speed, 300ms) ease;
+              color var(--card-transition-speed, 300ms) var(--ease);
 }
 
 body.can-hover .r34-source-link-btn:hover .r34-link-arrow, body:not(.can-hover) .r34-source-link-btn:active .r34-link-arrow {
@@ -1178,10 +1265,163 @@ body.can-hover .r34-source-link-btn:hover .r34-link-arrow, body:not(.can-hover) 
 
 .gallery-empty-msg { color: rgba(255,255,255,0.4); padding: 40px; font-size: 1.1rem; }
 .gallery-empty-msg svg { display: inline-block; vertical-align: middle; filter: drop-shadow(0 0 4px var(--accent-glow)); }
-.gallery-error-msg { color: #ff3b6b; padding: 20px; }
+.gallery-error-msg { color: var(--error, #ff4b4b); padding: 20px; }
 .gallery-loading-msg { color: rgba(255,255,255,0.5); padding: 40px; font-size: 1.1rem; }
 
 /* Media Meta Badges */
 .media-id-badge { opacity: 0.8; font-weight: normal; font-size: 0.85em; color: var(--accent, #a78bfa); background: rgba(var(--accent-rgb, 167, 139, 250), 0.12); padding: 2px 6px; border-radius: var(--radius-xs); border: 1px solid rgba(var(--accent-rgb, 167, 139, 250), 0.2); white-space: nowrap; cursor: pointer; transition: all var(--transition-speed, 0.2s) var(--ease); }
 .media-id-badge:hover { opacity: 1; filter: brightness(1.2); }
 .media-date-badge { opacity: 0.8; font-weight: normal; font-size: 0.85em; color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 2px 6px; border-radius: var(--radius-xs); border: 1px solid rgba(56, 189, 248, 0.2); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+
+/* ============================================================
+   SCROLL-REVEAL КАРТОЧЕК (stagger) · плавный вход
+   Карточка скрыта, пока не войдёт во вьюпорт; при входе выезжает
+   каскадом вверх (стаггер --reveal-delay ставит _handleReveal в
+   gallery.js). Fail-open: класс card-reveal вешается только при
+   наличии IntersectionObserver, иначе карточки просто видимы.
+   ============================================================ */
+@keyframes cardReveal {
+  0%   { opacity: 0; transform: translateY(22px) scale(0.98); }
+  60%  { opacity: 1; transform: translateY(-3px) scale(1.004); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Скрыта ТОЛЬКО пока не revealed: :not() гарантирует, что после
+   появления hover-трансформации снова работают (специфичность
+   не перекрывает их, т.к. селектор перестаёт совпадать). */
+.media-container.card-reveal:not(.card-revealed) {
+  opacity: 0;
+  transform: translateY(22px) scale(0.98);
+}
+
+/* backwards — во время задержки (стаггера) держит первый кадр (скрыто),
+   после завершения откат к базовым стилям (видимость + рабочий hover). */
+.media-container.card-revealed {
+  animation: cardReveal 0.6s var(--ease) var(--reveal-delay, 0ms) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media-container.card-reveal:not(.card-revealed) {
+    opacity: 1;
+    transform: none;
+  }
+  .media-container.card-revealed {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   ФУТУРИСТИЧНЫЙ СЛОЙ — КАРТОЧКИ
+   При наведении по медиа проходит сканирующая полоса света,
+   лайк вспыхивает расходящимся кольцом энергии.
+   Оба эффекта — только opacity + transform, без перестроек
+   раскладки: карточка не может «дёрнуться» от них.
+   ============================================================ */
+
+.media-container::after {
+  content: '';
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: 0;
+  z-index: 2;
+  height: 38%;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(var(--accent-rgb), 0.08) 38%,
+    rgba(255, 255, 255, 0.14) 50%,
+    rgba(var(--accent-rgb), 0.08) 62%,
+    transparent 100%
+  );
+  opacity: 0;
+  transform: translateY(-70%);
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+body.can-hover .media-container:not(.card-reveal):hover::after {
+  animation: cardScanline 1.15s var(--ease-in-out);
+}
+
+@keyframes cardScanline {
+  0%   { opacity: 0; transform: translateY(-70%); }
+  12%  { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(300%); }
+}
+
+/* Лайк: пульс + расходящееся кольцо света (box-shadow не режется overflow) */
+.like-btn.liked {
+  animation: likePulse var(--dur-slow) var(--ease), likeGlow 0.75s var(--ease-out, ease-out);
+}
+
+@keyframes likeGlow {
+  0%   { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.5), 0 0 12px rgba(var(--accent-rgb), 0.25); }
+  100% { box-shadow: 0 0 0 12px rgba(var(--accent-rgb), 0), 0 0 18px rgba(var(--accent-rgb), 0.3); }
+}
+
+/* Нажатие на лайк — короткая внутренняя вспышка */
+.like-btn:active {
+  box-shadow: inset 0 0 14px rgba(var(--accent-rgb), 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.can-hover .media-container:not(.card-reveal):hover::after {
+    animation: none;
+  }
+  .like-btn.liked {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   SKELETON LOADING — Карточки-заглушки
+   ============================================================ */
+.media-container.skeleton-card-placeholder {
+  background: var(--dark-2);
+  border-color: rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+}
+
+.media-container.skeleton-card-placeholder .skeleton-inner {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.02) 25%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0.02) 75%
+  );
+  background-size: 300% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+  border-radius: var(--media-radius);
+}
+
+/* ============================================================
+   ENHANCED CARD SCANLINE — Улучшенный сканирующий блик
+   ============================================================ */
+.media-container::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: 3;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(var(--accent-rgb), 0.15) 0%,
+    transparent 70%
+  );
+  transition: opacity var(--dur-slow) var(--ease);
+}
+
+body.can-hover .media-container:hover::before {
+  animation: borderGlowPulse 2s var(--ease-in-out) infinite;
+}
+
+@keyframes borderGlowPulse {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}

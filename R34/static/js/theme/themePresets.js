@@ -11,6 +11,9 @@ export const colorPresets = {
 };
 
 export const bgPresets = {
+    // База полностью выводится из акцентного цвета — так смена акцента
+    // перекрашивает и полотно, как это делает готовый пресет.
+    auto: { dark: '#08090f', bodyBg: 'auto', fromAccent: true },
     midnight: { dark: '#0a0b10', bodyBg: 'radial-gradient(circle at top right, #1b1622 0%, #0a0b10 100%)' },
     obsidian: { dark: '#000000', bodyBg: '#000000' },
     forest: { dark: '#040c06', bodyBg: 'radial-gradient(circle at top right, #0a1f10 0%, #040c06 100%)' },
@@ -80,29 +83,70 @@ export function getAccentGlow(hexColor, intensity) {
     return `rgba(255, 59, 107, ${alpha.toFixed(3)})`;
 }
 
+/**
+ * #rgb / #rrggbb → { h, s, l } (в градусах и процентах).
+ * Возвращает null, если цвет не hex — тогда вызывающий код оставляет значение как есть.
+ */
+export function hexToHsl(hexColor) {
+    if (!hexColor || typeof hexColor !== 'string' || !hexColor.startsWith('#')) return null;
+    let hex = hexColor.trim().replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    if (hex.length !== 6) return null;
+
+    const r = parseInt(hex.substring(0, 2), 16) / 255;
+    const g = parseInt(hex.substring(2, 4), 16) / 255;
+    const b = parseInt(hex.substring(4, 6), 16) / 255;
+    if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    const d = max - min;
+    if (d === 0) return { h: 0, s: 0, l: l * 100 };
+
+    const s = d / (1 - Math.abs(2 * l - 1));
+    let h;
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+
+    return { h, s: s * 100, l: l * 100 };
+}
+
+export function hslToHex(h, s, l) {
+    const sN = Math.max(0, Math.min(100, s)) / 100;
+    const lN = Math.max(0, Math.min(100, l)) / 100;
+    const c = (1 - Math.abs(2 * lN - 1)) * sN;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = lN - c / 2;
+
+    let r = 0, g = 0, b = 0;
+    if (h < 60) { r = c; g = x; }
+    else if (h < 120) { r = x; g = c; }
+    else if (h < 180) { g = c; b = x; }
+    else if (h < 240) { g = x; b = c; }
+    else if (h < 300) { r = x; b = c; }
+    else { r = c; b = x; }
+
+    const toHex = (v) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+    return '#' + toHex(r) + toHex(g) + toHex(b);
+}
+
+/**
+ * Второй цвет градиента для произвольного акцента.
+ * Раньше цвет просто подмешивался к белому — на насыщенных неоновых оттенках
+ * это давало почти невидимый градиент. Теперь, как в готовых пресетах,
+ * сдвигаем оттенок и светлоту: получается узнаваемая «парная» краска.
+ */
 export function getAccentAlt(hexColor) {
-    if (hexColor && hexColor.startsWith('#')) {
-        const hex = hexColor.replace('#', '');
-        let r, g, b;
-        if (hex.length === 3) {
-            r = parseInt(hex[0] + hex[0], 16) || 0;
-            g = parseInt(hex[1] + hex[1], 16) || 0;
-            b = parseInt(hex[2] + hex[2], 16) || 0;
-        } else if (hex.length === 6) {
-            r = parseInt(hex.substring(0, 2), 16) || 0;
-            g = parseInt(hex.substring(2, 4), 16) || 0;
-            b = parseInt(hex.substring(4, 6), 16) || 0;
-        } else {
-            return hexColor;
-        }
-        const isTooLight = (r * 0.299 + g * 0.587 + b * 0.114) > 180;
-        const factor = isTooLight ? -0.15 : 0.15;
-        const rAlt = Math.max(0, Math.min(255, Math.round(r + (isTooLight ? r : 255 - r) * factor)));
-        const gAlt = Math.max(0, Math.min(255, Math.round(g + (isTooLight ? g : 255 - g) * factor)));
-        const bAlt = Math.max(0, Math.min(255, Math.round(b + (isTooLight ? b : 255 - b) * factor)));
-        return `rgb(${rAlt}, ${gAlt}, ${bAlt})`;
-    }
-    return hexColor;
+    const hsl = hexToHsl(hexColor);
+    if (!hsl) return hexColor;
+    const { h, s, l } = hsl;
+    const hueShift = s < 12 ? 0 : 9;          // у почти-серых сдвиг оттенка не виден
+    const lightShift = l > 70 ? -9 : 7;        // светлые делаем глубже, тёмные — ярче
+    return hslToHex((h + hueShift) % 360, s, l + lightShift);
 }
 
 export function getBgLuminance(colorStr) {

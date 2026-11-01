@@ -40,6 +40,48 @@
     z-index: 2;
 }
 
+/* Улучшенные переходы свайпа с визуальным фидбеком */
+.media-slide.swiping {
+    transition: none;
+    will-change: transform;
+}
+
+.media-slide.exit-left {
+    animation: swipeExitLeft 0.4s var(--ease) forwards;
+}
+
+.media-slide.exit-right {
+    animation: swipeExitRight 0.4s var(--ease) forwards;
+}
+
+.media-slide.enter-from-left {
+    animation: swipeEnterFromLeft 0.45s var(--ease) backwards;
+}
+
+.media-slide.enter-from-right {
+    animation: swipeEnterFromRight 0.45s var(--ease) backwards;
+}
+
+@keyframes swipeExitLeft {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(-30%); opacity: 0.3; }
+}
+
+@keyframes swipeExitRight {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(30%); opacity: 0.3; }
+}
+
+@keyframes swipeEnterFromLeft {
+    from { transform: translateX(-100vw); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes swipeEnterFromRight {
+    from { transform: translateX(100vw); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
 .media-slide .media-content {
     width: 100vw;
     height: 100vh;
@@ -81,7 +123,16 @@
     -webkit-backdrop-filter: blur(var(--header-backdrop-filter, 20px));
     outline: none !important;
     box-shadow: var(--shadow-lg) !important;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s;
+    transition: opacity var(--dur-slow) var(--ease-in-out), transform var(--dur-slow) var(--ease-in-out), visibility var(--dur-slow);
+}
+
+/* Auto-hide контролов с плавным fade */
+.media-slide .gallery-video-controls-wrapper.controls-hidden,
+.media-slide .photo-controls-bar.fullscreen.controls-hidden {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
+    visibility: hidden;
+    pointer-events: none;
 }
 
 /* Play/Pause bottom buttons style */
@@ -152,7 +203,7 @@ body.can-hover .video-bottom-sound-btn:hover, body:not(.can-hover) .video-bottom
     background: var(--glass-bg-strong);
     appearance: none;
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--dur) var(--ease-in-out);
     outline: none;
     margin: 0;
     flex-shrink: 0;
@@ -179,7 +230,7 @@ body.can-hover .video-bottom-sound-btn:hover + .video-bottom-volume, body:not(.c
   cursor: pointer;
   -webkit-appearance: none;
   appearance: none;
-  transition: height 0.18s var(--ease);
+  transition: height var(--dur-fast) var(--ease);
 }
 
 .media-slide .photo-progress {
@@ -286,7 +337,7 @@ body.can-hover .media-slide .photo-progress:hover::-webkit-slider-thumb, body:no
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
-    transition: all 0.25s cubic-bezier(.4,0,.2,1);
+    transition: all var(--dur) var(--ease-in-out);
     outline: none;
     box-shadow: var(--shadow-sm);
 }
@@ -325,7 +376,7 @@ body.can-hover .fullscreen-close-btn:hover, body:not(.can-hover) .fullscreen-clo
     align-items: center;
     justify-content: center;
     color: rgba(255, 255, 255, 0.85);
-    transition: all 0.25s cubic-bezier(.4,0,.2,1);
+    transition: all var(--dur) var(--ease-in-out);
     outline: none;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     font-size: 1.25rem;
@@ -394,7 +445,7 @@ body.can-hover .fullscreen-hd-btn:hover, body:not(.can-hover) .fullscreen-hd-btn
     align-items: center;
     justify-content: center;
     color: var(--text-muted, rgba(255, 255, 255, 0.85));
-    transition: all 0.25s cubic-bezier(.4,0,.2,1);
+    transition: all var(--dur) var(--ease-in-out);
     outline: none;
     box-shadow: var(--shadow-sm, 0 4px 12px rgba(0,0,0,0.3));
 }
@@ -584,11 +635,11 @@ body.can-hover .fullscreen-info-close:hover, body:not(.can-hover) .fullscreen-in
 /* Чипы: мельче и плотнее — их бывает под три десятка */
 .fullscreen-info-body .media-tag {
     font-size: 0.74rem;
-    padding: 4px 9px;
+    padding: 4px 8px;
     border-radius: 7px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    transition: background 0.18s var(--ease), border-color 0.18s var(--ease);
+    transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 
 body.can-hover .fullscreen-info-body .media-tag:hover {
@@ -629,7 +680,7 @@ body.can-hover .fullscreen-info-body .media-tag:hover {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 9px 11px;
+    padding: 8px 12px;
     font-size: 0.82rem;
     line-height: 1.2;
 }
@@ -661,7 +712,7 @@ body.can-hover .fullscreen-info-body .media-tag:hover {
     z-index: 50500;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s var(--ease);
+    transition: opacity var(--dur-slow) var(--ease);
 }
 
 .fullscreen-info-backdrop.visible {
@@ -734,16 +785,16 @@ body.can-hover .fullscreen-info-body .media-tag:hover {
     }
 }
 /* Fullscreen Loading/End Slides */
-.fullscreen-loading-slide { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at center, #181924 0%, #0c0d12 100%); z-index: 50; transition: transform 0.6s cubic-bezier(.4,0,.2,1), opacity 0.6s cubic-bezier(.4,0,.2,1); }
+.fullscreen-loading-slide { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at center, #181924 0%, #0c0d12 100%); z-index: 50; transition: transform 0.6s var(--ease-in-out), opacity 0.6s var(--ease-in-out); }
 .fs-loading-content { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 30px; text-align: center; }
 .fs-spinner { width: 56px; height: 56px; border: 4px solid rgba(255,255,255,0.08); border-top-color: var(--accent, #ff3b6b); border-radius: 50%; animation: spin 1s linear infinite; box-shadow: 0 0 20px var(--accent-glow, rgba(255,59,107,0.3)); }
 .fs-loading-title { color: #fff; font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px; font-family: inherit; }
 .fs-loading-subtitle { color: rgba(255,255,255,0.5); font-size: 0.85rem; }
 
 /* Fullscreen End Slide */
-.fullscreen-end-slide { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at center, #181924 0%, #0c0d12 100%); z-index: 50; transition: transform 0.6s cubic-bezier(.4,0,.2,1), opacity 0.6s cubic-bezier(.4,0,.2,1); }
+.fullscreen-end-slide { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at center, #181924 0%, #0c0d12 100%); z-index: 50; transition: transform 0.6s var(--ease-in-out), opacity 0.6s var(--ease-in-out); }
 .fs-end-content { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 30px; text-align: center; }
-.fs-end-icon-box { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; background: rgba(255, 59, 107, 0.1); border: 2px solid var(--accent, #ff3b6b); border-radius: 50%; box-shadow: 0 0 25px var(--accent-glow, rgba(255,59,107,0.4)); color: var(--accent, #ff3b6b); }
+.fs-end-icon-box { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; background: rgba(var(--accent-rgb), 0.1); border: 2px solid var(--accent, #ff3b6b); border-radius: 50%; box-shadow: 0 0 25px var(--accent-glow, rgba(255,59,107,0.4)); color: var(--accent, #ff3b6b); }
 .fs-end-title { color: #fff; font-size: 1.25rem; font-weight: 700; letter-spacing: 0.5px; font-family: inherit; }
 .fs-end-subtitle { color: rgba(255,255,255,0.6); font-size: 0.9rem; max-width: 280px; line-height: 1.4; }
 
@@ -816,7 +867,7 @@ body.can-hover .fullscreen-info-body .media-tag:hover {
     cursor: pointer;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+    transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 
 .vr-close-btn {
@@ -865,7 +916,7 @@ body.can-hover .vr-btn:hover, body:not(.can-hover) .vr-btn:active {
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.2s var(--ease), color 0.2s var(--ease);
+    transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 
 body.can-hover .vr-seg-btn:not(.active):hover,
@@ -896,7 +947,7 @@ body:not(.can-hover) .vr-seg-btn:not(.active):active {
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     pointer-events: none;
-    animation: vrHintFade 0.4s var(--ease);
+    animation: vrHintFade var(--dur-slow) var(--ease);
 }
 
 @keyframes vrHintFade {
@@ -950,11 +1001,11 @@ body:not(.can-hover) .vr-seg-btn:not(.active):active {
     .vr-topbar { top: 12px; left: 12px; right: 12px; gap: 8px; }
     .vr-topbar-group { gap: 6px; }
     .vr-seg { gap: 2px; padding: 2px; }
-    .vr-seg-btn { padding: 0 9px; font-size: 0.76rem; }
+    .vr-seg-btn { padding: 0 8px; font-size: 0.76rem; }
     /* На телефоне у кнопок стерео остаются только стрелки — со словом
        «Стерео» панель занимала четыре строки и половину экрана. */
     .vr-seg-word { display: none; }
-    .vr-btn { min-height: 36px; padding: 0 11px; font-size: 0.78rem; }
+    .vr-btn { min-height: 36px; padding: 0 12px; font-size: 0.78rem; }
     .vr-close-btn { width: 36px; }
     .vr-hint { bottom: 16px; font-size: 0.74rem; }
 }
@@ -978,7 +1029,7 @@ body:not(.can-hover) .vr-seg-btn:not(.active):active {
     color: rgba(255, 255, 255, 0.85);
     cursor: pointer;
     outline: none;
-    transition: all 0.25s cubic-bezier(.4, 0, .2, 1);
+    transition: all var(--dur) var(--ease-in-out);
 }
 
 .fullscreen-vr-btn svg {

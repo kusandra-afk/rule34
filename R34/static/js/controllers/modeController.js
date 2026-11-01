@@ -12,6 +12,10 @@ export class ModeController {
         this.modeGalleryBtn = document.getElementById('modeGalleryBtn');
         this.modeProfileBtn = document.getElementById('modeProfileBtn');
         this.searchContainer = document.querySelector('.search-container');
+        // Счётчик результатов вынесен из .search-container (он не должен
+        // прилипать к верху вместе с панелью поиска), поэтому прятать его
+        // в режиме «Избранное» нужно отдельно.
+        this.resultsCountBar = document.querySelector('.r34-results-count-bar');
     }
 
     init() {
@@ -33,6 +37,7 @@ export class ModeController {
         this.modeProfileBtn.classList.remove('active');
 
         if (this.searchContainer) this.searchContainer.style.display = '';
+        if (this.resultsCountBar) this.resultsCountBar.style.display = '';
 
         if (this.gallery) {
             if (typeof this.gallery.showGalleryView === 'function') {
@@ -55,6 +60,7 @@ export class ModeController {
         this.modeGalleryBtn.classList.remove('active');
 
         if (this.searchContainer) this.searchContainer.style.display = 'none';
+        if (this.resultsCountBar) this.resultsCountBar.style.display = 'none';
 
         // Баннер ошибки/rate-limit галереи (плавающий тост, не привязанный к
         // текущему экрану) относится только к загрузке страниц галереи —

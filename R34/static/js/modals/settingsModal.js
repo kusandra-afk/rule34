@@ -8,7 +8,7 @@ import { checkAndRemoveModalOpenClass, initTutorialModal } from './tutorialModal
 import { tursoSync } from '../tursoSync.js';
 import { saveTursoConfigToServer, saveSettingsToServer } from '../init/initServerSync.js';
 import { colorPresets } from '../theme/themePresets.js';
-import { debouncedSaveSetting } from '../theme/themeManager.js';
+import { debouncedSaveSetting, setAccent } from '../theme/themeManager.js';
 import { OnlineUI } from '../puzzle/onlineUI.js';
 
 export function initSettingsModal(options = {}) {
@@ -190,9 +190,53 @@ export function initSettingsModal(options = {}) {
     }
 
     
+        // iOS-подобное открытие настроек: запоминаем центр иконки-шестерёнки
+        // как точку раскрытия карточки (переменные --gear-x/--gear-y читает
+        // search.css: transform-origin у .settings-modal-card) и запускаем
+        // прокрутку самой иконки — окно как будто вылетает из шестерёнки.
+        const prepareSettingsFlyOut = () => {
+            const gearSvg = settingsBtn.querySelector('svg');
+            const card = settingsModal.querySelector('.settings-modal-card');
+            if (gearSvg && card) {
+                const gearRect = gearSvg.getBoundingClientRect();
+                const cardRect = card.getBoundingClientRect();
+                // Замеряем карточку ДО открытия: она уже в лэйауте
+                // (visibility:hidden не снимает раскладку). Важно: закрытая
+                // карточка сжата в точку (scale 0.07), и getBoundingClientRect
+                // отдаёт УЖЕ уменьшенный прямоугольник — если брать его левый
+                // верхний угол, точка вылета уезжает примерно на половину
+                // карточки. Поэтому берём её настоящий размер из offsetWidth/
+                // offsetHeight (они не зависят от transform) и восстанавливаем
+                // угол от центра видимого прямоугольника — он совпадает с
+                // центром раскладки.
+                const centerX = cardRect.left + cardRect.width / 2;
+                const centerY = cardRect.top + cardRect.height / 2;
+                if (cardRect.width > 0 && cardRect.height > 0) {
+                    const left = centerX - card.offsetWidth / 2;
+                    const top = centerY - card.offsetHeight / 2;
+                    settingsModal.style.setProperty('--gear-x', Math.round(gearRect.left + gearRect.width / 2 - left) + 'px');
+                    settingsModal.style.setProperty('--gear-y', Math.round(gearRect.top + gearRect.height / 2 - top) + 'px');
+                }
+            }
+            // Перезапуск прокрутки даже при быстрых повторных кликах
+            settingsBtn.classList.remove('gear-spin');
+            void settingsBtn.offsetWidth;
+            settingsBtn.classList.add('gear-spin');
+            // Снимаем класс после конца прокрутки (иначе висит до следующего
+            // клика). На устройствах без вибрации navigator.vibrate нет —
+            // молча пропускаем.
+            if (gearSvg) {
+                gearSvg.addEventListener('animationend', () => settingsBtn.classList.remove('gear-spin'), { once: true });
+            }
+            try {
+                if (navigator.vibrate) navigator.vibrate(12);
+            } catch (e) { /* хаптика опциональна */ }
+        };
+
         // 1. Открытие/закрытие модального окна настроек
         if (settingsBtn && settingsModal) {
             settingsBtn.addEventListener('click', () => {
+                prepareSettingsFlyOut();
                 // Обновляем SafeScreen в настройках
                 if (window.safeScreen) {
                     const hkDisp = document.getElementById('safeScreenHotkeyDisplay');
@@ -246,23 +290,12 @@ export function initSettingsModal(options = {}) {
                 const savedIsCustom = localStorage.getItem('r34_gallery_is_custom') === 'true';
                 updateColumnsSelectorUI(savedCols, savedIsCustom);
                 
-                // HD качество фото
+                // HD качество фото — только синхронизация галочки. Сам обработчик
+                // change навешан один раз ниже (секция "HD Checkbox"), а не здесь:
+                // раньше он дублировался при каждом открытии настроек и копил
+                // слушатели.
                 settingsHdCheckbox.checked = localStorage.getItem('r34_hd_enabled') === 'true';
                 
-                // Event handler for HD quality setting
-                if (settingsHdCheckbox) {
-                    settingsHdCheckbox.addEventListener('change', () => {
-                        localStorage.setItem('r34_hd_enabled', settingsHdCheckbox.checked ? 'true' : 'false');
-                        // Reload all media containers to apply new quality setting
-                        document.querySelectorAll('.media-container').forEach(container => {
-                            container.dataset.loaded = "0";
-                            if (window.gallery && window.gallery.observer) {
-                                window.gallery.observer.unobserve(container);
-                                window.gallery.observer.observe(container);
-                            }
-                        });
-                    });
-                }
                 if (settingsOnlyGifsCheckbox) {
                     settingsOnlyGifsCheckbox.checked = localStorage.getItem('r34_only_gifs') === 'true';
                 }
@@ -286,21 +319,11 @@ export function initSettingsModal(options = {}) {
                     settingsLoadLimitCheckbox.checked = localStorage.getItem('r34_load_limit_enabled') === 'true';
                 }
                 
-                // Event handler for Save Data setting
+                // Save Data — только синхронизация галочки. Обработчик change
+                // навешан один раз ниже (секция "Save Data Checkbox").
                 const settingsSaveDataCheckbox = document.getElementById('settingsSaveDataCheckbox');
                 if (settingsSaveDataCheckbox) {
                     settingsSaveDataCheckbox.checked = localStorage.getItem('r34_save_data') === 'true';
-                    settingsSaveDataCheckbox.addEventListener('change', () => {
-                        localStorage.setItem('r34_save_data', settingsSaveDataCheckbox.checked ? 'true' : 'false');
-                        // Reload all media containers to apply new quality setting
-                        document.querySelectorAll('.media-container').forEach(container => {
-                            container.dataset.loaded = "0";
-                            if (window.gallery && window.gallery.observer) {
-                                window.gallery.observer.unobserve(container);
-                                window.gallery.observer.observe(container);
-                            }
-                        });
-                    });
                 }
                 if (settingsPreloadSelect) {
                     settingsPreloadSelect.value = localStorage.getItem('r34_preload_mode') || 'near';
@@ -352,48 +375,11 @@ export function initSettingsModal(options = {}) {
                 }
     
                 // Синхронизация продвинутых настроек
-                // 1. Акцентный цвет
-                const currentAccent = localStorage.getItem('r34_theme_accent') || 'pink';
-                document.querySelectorAll('#settingsThemeColors .theme-color-dot').forEach(dot => {
-                    if (dot.getAttribute('data-color') === currentAccent) {
-                        dot.classList.add('active');
-                        dot.style.borderColor = '#fff';
-                        dot.style.transform = 'scale(1.15)';
-                    } else {
-                        dot.classList.remove('active');
-                        dot.style.borderColor = 'transparent';
-                        dot.style.transform = 'scale(1)';
-                    }
-                });
-    
-                // Синхронизация кастомного ввода акцента
-                const settingsAccentColorPicker = document.getElementById('settingsAccentColorPicker');
-                const settingsAccentManual = document.getElementById('settingsAccentManual');
-                if (settingsAccentColorPicker && settingsAccentManual) {
-                    if (currentAccent.startsWith('#')) {
-                        settingsAccentColorPicker.value = extractHexColor(currentAccent);
-                        settingsAccentManual.value = currentAccent;
-                    } else {
-                        const pr = colorPresets[currentAccent] || colorPresets.pink;
-                        settingsAccentColorPicker.value = extractHexColor(pr.accent);
-                        settingsAccentManual.value = pr.accent;
-                    }
-                }
+                // 1. Акцентный цвет (кружки + пикер + ручное поле разом)
+                syncAccentControls();
     
                 // 2. Фон интерфейса
-                const settingsBgSelect = document.getElementById('settingsBgSelect');
-                const settingsBgManual = document.getElementById('settingsBgManual');
-                const currentBg = localStorage.getItem('r34_theme_bg') || 'midnight';
-                if (settingsBgSelect) {
-                    if (bgPresets[currentBg]) {
-                        settingsBgSelect.value = currentBg;
-                    } else {
-                        settingsBgSelect.value = 'midnight';
-                    }
-                }
-                if (settingsBgManual) {
-                    settingsBgManual.value = currentBg;
-                }
+                syncBgControls();
     
                 // 3. Скругление углов
                 const settingsRadiusInput = document.getElementById('settingsRadiusInput');
@@ -479,18 +465,6 @@ export function initSettingsModal(options = {}) {
                     settingsAutoSlideInterval.value = localStorage.getItem('r34_auto_slide_interval') || '5';
                 }
     
-                // Sync new advanced settings variables
-                const cardBgOpacity = localStorage.getItem('r34_card_bg_opacity') || '85';
-                const settingsCardOpacityInput = document.getElementById('settingsCardOpacityInput');
-                const settingsCardOpacityManual = document.getElementById('settingsCardOpacityManual');
-                const settingsCardOpacityValue = document.getElementById('settingsCardOpacityValue');
-                if (settingsCardOpacityInput) {
-                    settingsCardOpacityInput.value = cardBgOpacity;
-                    setRangeGradient(settingsCardOpacityInput);
-                }
-                if (settingsCardOpacityManual) settingsCardOpacityManual.value = cardBgOpacity;
-                if (settingsCardOpacityValue) settingsCardOpacityValue.textContent = cardBgOpacity + '%';
-    
                 // API Settings
                 const apiLimit = localStorage.getItem('r34_api_limit') || '40';
                 const settingsApiLimitInput = document.getElementById('settingsApiLimitInput');
@@ -535,17 +509,6 @@ export function initSettingsModal(options = {}) {
                 }
                 if (settingsApiRetryDelayManual) settingsApiRetryDelayManual.value = apiRetryDelay;
                 if (settingsApiRetryDelayValue) settingsApiRetryDelayValue.textContent = apiRetryDelay + 'с';
-    
-                const cardBgBlur = localStorage.getItem('r34_card_bg_blur') || '0';
-                const settingsCardBlurInput = document.getElementById('settingsCardBlurInput');
-                const settingsCardBlurManual = document.getElementById('settingsCardBlurManual');
-                const settingsCardBlurValue = document.getElementById('settingsCardBlurValue');
-                if (settingsCardBlurInput) {
-                    settingsCardBlurInput.value = cardBgBlur;
-                    setRangeGradient(settingsCardBlurInput);
-                }
-                if (settingsCardBlurManual) settingsCardBlurManual.value = cardBgBlur;
-                if (settingsCardBlurValue) settingsCardBlurValue.textContent = cardBgBlur + 'px';
     
                 const cardTagsDisplay = localStorage.getItem('r34_card_tags_display') || 'true';
                 const settingsCardTagsCheckbox = document.getElementById('settingsCardTagsCheckbox');
@@ -805,73 +768,108 @@ export function initSettingsModal(options = {}) {
         }
     
         // 1. Акцентный цвет
+        // Источник правды один — r34_theme_accent. И кружки, и пикер, и ручное
+        // поле, и пресеты из режима разработчика идут через setAccent(), так что
+        // они больше не перекрывают друг друга и всегда обновляют всю палитру
+        // (--accent, --accent-alt, --accent-glow, --accent-rgb).
         const colorDots = document.querySelectorAll('#settingsThemeColors .theme-color-dot');
         const settingsAccentColorPicker = document.getElementById('settingsAccentColorPicker');
         const settingsAccentManual = document.getElementById('settingsAccentManual');
-    
+
+        const normalizeAccentHex = (value) => {
+            if (typeof value !== 'string') return '';
+            const hex = value.trim();
+            if (!/^#([0-9a-f]{3}){1,2}$/i.test(hex)) return '';
+            return hex.length === 4
+                ? '#' + hex.slice(1).split('').map(c => c + c).join('').toLowerCase()
+                : hex.toLowerCase();
+        };
+
+        const syncAccentControls = (value) => {
+            const current = (value || localStorage.getItem('r34_theme_accent') || 'pink').trim();
+            const isCustom = current.startsWith('#');
+            // Кастомный цвет, совпадающий с пресетом, подсвечивает его кружок.
+            const presetKey = Object.keys(colorPresets).find(
+                key => colorPresets[key].accent.toLowerCase() === current.toLowerCase()
+            );
+            const activeKey = isCustom ? presetKey : current;
+
+            colorDots.forEach(dot => {
+                const isActive = dot.getAttribute('data-color') === activeKey;
+                dot.classList.toggle('active', isActive);
+                dot.style.borderColor = isActive ? '#fff' : 'transparent';
+                dot.style.transform = isActive ? 'scale(1.15)' : 'scale(1)';
+            });
+
+            const hex = isCustom ? normalizeAccentHex(current) : (colorPresets[current] || colorPresets.pink).accent;
+            if (settingsAccentColorPicker && hex) settingsAccentColorPicker.value = hex;
+            // Не переписываем поле под курсором, пока его редактируют вручную.
+            if (settingsAccentManual && document.activeElement !== settingsAccentManual) {
+                settingsAccentManual.value = isCustom ? current : hex;
+            }
+        };
+
         // Клик по готовым точкам
         colorDots.forEach(dot => {
             dot.addEventListener('click', () => {
-                const color = dot.getAttribute('data-color');
-                localStorage.setItem('r34_theme_accent', color);
-                
-                colorDots.forEach(d => {
-                    d.classList.remove('active');
-                    d.style.borderColor = 'transparent';
-                    d.style.transform = 'scale(1)';
-                });
-                dot.classList.add('active');
-                dot.style.borderColor = '#fff';
-                dot.style.transform = 'scale(1.15)';
-                
-                // Синхронизируем пикер и текстовое поле
-                const pr = colorPresets[color] || colorPresets.pink;
-                if (settingsAccentColorPicker) settingsAccentColorPicker.value = pr.accent;
-                if (settingsAccentManual) settingsAccentManual.value = pr.accent;
-    
-                applyThemeSettings();
+                setAccent(dot.getAttribute('data-color'));
+                syncAccentControls();
                 updateTabColors();
             });
         });
-    
+
         // Изменение в пикере цвета
         if (settingsAccentColorPicker) {
             settingsAccentColorPicker.addEventListener('input', () => {
-                const hex = settingsAccentColorPicker.value;
-                if (settingsAccentManual) settingsAccentManual.value = hex;
-                localStorage.setItem('r34_theme_accent', hex);
-                
-                // Сбрасываем активные точки пресетов
-                colorDots.forEach(d => {
-                    d.classList.remove('active');
-                    d.style.borderColor = 'transparent';
-                    d.style.transform = 'scale(1)';
-                });
-    
-                applyThemeSettings();
+                setAccent(settingsAccentColorPicker.value);
+                syncAccentControls();
                 updateTabColors();
             });
         }
-    
+
         // Ручной ввод цвета текстом
         if (settingsAccentManual) {
             settingsAccentManual.addEventListener('input', () => {
-                let hex = settingsAccentManual.value.trim();
-                if (hex.match(/^#[0-9a-fA-F]{3,6}$/)) {
-                    if (settingsAccentColorPicker) settingsAccentColorPicker.value = extractHexColor(hex);
-                    localStorage.setItem('r34_theme_accent', hex);
-                    
-                    colorDots.forEach(d => {
-                        d.classList.remove('active');
-                        d.style.borderColor = 'transparent';
-                        d.style.transform = 'scale(1)';
-                    });
-    
-                    applyThemeSettings();
-                    updateTabColors();
-                }
+                const hex = normalizeAccentHex(settingsAccentManual.value);
+                if (!hex) return;
+                setAccent(hex);
+                syncAccentControls();
+                updateTabColors();
             });
         }
+
+        // Акцент могли поменять и из редактора стилей — держим контролы в курсе
+        window.addEventListener('r34:accent-changed', (e) => {
+            syncAccentControls(e.detail && e.detail.accent);
+        });
+
+        // Собственный фон (градиент/картинка) не выражается селектом —
+        // добавляем для него отдельный пункт, а не показываем чужую тему.
+        const syncBgControls = (value) => {
+            const select = document.getElementById('settingsBgSelect');
+            const manual = document.getElementById('settingsBgManual');
+            const cur = (value || localStorage.getItem('r34_theme_bg') || 'auto').trim();
+            if (select) {
+                if (bgPresets[cur]) {
+                    select.value = cur;
+                } else {
+                    let opt = select.querySelector('option[value="__custom__"]');
+                    if (!opt) {
+                        opt = document.createElement('option');
+                        opt.value = '__custom__';
+                        opt.textContent = 'Свой фон (CSS)';
+                        select.appendChild(opt);
+                    }
+                    select.value = '__custom__';
+                }
+            }
+            if (manual && document.activeElement !== manual) manual.value = cur;
+        };
+
+        // То же для фона: пресеты в редакторе стилей меняют тему целиком
+        window.addEventListener('r34:bg-changed', (e) => {
+            syncBgControls(e.detail && e.detail.bg);
+        });
     
         // 2. Фон интерфейса
         const settingsBgSelect = document.getElementById('settingsBgSelect');
@@ -880,6 +878,9 @@ export function initSettingsModal(options = {}) {
         if (settingsBgSelect) {
             settingsBgSelect.addEventListener('change', () => {
                 const val = settingsBgSelect.value;
+                // Пункт «Свой фон» — это не тема, а состояние: менять ничего
+                // не нужно, значение уже в поле ручного ввода.
+                if (val === '__custom__') return;
                 if (settingsBgManual) settingsBgManual.value = val;
                 localStorage.setItem('r34_theme_bg', val);
                 debouncedApplyThemeSettings();
@@ -892,15 +893,9 @@ export function initSettingsModal(options = {}) {
                 if (val) {
                     localStorage.setItem('r34_theme_bg', val);
                     applyThemeSettings();
-                    
-                    // Если совпадает с пресетом, выделим его в селекте
-                    if (settingsBgSelect) {
-                        if (bgPresets[val]) {
-                            settingsBgSelect.value = val;
-                        } else {
-                            // Оставляем пустой или без изменений
-                        }
-                    }
+                    // Селект показывает пресет, если значение совпало,
+                    // иначе — «Свой фон (CSS)».
+                    syncBgControls(val);
                 }
             });
         }
@@ -1009,7 +1004,7 @@ export function initSettingsModal(options = {}) {
                 if (val > 600) val = 600;
     
                 if (settingsColWidthInput) {
-                    settingsColWidthInput.value = Math.min(Math.max(val, 160), 480); // slider bound
+                    settingsColWidthInput.value = Math.min(Math.max(val, 100), 600); // slider bound
                     setRangeGradient(settingsColWidthInput);
                 }
                 if (settingsColWidthValue) {
@@ -1096,82 +1091,6 @@ export function initSettingsModal(options = {}) {
                         }
                     }
                 }
-            });
-        }
-    
-        // Advanced Setting: Card opacity
-        const settingsCardOpacityInput = document.getElementById('settingsCardOpacityInput');
-        const settingsCardOpacityManual = document.getElementById('settingsCardOpacityManual');
-        const settingsCardOpacityValue = document.getElementById('settingsCardOpacityValue');
-    
-        if (settingsCardOpacityInput && settingsCardOpacityValue) {
-            settingsCardOpacityInput.addEventListener('input', () => {
-                const val = settingsCardOpacityInput.value;
-                settingsCardOpacityValue.textContent = val + '%';
-                if (settingsCardOpacityManual) settingsCardOpacityManual.value = val;
-                
-                // Immediate visual feedback
-                document.documentElement.style.setProperty('--card-bg-opacity', (parseFloat(val) / 100).toFixed(2));
-                setRangeGradient(settingsCardOpacityInput);
-                
-                debouncedSaveSetting('r34_card_bg_opacity', val);
-            });
-        }
-    
-        if (settingsCardOpacityManual) {
-            settingsCardOpacityManual.addEventListener('input', () => {
-                let val = parseInt(settingsCardOpacityManual.value, 10);
-                if (isNaN(val)) val = 0;
-                if (val < 0) val = 0;
-                if (val > 100) val = 100;
-    
-                if (settingsCardOpacityInput) {
-                    settingsCardOpacityInput.value = val;
-                    setRangeGradient(settingsCardOpacityInput);
-                }
-                if (settingsCardOpacityValue) {
-                    settingsCardOpacityValue.textContent = val + '%';
-                }
-                localStorage.setItem('r34_card_bg_opacity', val);
-                applyThemeSettings();
-            });
-        }
-    
-        // Advanced Setting: Card blur
-        const settingsCardBlurInput = document.getElementById('settingsCardBlurInput');
-        const settingsCardBlurManual = document.getElementById('settingsCardBlurManual');
-        const settingsCardBlurValue = document.getElementById('settingsCardBlurValue');
-    
-        if (settingsCardBlurInput && settingsCardBlurValue) {
-            settingsCardBlurInput.addEventListener('input', () => {
-                const val = settingsCardBlurInput.value;
-                settingsCardBlurValue.textContent = val + 'px';
-                if (settingsCardBlurManual) settingsCardBlurManual.value = val;
-                
-                // Immediate visual feedback
-                document.documentElement.style.setProperty('--card-bg-blur', val + 'px');
-                setRangeGradient(settingsCardBlurInput);
-                
-                debouncedSaveSetting('r34_card_bg_blur', val);
-            });
-        }
-    
-        if (settingsCardBlurManual) {
-            settingsCardBlurManual.addEventListener('input', () => {
-                let val = parseInt(settingsCardBlurManual.value, 10);
-                if (isNaN(val)) val = 0;
-                if (val < 0) val = 0;
-                if (val > 24) val = 24;
-    
-                if (settingsCardBlurInput) {
-                    settingsCardBlurInput.value = val;
-                    setRangeGradient(settingsCardBlurInput);
-                }
-                if (settingsCardBlurValue) {
-                    settingsCardBlurValue.textContent = val + 'px';
-                }
-                localStorage.setItem('r34_card_bg_blur', val);
-                applyThemeSettings();
             });
         }
     
@@ -1784,6 +1703,14 @@ export function initSettingsModal(options = {}) {
                 settingsSaveDataCheckbox.checked = false;
                 localStorage.setItem('r34_save_data', 'false');
             }
+            // Reload all media containers to apply new quality setting
+            document.querySelectorAll('.media-container').forEach(container => {
+                container.dataset.loaded = "0";
+                if (window.gallery && window.gallery.observer) {
+                    window.gallery.observer.unobserve(container);
+                    window.gallery.observer.observe(container);
+                }
+            });
         });
     }
 
@@ -1798,6 +1725,14 @@ export function initSettingsModal(options = {}) {
                 localStorage.setItem('r34_hd_enabled', 'false');
                 localStorage.setItem('r34_image_hd_enabled', 'false');
             }
+            // Reload all media containers to apply new quality setting
+            document.querySelectorAll('.media-container').forEach(container => {
+                container.dataset.loaded = "0";
+                if (window.gallery && window.gallery.observer) {
+                    window.gallery.observer.unobserve(container);
+                    window.gallery.observer.observe(container);
+                }
+            });
         });
     }
 
@@ -1862,9 +1797,6 @@ export function initSettingsModal(options = {}) {
             localStorage.setItem('r34_fast_open_mode', enabled ? 'true' : 'false');
             
             applyThemeSettings();
-            if (window.gallery && typeof window.gallery.setupAutoplayObserver === 'function') {
-                window.gallery.setupAutoplayObserver();
-            }
             if (window.gallery && typeof window.gallery.updateLowPowerMode === 'function') {
                 window.gallery.updateLowPowerMode(enabled);
             }
@@ -2093,11 +2025,9 @@ export function initSettingsModal(options = {}) {
                 'r34_media_radius': '20',
                 'r34_media_gap': '24',
                 'r34_col_width': '300',
-                'r34_hover_style': 'shift',
+                'r34_hover_style': 'glow',
                 'r34_font_style': 'sans',
                 'r34_video_autoplay': 'false',
-                'r34_card_bg_opacity': '85',
-                'r34_card_bg_blur': '0',
                 'r34_card_tags_display': 'true',
                 'r34_base_font_size': '16',
                 'r34_scrollbar_width': '8',
@@ -2107,7 +2037,7 @@ export function initSettingsModal(options = {}) {
                 'r34_video_hover_sound': 'false',
                 'r34_default_volume': '50',
                 'r34_custom_logo_text': '',
-                'r34_api_limit': '60',
+                'r34_api_limit': '40',
                 'r34_api_timeout': '15',
                 'r34_api_retries': '3',
                 'r34_api_retry_delay': '2',
@@ -2142,9 +2072,8 @@ export function initSettingsModal(options = {}) {
             }
 
             applyThemeSettings();
-            if (window.gallery && typeof window.gallery.setupAutoplayObserver === 'function') {
-                window.gallery.setupAutoplayObserver();
-            }
+            // Общий сброс вернул розовый пресет — обновляем кружки и поле цвета.
+            syncAccentControls();
 
             const inputs = [
                 { id: 'settingsAccentColorPicker', value: '#ff3b6b' },
@@ -2162,10 +2091,6 @@ export function initSettingsModal(options = {}) {
                 { id: 'settingsFontManual', value: 'sans' },
                 { id: 'settingsForcedWidth', value: '' },
                 { id: 'settingsForcedHeight', value: '' },
-                { id: 'settingsCardOpacityInput', value: '85' },
-                { id: 'settingsCardOpacityManual', value: '85' },
-                { id: 'settingsCardBlurInput', value: '0' },
-                { id: 'settingsCardBlurManual', value: '0' },
                 { id: 'settingsBaseFontInput', value: '16' },
                 { id: 'settingsBaseFontManual', value: '16' },
                 { id: 'settingsScrollbarWidthInput', value: '8' },
@@ -2235,25 +2160,59 @@ export function initSettingsModal(options = {}) {
         });
     }
 
-    // Очистка кэша
+    // Очистка кэша. Раньше это был localStorage.clear() + sessionStorage.clear(),
+    // то есть полный сброс ВСЕГО приложения: избранное, рекорды пазлов, вход,
+    // настройки Turso и темы — стирались без предупреждения. Теперь чистим
+    // только настоящий кэш (длительность видео, позиции воспроизведения, кэш
+    // API), а пользовательские данные и настройки не трогаем.
+    const CACHE_KEY_PREFIXES = [
+        'r34_duration_',
+        'r34_video_position_',
+        'r34_video_position_ts_',
+        'api_cache_',
+        'r34_tagcnt_',
+        'r34_tagtype_'
+    ];
+
+    function clearCacheKeys() {
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (!key) continue;
+            if (CACHE_KEY_PREFIXES.some(prefix => key.startsWith(prefix))) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        return keysToRemove.length;
+    }
+
     if (settingsClearCacheBtn) {
-        settingsClearCacheBtn.addEventListener('click', () => {
+        settingsClearCacheBtn.addEventListener('click', async () => {
+            const confirmed = await showConfirmModal(
+                'Очистить кэш',
+                'Будут удалены закэшированные длительности видео, позиции воспроизведения и кэш API. Избранное, рекорды пазлов, вход и настройки останутся нетронутыми.',
+                { confirmLabel: 'Очистить' }
+            );
+            if (!confirmed) return;
+
+            let removed = 0;
             try {
-                localStorage.clear();
+                removed = clearCacheKeys();
             } catch (e) {
-                console.error('Error clearing localStorage:', e);
+                console.error('Error clearing cache keys:', e);
             }
             try {
                 sessionStorage.clear();
             } catch (e) {
                 console.error('Error clearing sessionStorage:', e);
             }
-            
-            settingsClearCacheBtn.innerHTML = 'Кэш успешно очищен! ' + icon('checkmark', { size: 16 });
+
+            settingsClearCacheBtn.innerHTML = `Очищено (${removed}) ` + icon('checkmark', { size: 16 });
             settingsClearCacheBtn.style.background = 'rgba(52, 227, 154, 0.15)';
             settingsClearCacheBtn.style.borderColor = '#2ed573';
             settingsClearCacheBtn.style.color = '#2ed573';
-            
+
             setTimeout(() => {
                 settingsClearCacheBtn.textContent = 'Очистить';
                 settingsClearCacheBtn.style.background = '';
@@ -2282,27 +2241,14 @@ export function initSettingsModal(options = {}) {
             }
         });
 
-        // На ПК подсказка раскрывается уже при наведении на "!" — клик
-        // остаётся единственным способом на тач-устройствах, где hover нет.
-        // mouseleave проверяет relatedTarget: уход курсора С кнопки НА саму
-        // подсказку (например, чтобы выделить текст в примере) не закрывает
-        // её раньше времени.
+        // Подсказки открываются только по клику на "!" (и закрываются кликом по
+        // тому же знаку или по любому месту страницы). Наведение на ПК раньше
+        // тоже раскрывало подсказку, но из-за промежутка между знаком и блоком
+        // подсказка схлопывалась раньше, чем курсор успевал дойти до ссылки
+        // внутри. Оставили только явный клик — поведение стало предсказуемым и
+        // одинаковым на ПК и тач-устройствах.
         if (targetBox) {
-            btn.addEventListener('mouseenter', () => {
-                if (!document.body.classList.contains('can-hover')) return;
-                document.querySelectorAll('.info-help-box').forEach(box => {
-                    if (box !== targetBox) box.style.display = 'none';
-                });
-                targetBox.style.display = 'block';
-            });
-            const hideUnlessMovingBetweenBoth = (e) => {
-                if (!document.body.classList.contains('can-hover')) return;
-                const to = e.relatedTarget;
-                if (to === btn || to === targetBox || targetBox.contains(to)) return;
-                targetBox.style.display = 'none';
-            };
-            btn.addEventListener('mouseleave', hideUnlessMovingBetweenBoth);
-            targetBox.addEventListener('mouseleave', hideUnlessMovingBetweenBoth);
+            // Никаких mouseenter/mouseleave: только click выше управляет видимостью.
         }
     });
 

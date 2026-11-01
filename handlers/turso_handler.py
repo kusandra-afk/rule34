@@ -264,8 +264,25 @@ def save_turso_favorites(favorites, session=None, load_settings_func=None, load_
         print(f'[Turso DB] Error saving favorites to Turso: {e}')
         return False
 
-def get_turso_puzzles(session=None, load_settings_func=None, load_turso_config_func=None):
-    """Get puzzles from Turso"""
+def get_turso_puzzles(session=None, load_settings_func=None, load_turso_config_func=None, purge_days=None):
+    """Get puzzles from Turso.
+
+    `purge_days` включает оппортунистическую чистку томбстонов — ровно та же
+    механика, что у get_turso_favorites: пазлы, помеченные is_deleted=1 внутри
+    JSON, удаляются из таблицы, когда их change старше purge_days. Каждый
+    синхронный вызов (старт сервера, открытие библиотеки) заодно подчищает.
+    """
+    if purge_days:
+        try:
+            cutoff = int(time.time() * 1000) - purge_days * 24 * 60 * 60 * 1000
+            execute_turso_query(
+                "DELETE FROM puzzles WHERE json_extract(data, '$.is_deleted') = 1 AND json_extract(data, '$.change') < ?",
+                params=[cutoff],
+                session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func
+            )
+        except Exception as e:
+            print(f'[Turso Debug] Purge of old tombstoned puzzles failed (non-fatal): {e}')
+
     result = execute_turso_query('SELECT data FROM puzzles ORDER BY updated_at DESC', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
     if result:
         try:
@@ -323,7 +340,8 @@ def save_turso_puzzles(puzzles, session=None, load_settings_func=None, load_turs
                 'q': '''INSERT INTO puzzles (id, data, updated_at) VALUES (?, ?, ?)
                         ON CONFLICT(id) DO UPDATE SET
                             data = excluded.data,
-                            updated_at = excluded.updated_at''',
+                            updated_at = excluded.updated_at
+                        WHERE excluded.change >= COALESCE(json_extract(puzzles.data, '$.change'), 0)''',
                 'params': [puzzle_id, data, now]
             })
         

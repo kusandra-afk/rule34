@@ -4,8 +4,19 @@
    ============================================================ */
 
 :root {
+  /* ============================================================
+     ДИЗАЙН-СИСТЕМА — ТОКЕНЫ
+     Все имена переменных, которые читает JS (themeManager.js,
+     expertStylesEditor.js, настройки), сохранены без изменений.
+     Добавлены шкалы отступов, длительностей, размеров шрифта и
+     недостающие токены кнопок/радиусов — единый источник истины
+     для всех примитивов интерфейса.
+     ============================================================ */
+
   /* ── Палитра (холодный графит) ── */
-  --dark: #06070c;
+  --dark: #08090d;
+  --dark-2: #0e1016;                 /* вторичная поверхность */
+  --dark-3: #151821;                 /* приподнятая поверхность */
   --accent: #ff3b6b;
   --accent-rgb: 255, 59, 107;
   --accent-alt: #ff5e8c;
@@ -13,20 +24,35 @@
   --light: #f4f6fb;
   --text-muted: rgba(244, 246, 251, 0.6);
   --error: #ff5c5c;
+  --error-rgb: 255, 92, 92;
   --success: #34e39a;
+  --success-rgb: 52, 227, 154;
+  --warning: #f2c94c;
+  --warning-rgb: 242, 201, 76;
 
-  /* ── Градиенты ── */
+  /* ── Градиенты заголовков ── */
   --title-gradient: linear-gradient(120deg, #ffffff 10%, #ccd3e8 55%, var(--accent) 125%);
   --modal-title-gradient: linear-gradient(120deg, #ffffff, #b9bfd4);
   --end-title-gradient: linear-gradient(120deg, #ffffff, #9aa0b5);
 
   /* ── Поверхности ── */
-  --modal-bg: rgba(4, 5, 9, 0.72);
+  --modal-bg: rgba(8, 9, 13, 0.72);
+  /* Непрозрачная подложка модальных окон с лёгким акцентным уклоном.
+     Используется вместо стекла с backdrop-filter: размытие фона под
+     окном дорого по GPU, а видно его всё равно не было под плотным фоном. */
+  --modal-bg-solid: #14161f;
+  --modal-bg-accent: rgba(20, 22, 31, 0.985);
+  /* Поверхность карточек ВНУТРИ модального окна: чуть светлее подложки,
+     но непрозрачная — иначе сквозь карточку просвечивает фон окна
+     и всё снова выглядит «стеклянным». */
+  --modal-surface: #1c1f2b;
+  /* Вложенный слой внутри карточки модалки (превью, строки вариантов). */
+  --modal-surface-2: #232735;
   --tag-bg: rgba(255, 255, 255, 0.05);
-  --suggestion-bg: rgba(13, 15, 22, 0.94);
+  --suggestion-bg: rgba(14, 16, 23, 0.94);
   --glass: rgba(255, 255, 255, 0.05);
 
-  /* ── Система стекла (новые токены) ── */
+  /* ── Система стекла ── */
   --glass-bg: rgba(255, 255, 255, 0.045);
   --glass-bg-strong: rgba(255, 255, 255, 0.08);
   --glass-border: rgba(255, 255, 255, 0.09);
@@ -40,22 +66,50 @@
   --radius-md: 14px;
   --radius-lg: 20px;
   --radius-xl: 26px;
+  --button-radius: 10px;
+  --input-radius: 10px;
+
+  /* ── Шкала отступов (кратна 4px) ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ── Шкала длительностей (анимации) ── */
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 320ms;
+  --dur-enter: 450ms;    /* entrance анимации */
+  --dur-exit: 280ms;     /* exit анимации */
+  --transition-speed: 0.2s;          /* совместимость с экспертным режимом */
+
+  /* ── Типографика ── */
+  --site-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --base-font-size: 16px;
+  --font-xs: 0.75rem;    /* 12px */
+  --font-sm: 0.8125rem;  /* 13px */
+  --font-md: 0.875rem;   /* 14px */
+  --font-lg: 1rem;       /* 16px */
+  --font-xl: 1.25rem;    /* 20px */
 
   /* ── Геометрия ── */
   --media-radius: 20px;
   --media-gap: 24px;
   --grid-col-width: 300px;
-
-  /* ── Типографика ── */
-  --site-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --base-font-size: 16px;
+  --container-max-width: 900px;
+  --gallery-max-width: 1400px;
 
   /* ── Фон страницы (холодное амбиент-свечение) ── */
   --body-bg:
     radial-gradient(1200px 700px at 82% -18%, rgba(122, 92, 255, 0.11), transparent 60%),
     radial-gradient(1000px 620px at -8% 18%, rgba(0, 170, 255, 0.08), transparent 55%),
     radial-gradient(900px 560px at 55% 115%, rgba(var(--accent-rgb), 0.07), transparent 62%),
-    #06070c;
+    #08090d;
 
   /* ── Hover-эффекты карточек ── */
   --hover-transform: translateY(-6px);
@@ -64,29 +118,52 @@
     0 24px 48px rgba(0, 0, 0, 0.45),
     0 0 0 1px rgba(var(--accent-rgb), 0.35),
     0 0 32px rgba(var(--accent-rgb), 0.12);
+  --hover-border-glow: 0 0 20px rgba(var(--accent-rgb), 0.3);
 
   /* ── Карточки (стеклянные по умолчанию) ── */
   --card-bg-opacity: 0.55;
   --card-bg-blur: 14px;
-  --container-max-width: 900px;
-  --gallery-max-width: 1400px;
-  --scrollbar-width: 8px;
-  --scrollbar-thumb-color: rgba(255, 255, 255, 0.14);
   --card-tags-display: flex;
   --card-border-width: 1px;
   --card-border-color: rgba(255, 255, 255, 0.08);
   --card-transition-speed: 0.3s;
+  --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --gradient-opacity: 0.5;
   --tag-font-size: 11px;
   --header-bg: rgba(10, 12, 18, 0.45);
   --header-backdrop-filter: blur(24px) saturate(1.4);
+  --scrollbar-width: 8px;
+  --scrollbar-thumb-color: rgba(255, 255, 255, 0.14);
 
-  /* ── Внутренние токены ── */
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 32px 70px rgba(0, 0, 0, 0.55);
+  /* ── Кнопки ── */
+  --btn-primary-bg: var(--accent);
+  --btn-secondary-bg: var(--glass-bg-strong);
+  --btn-primary-backdrop-filter: none;
+  --btn-primary-border: none;
+  --btn-secondary-backdrop-filter: blur(10px);
+  --btn-secondary-border: 1px solid var(--glass-border);
+
+  /* ── Кривые анимации (easing) ── */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);          /* expo-out — основная */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);    /* standard */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);     /* мягкий выход */
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);/* пружина */
+  --ease-back: cubic-bezier(0.175, 0.885, 0.32, 1.275);/* back-out — мягкое появление с лёгким перелётом (модалки) */
+  --ease-spring: cubic-bezier(0.68, -0.45, 0.45, 1.45); /* spring — для toggle и мелких элементов */
+  --ease-elastic: cubic-bezier(0.68, -0.55, 0.265, 1.55); /* elastic — для entrance анимаций */
+
+  /* ── Тени (слоистые, реалистичные) ── */
+  --shadow-glow-sm: 0 0 15px rgba(var(--accent-rgb), 0.15);
+  --shadow-glow-md: 0 0 30px rgba(var(--accent-rgb), 0.2);
+  --shadow-glow-lg: 0 0 60px rgba(var(--accent-rgb), 0.25);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.35), 0 32px 70px rgba(0, 0, 0, 0.55);
   --focus-ring: 0 0 0 3px rgba(var(--accent-rgb), 0.22);
+
+  /* ── Нажатие кнопок: единый «press» для всех примитивов ── */
+  --press-transform: translateY(1px) scale(0.97);
+  --press-duration: 90ms;
 
   /* ── Адаптивные цвета текста (вычисляются в JS на основе WCAG & YIQ) ── */
   --btn-primary-color: #ffffff;
@@ -97,22 +174,24 @@
   --modal-text-color: #ffffff;
   --modal-text-muted: rgba(255, 255, 255, 0.72);
   --suggestion-text-color: #ffffff;
-  --adaptive-text-main: #ffffff; /* Для текстов на общем фоне или в инпутах/модалках */
+  --adaptive-text-main: #ffffff;
   --adaptive-text-muted: rgba(255, 255, 255, 0.72);
 }
 
-/* Применяем адаптивный цвет к основным кнопкам */
-.r34-btn-primary, 
-.confirm-btn, 
+/* Применяем адаптивный цвет к основным кнопкам.
+   Без !important: эти селекторы имеют более высокую специфичность, чем базовые
+   определения кнопок ниже, поэтому перекрывают их штатно через каскад. */
+.r34-btn-primary,
+.confirm-btn,
 .app-mode-btn.active,
 #toggleExpertBtn {
-  color: var(--btn-primary-color, #fff) !important;
+  color: var(--btn-primary-color, #fff);
 }
 
 /* Применяем адаптивный цвет к вторичным кнопкам */
 .r34-btn-secondary,
 .apply-expert-btn {
-  color: var(--btn-secondary-color, #fff) !important;
+  color: var(--btn-secondary-color, #fff);
 }
 
 /* ============================================================
@@ -244,19 +323,32 @@ a svg,
 }
 
 ::selection {
-  background: rgba(255, 59, 107, 0.4);
+  background: rgba(var(--accent-rgb), 0.4);
   color: #fff;
 }
 
+/* Доступный фокус с клавиатуры. Раньше :focus-visible полностью гасил и
+   outline, и box-shadow — из-за чего (1) фокус с Tab не был виден и (2) глобальный
+   `box-shadow: none !important` ниже убивал задуманное кольцо у .r34-input:focus. */
 :focus-visible {
-  outline: none;
-  box-shadow: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Кнопки и ссылки: видимое кольцо фокуса с клавиатуры (мышь/тач не задевает).
+   outline: none в более специфичных правилах не должен съедать фокус —
+   поэтому дублируем кольцом через box-shadow. */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
 }
 
 input:focus, textarea:focus, select:focus, button:focus,
 .r34-input:focus, .r34-input-mini:focus, .r34-search-input:focus, .r34-search-row:focus-within {
-  outline: none !important;
-  box-shadow: none !important;
+  outline: none;
   border-color: var(--accent);
 }
 
@@ -312,13 +404,9 @@ h1 {
    KEYFRAMES
    ============================================================ */
 @keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(-24px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0); }
+  0%   { opacity: 0; transform: translateY(-18px) scale(0.97); }
+  60%  { opacity: 1; transform: translateY(3px) scale(1.006); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes fadeIn {
@@ -326,13 +414,10 @@ h1 {
   to   { opacity: 1; }
 }
 
-@keyframes scaleUp {
-  to { transform: scale(1); }
-}
-
 @keyframes zoomIn {
-  from { transform: scale(0.92); opacity: 0; }
-  to   { transform: scale(1); opacity: 1; }
+  0%   { transform: scale(0.9); opacity: 0; }
+  65%  { transform: scale(1.025); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 @keyframes spin {
@@ -419,16 +504,28 @@ h1 {
 body.can-hover .app-mode-btn:hover:not(.active), body:not(.can-hover) .app-mode-btn:active:not(.active) {
   color: #fff;
   background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px) translateZ(0);
 }
 
 .app-mode-btn:active {
-  transform: scale(0.96) translateZ(0);
+  transform: var(--press-transform) translateZ(0);
+  transition-duration: var(--press-duration);
 }
 
+/* Активная вкладка — «капсула» с мягким подъёмом и свечением.
+   Градиент вместо плоской заливки читается как «выбранный» элемент,
+   а внутренний блик (inset) даёт ощущение стекла поверх акцента. */
 .app-mode-btn.active {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-alt) 100%);
   color: var(--btn-primary-color, #fff);
-  box-shadow: 0 4px 12px var(--accent-glow);
+  box-shadow:
+    0 4px 14px rgba(var(--accent-rgb), 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transform: translateZ(0);
+}
+
+.app-mode-btn.active svg {
+  transform: scale(1.06);
 }
 
 /* ============================================================
@@ -449,18 +546,29 @@ body.can-hover .app-mode-btn:hover:not(.active), body:not(.can-hover) .app-mode-
   border-radius: var(--radius-sm, 10px);
 }
 
+/* Выбранный тег в модалке. Специфичность .modal-tags-list .tag.selected (3 класса)
+   выше, чем у .tag и .tag.inactive из search.css, поэтому перекрывает их штатно —
+   !important не нужен. Для ховера тоже задаём явное состояние, чтобы не терялся
+   акцент при наведении. */
 .modal-tags-list .tag.selected {
-  background: rgba(var(--accent-rgb), 0.2) !important;
-  border: 1px solid var(--accent) !important;
-  color: #fff !important;
+  background: rgba(var(--accent-rgb), 0.2);
+  border: 1px solid var(--accent);
+  color: #fff;
   box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.3);
 }
 
+.modal-tags-list .tag.selected:hover,
+.modal-tags-list .tag.selected:active {
+  background: rgba(var(--accent-rgb), 0.28);
+  border: 1px solid var(--accent);
+  color: #fff;
+}
+
 .modal-tags-list .tag.inactive.selected {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px dashed rgba(255, 255, 255, 0.28) !important;
-  color: rgba(255, 255, 255, 0.5) !important;
-  box-shadow: none !important;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.5);
+  box-shadow: none;
 }
 
 .tag-status-icon {
@@ -545,13 +653,13 @@ body.can-hover .modal-preview-img:hover, body:not(.can-hover) .modal-preview-img
 
 .modal-btn {
   flex: 1;
-  padding: 13px 24px;
+  padding: 12px 24px;
   border: none;
   border-radius: var(--radius-sm);
   font-size: 0.98rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s var(--ease);
+  transition: transform var(--dur, 0.2s) var(--ease-out), box-shadow var(--dur, 0.2s) var(--ease-out), background var(--dur, 0.2s) var(--ease-out);
 }
 
 .keep-btn {
@@ -581,7 +689,7 @@ body.can-hover .confirm-btn:hover, body:not(.can-hover) .confirm-btn:active {
 
 .confirm-btn:active,
 .keep-btn:active {
-  transform: translateY(1px);
+  transform: translateY(0) scale(0.98);
 }
 
 /* ============================================================
@@ -594,14 +702,14 @@ body.can-hover .confirm-btn:hover, body:not(.can-hover) .confirm-btn:active {
   padding: 0 16px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--input-radius, var(--radius-sm));
   color: var(--adaptive-text-main, #fff);
   font-size: 0.92rem;
   font-family: inherit;
   outline: none;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  transition: border-color var(--transition-speed, 0.2s) var(--ease), box-shadow var(--transition-speed, 0.2s) var(--ease), background var(--transition-speed, 0.2s) var(--ease);
+  transition: border-color var(--dur, 0.2s) var(--ease-out), box-shadow var(--dur, 0.2s) var(--ease-out), background var(--dur, 0.2s) var(--ease-out);
 }
 
 body.can-hover .r34-input:hover, body:not(.can-hover) .r34-input:active {
@@ -623,12 +731,12 @@ body.can-hover .r34-input:hover, body:not(.can-hover) .r34-input:active {
   padding: 0 10px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius-xs);
+  border-radius: var(--input-radius, var(--radius-xs));
   color: var(--adaptive-text-main, #fff);
   font-size: 0.85rem;
   font-family: inherit;
   outline: none;
-  transition: all var(--transition-speed, 0.2s) var(--ease);
+  transition: border-color var(--dur, 0.2s) var(--ease-out), box-shadow var(--dur, 0.2s) var(--ease-out), background var(--dur, 0.2s) var(--ease-out);
 }
 
 body.can-hover .r34-input-mini:hover, body:not(.can-hover) .r34-input-mini:active {
@@ -653,7 +761,7 @@ body.can-hover .r34-input-mini:hover, body:not(.can-hover) .r34-input-mini:activ
   background-repeat: no-repeat;
   background-position: right 14px center;
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--input-radius, var(--radius-sm));
   color: var(--adaptive-text-main, var(--light));
   font-size: 0.92rem;
   font-weight: 500;
@@ -664,7 +772,7 @@ body.can-hover .r34-input-mini:hover, body:not(.can-hover) .r34-input-mini:activ
   -webkit-appearance: none;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  transition: all var(--transition-speed, 0.2s) var(--ease);
+  transition: border-color var(--dur, 0.2s) var(--ease-out), box-shadow var(--dur, 0.2s) var(--ease-out), background var(--dur, 0.2s) var(--ease-out);
 }
 
 body.can-hover .r34-select:hover, body:not(.can-hover) .r34-select:active {
@@ -830,58 +938,133 @@ body.can-hover .r34-custom-dropdown-item:hover, body:not(.can-hover) .r34-custom
   border-radius: 99px;
 }
 
-/* Внутри модалок наследуем адаптивные цвета контролов, как и .r34-select */
+/* ── Клавиатура и читалки ── */
+.r34-custom-dropdown-trigger:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+/* Длинные названия не должны вылезать из панели */
+.r34-custom-dropdown-item span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Пункт, на который смотрит клавиатура: подсветка + энергетическая
+   полоска слева, чтобы было понятно, что Enter выберет именно его */
+.r34-custom-dropdown-item.kb-active {
+  background: rgba(var(--accent-rgb), 0.14);
+  color: #fff;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Пункты проявляются каскадом от верхнего к нижнему */
+.r34-custom-dropdown-panel.open .r34-custom-dropdown-item {
+  animation: dropdownItemIn 0.22s var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * 16ms);
+}
+
+/* Если панель раскрыта вверх — каскад идёт снизу вверх */
+.r34-custom-dropdown-panel.open.up .r34-custom-dropdown-item {
+  animation-name: dropdownItemInUp;
+}
+
+@keyframes dropdownItemIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Каскад снизу вверх — для панелей, раскрытых вверх (.up) */
+@keyframes dropdownItemInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Внутри модалок наследуем адаптивные цвета контролов, как и .r34-select.
+   Специфичность `.settings-modal-card .r34-custom-dropdown-trigger` (2 класса)
+   выше, чем у одиночного `.r34-custom-dropdown-trigger` выше — поэтому !important
+   здесь не нужен, перекрытие идёт штатно через каскад. */
 .settings-modal-card .r34-custom-dropdown-trigger {
-  background-color: var(--ctrl-bg) !important;
-  border-color: var(--ctrl-border) !important;
-  color: var(--modal-text-color, var(--adaptive-text-main, #ffffff)) !important;
+  background-color: var(--ctrl-bg);
+  border-color: var(--ctrl-border);
+  color: var(--modal-text-color, var(--adaptive-text-main, #ffffff));
 }
 
 body.can-hover .settings-modal-card .r34-custom-dropdown-trigger:hover,
 body:not(.can-hover) .settings-modal-card .r34-custom-dropdown-trigger:active {
-  background-color: var(--ctrl-hover-bg) !important;
-  border-color: var(--ctrl-hover-border) !important;
+  background-color: var(--ctrl-hover-bg);
+  border-color: var(--ctrl-hover-border);
 }
 
 .settings-modal-card .r34-custom-dropdown-panel {
-  background: var(--modal-bg, #0c0d12) !important;
-  color: var(--modal-text-color, var(--adaptive-text-main, #ffffff)) !important;
+  background: var(--modal-bg, #0c0d12);
+  color: var(--modal-text-color, var(--adaptive-text-main, #ffffff));
 }
 
 /* ============================================================
    FORMS — RANGE (премиальные слайдеры)
    ============================================================ */
-input[type="range"] {
+/* «Премиальное» оформление применяется только к слайдерам настроек
+   (.r34-range). У полос прогресса плеера (.video-progress, .photo-progress),
+   ползунков громкости (.video-bottom-volume, .sound-volume-slider) своя
+   геометрия: высота 4–5px. Общий padding 7px + обрезка заливки по content-box
+   сжимали их content-box до нуля — полоса и инлайн-заливка от JS исчезали. */
+input.r34-range {
   -webkit-appearance: none;
   appearance: none;
-  height: 6px;
+  width: 100%;
+  height: 20px;
+  padding: 7px 0;
   background: rgba(255, 255, 255, 0.1);
+  /* Сам элемент — 20px (палец/курсор попадает с запасом), а заливка
+     рисуется только в content-box — те же 6px тонкого трека.
+     !important нужен: заполнение ставит JS инлайн-стилем
+     (`range.style.background`), а шорткат сбрасывает background-clip. */
+  background-clip: content-box !important;
+  background-origin: content-box !important;
+  background-repeat: no-repeat;
   border-radius: 99px;
   outline: none;
   cursor: pointer;
-  transition: background var(--transition-speed, 0.2s) var(--ease);
+  touch-action: pan-y;
+  transition: filter var(--transition-speed, 0.2s) var(--ease);
 }
 
-body.can-hover input[type="range"]:hover, body:not(.can-hover) input[type="range"]:active {
-  background: rgba(255, 255, 255, 0.17);
+/* Подсветка трека работает и для слайдеров с JS-заливкой: раньше
+   `background` в hover-правиле перебивался инлайн-градиентом и
+   визуально ничего не менялось. */
+body.can-hover input.r34-range:hover,
+body:not(.can-hover) input.r34-range:active {
+  filter: brightness(1.18);
 }
 
 /* Прозрачный трек — даёт точную центровку бегунка,
    а заполнение прогресса (inline-background от JS) остаётся видимым */
-input[type="range"]::-webkit-slider-runnable-track {
+input.r34-range::-webkit-slider-runnable-track {
   height: 6px;
   background: transparent;
   border-radius: 99px;
 }
 
-input[type="range"]::-moz-range-track {
+input.r34-range::-moz-range-track {
   height: 6px;
   background: transparent;
   border: none;
   border-radius: 99px;
 }
 
-input[type="range"]::-webkit-slider-thumb {
+/* Firefox не умеет красить заливку через background элемента —
+   прогресс рисуется отдельным псевдоэлементом. Без него левая часть
+   трека сливалась с дорожкой и было не видно текущего значения. */
+input.r34-range::-moz-range-progress {
+  height: 6px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-alt, #ff5e8c) 100%);
+  border-radius: 99px;
+}
+
+input.r34-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 18px;
@@ -895,17 +1078,26 @@ input[type="range"]::-webkit-slider-thumb {
   transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
 
-body.can-hover input[type="range"]:hover::-webkit-slider-thumb, body:not(.can-hover) input[type="range"]:active::-webkit-slider-thumb {
-  transform: scale(1.15);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 16px var(--accent-glow);
+body.can-hover input.r34-range:hover::-webkit-slider-thumb, body:not(.can-hover) input.r34-range:active::-webkit-slider-thumb {
+  transform: scale(1.18);
+  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.16), 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 18px var(--accent-glow);
 }
 
-input[type="range"]:active::-webkit-slider-thumb {
+/* Во время перетаскивания бегунок «заряжается»: кольцо энергии
+   расходится пульсом, а курсор становится хватающим. */
+input.r34-range:active::-webkit-slider-thumb {
   cursor: grabbing;
-  transform: scale(1.05);
+  transform: scale(1.26);
+  box-shadow: 0 0 0 6px rgba(var(--accent-rgb), 0.2), 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 22px var(--accent-glow);
+  animation: rangeThumbPulse 0.9s var(--ease-in-out) infinite;
 }
 
-input[type="range"]::-moz-range-thumb {
+@keyframes rangeThumbPulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.18), 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 18px var(--accent-glow); }
+  50%      { box-shadow: 0 0 0 9px rgba(var(--accent-rgb), 0.06), 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 26px var(--accent-glow); }
+}
+
+input.r34-range::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
@@ -915,7 +1107,7 @@ input[type="range"]::-moz-range-thumb {
   cursor: grab;
 }
 
-input[type="range"]:focus-visible {
+input.r34-range:focus-visible {
   box-shadow: var(--focus-ring);
 }
 
@@ -932,14 +1124,14 @@ input[type="range"]:focus-visible {
   padding: 0 18px;
   background: var(--glass-bg-strong);
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--button-radius, var(--radius-sm));
   color: var(--btn-secondary-color, #fff);
   font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  transition: all 0.2s var(--ease);
+  transition: background var(--dur, 0.2s) var(--ease-out), border-color var(--dur, 0.2s) var(--ease-out), transform var(--dur, 0.2s) var(--ease-out);
 }
 
 .r34-btn-secondary svg {
@@ -966,23 +1158,23 @@ body.can-hover .r34-btn-secondary:hover, body:not(.can-hover) .r34-btn-secondary
   height: 42px;
   min-height: 42px;
   padding: 0 20px;
-  background: rgba(255, 92, 92, 0.1);
-  border: 1px solid rgba(255, 92, 92, 0.3);
-  border-radius: var(--radius-sm);
+  background: rgba(var(--error-rgb, 255, 92, 92), 0.1);
+  border: 1px solid rgba(var(--error-rgb, 255, 92, 92), 0.3);
+  border-radius: var(--button-radius, var(--radius-sm));
   color: #ff7070;
   font-size: 0.88rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.2s var(--ease);
+  transition: background var(--dur, 0.2s) var(--ease-out), border-color var(--dur, 0.2s) var(--ease-out), transform var(--dur, 0.2s) var(--ease-out), box-shadow var(--dur, 0.2s) var(--ease-out);
 }
 
 body.can-hover .r34-btn-danger:hover, body:not(.can-hover) .r34-btn-danger:active {
   background: var(--error);
   border-color: var(--error);
   color: #fff;
-  box-shadow: 0 10px 24px rgba(255, 92, 92, 0.35);
+  box-shadow: 0 10px 24px rgba(var(--error-rgb, 255, 92, 92), 0.35);
   transform: translateY(-1px);
 }
 
@@ -1012,7 +1204,7 @@ body.can-hover .r34-btn-danger:hover, body:not(.can-hover) .r34-btn-danger:activ
   cursor: pointer;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  transition: all 0.3s var(--ease);
+  transition: background var(--dur, 0.2s) var(--ease-out), border-color var(--dur, 0.2s) var(--ease-out), box-shadow var(--dur, 0.2s) var(--ease-out);
 }
 
 /* Настройки "(Только для ПК)" отключаются на устройствах без реального
@@ -1040,7 +1232,7 @@ body.can-hover .r34-btn-danger:hover, body:not(.can-hover) .r34-btn-danger:activ
   border-radius: 50%;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
   transform: translateY(-50%);
-  transition: all 0.3s var(--ease);
+  transition: left var(--dur, 0.2s) var(--ease-bounce), transform var(--dur, 0.2s) var(--ease-out);
 }
 
 .r34-toggle-switch input:checked + .r34-slider {
@@ -1087,7 +1279,7 @@ body.can-hover .r34-btn-danger:hover, body:not(.can-hover) .r34-btn-danger:activ
   width: calc(100% - 32px);
   max-width: 560px;
   margin: 0;
-  padding: 15px 22px;
+  padding: 16px 22px;
   background: rgba(255, 92, 92, 0.12);
   border: 1px solid rgba(255, 92, 92, 0.28);
   border-radius: var(--radius-md);
@@ -1200,9 +1392,157 @@ body:not(.can-hover) .rate-limit-retry-btn:active {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+
+  /* Бесконечные декоративные анимации (дрейф фона, бегущий градиент
+     заголовка, блик по карточкам/блоку «конец результатов», пульсация)
+     при «уменьшить движение» не рисуем совсем — иначе глобальное правило
+     выше всё равно оставило бы их на 0.01ms, т.е. в конечном статичном
+     состоянии, но с лишним слоем композитинга. */
+  body::before,
+  h1,
+  .end-of-results-block::before,
+  .media-container::after,
+  .cardPulse {
+    animation: none !important;
+  }
+
+  /* Спиннер загрузки — единственная анимация, которую оставляем (без неё
+     индикатор ожидания превращается в статичное кольцо), но без «дыхания». */
+  .loader {
+    animation: spin 1.2s linear infinite !important;
+  }
 }
 
 .inline-icon { display: inline-block; vertical-align: -0.2em; }
+/* ============================================================
+   ФУТУРИСТИЧНЫЙ СЛОЙ — СВЕТ · ЭНЕРГИЯ · ДВИЖЕНИЕ
+   Единый характер движения для всего интерфейса: живой фон,
+   «текущий» градиент заголовка, блик по кнопкам, двойное кольцо
+   загрузки. Только transform / opacity / background-position —
+   раскладку не трогаем. При prefers-reduced-motion и в «низкой
+   мощности» гаснет автоматически (глобальные правила выше).
+   ============================================================ */
+
+/* ── 1. Живой фон: медленные пятна света дрейфуют по странице ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -18vmax;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(36vmax 28vmax at 72% 16%, rgba(var(--accent-rgb), 0.10), transparent 62%),
+    radial-gradient(32vmax 26vmax at 20% 70%, rgba(0, 170, 255, 0.085), transparent 60%),
+    radial-gradient(26vmax 22vmax at 84% 86%, rgba(122, 92, 255, 0.075), transparent 65%);
+  animation: auraDrift 26s var(--ease-in-out) infinite alternate;
+  will-change: transform;
+}
+
+@keyframes auraDrift {
+  0%   { transform: translate3d(-3%, -2%, 0) scale(1); }
+  50%  { transform: translate3d(2%, 3%, 0) scale(1.08); }
+  100% { transform: translate3d(4%, -3%, 0) scale(1.03); }
+}
+
+/* ── 2. Заголовок: градиент медленно течёт по тексту ── */
+h1 {
+  background-size: 220% 100%;
+  animation: fadeInDown 0.8s var(--ease), titleFlow 9s 0.9s var(--ease-in-out) infinite;
+}
+
+@keyframes titleFlow {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* ── 3. Блик по кнопкам: по наведению/нажатию через кнопку
+       проходит полоса света (вместо простого изменения цвета) ── */
+.r34-btn-primary,
+.r34-btn-secondary,
+.r34-btn-danger,
+.modal-btn,
+.keep-btn,
+.confirm-btn,
+.app-mode-btn,
+.settings-tab-btn,
+.duration-preset-btn,
+.r34-search-arrow-btn,
+.r34-tag-mode-btn,
+.r34-settings-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.r34-btn-primary::after,
+.r34-btn-secondary::after,
+.r34-btn-danger::after,
+.modal-btn::after,
+.keep-btn::after,
+.confirm-btn::after,
+.app-mode-btn::after,
+.settings-tab-btn::after,
+.duration-preset-btn::after,
+.r34-search-arrow-btn::after,
+.r34-tag-mode-btn::after,
+.r34-settings-btn::after {
+  content: '';
+  position: absolute;
+  top: -60%;
+  bottom: -60%;
+  left: -50%;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+  transform: translateX(-160%) skewX(-18deg);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.55s var(--ease), opacity 0.2s var(--ease);
+}
+
+body.can-hover .r34-btn-primary:hover::after,
+body.can-hover .r34-btn-secondary:hover::after,
+body.can-hover .r34-btn-danger:hover::after,
+body.can-hover .modal-btn:hover::after,
+body.can-hover .keep-btn:hover::after,
+body.can-hover .confirm-btn:hover::after,
+body.can-hover .app-mode-btn:hover::after,
+body.can-hover .settings-tab-btn:hover::after,
+body.can-hover .duration-preset-btn:hover::after,
+body.can-hover .r34-search-arrow-btn:hover::after,
+body.can-hover .r34-tag-mode-btn:hover::after,
+body.can-hover .r34-settings-btn:hover::after,
+body:not(.can-hover) .r34-btn-primary:active::after,
+body:not(.can-hover) .r34-btn-secondary:active::after,
+body:not(.can-hover) .r34-btn-danger:active::after,
+body:not(.can-hover) .modal-btn:active::after,
+body:not(.can-hover) .keep-btn:active::after,
+body:not(.can-hover) .confirm-btn:active::after,
+body:not(.can-hover) .app-mode-btn:active::after,
+body:not(.can-hover) .settings-tab-btn:active::after,
+body:not(.can-hover) .duration-preset-btn:active::after,
+body:not(.can-hover) .r34-search-arrow-btn:active::after,
+body:not(.can-hover) .r34-tag-mode-btn:active::after,
+body:not(.can-hover) .r34-settings-btn:active::after {
+  opacity: 1;
+  transform: translateX(340%) skewX(-18deg);
+}
+
+/* ── 4. Загрузка: неоновое кольцо ── */
+.loader {
+  position: relative;
+  border-color: rgba(255, 255, 255, 0.06);
+  border-top-color: var(--accent);
+  border-right-color: rgba(var(--accent-rgb), 0.35);
+  box-shadow: 0 0 22px rgba(var(--accent-rgb), 0.2), inset 0 0 12px rgba(var(--accent-rgb), 0.1);
+  /* Лёгкое «дыхание» ореола: ожидание читается живее, чем статичное кольцо,
+     при этом transform не трогаем — сам спиннер продолжает вращаться. */
+  animation: spin 0.9s linear infinite, loaderBreathe 2.4s var(--ease-in-out) infinite;
+}
+
+@keyframes loaderBreathe {
+  0%, 100% { box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.18), inset 0 0 10px rgba(var(--accent-rgb), 0.08); }
+  50%      { box-shadow: 0 0 30px rgba(var(--accent-rgb), 0.38), inset 0 0 16px rgba(var(--accent-rgb), 0.16); }
+}
+
 .pc-only-badge {
   font-size: 0.7rem;
   font-weight: 500;
@@ -1212,4 +1552,163 @@ body:not(.can-hover) .rate-limit-retry-btn:active {
   border-radius: 4px;
   margin-left: 6px;
   vertical-align: middle;
+}
+
+/* ============================================================
+   ДОПОЛНИТЕЛЬНЫЕ АНИМАЦИИ — ЭТАП УЛУЧШЕНИЯ
+   ============================================================ */
+
+/* ── Shimmer для skeleton loaders ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ── Fade in с пружинным эффектом ── */
+@keyframes springIn {
+  0% { opacity: 0; transform: scale(0.85) translateY(12px); }
+  65% { opacity: 1; transform: scale(1.03) translateY(-2px); }
+  85% { transform: scale(0.99) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Slide down для dropdown/suggestions ── */
+@keyframes r34-base-slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Tag appear animation ── */
+@keyframes tagAppear {
+  0% { opacity: 0; transform: scale(0.6) rotateX(45deg); }
+  70% { transform: scale(1.08) rotateX(-5deg); }
+  100% { opacity: 1; transform: scale(1) rotateX(0); }
+}
+
+/* ── Ripple effect ── */
+@keyframes rippleEffect {
+  0% { transform: scale(0); opacity: 0.5; }
+  100% { transform: scale(4); opacity: 0; }
+}
+
+/* ============================================================
+   ANIMATED BACKGROUND LAYERS — Усиленный ambient фон
+   ============================================================ */
+
+/* Второй слой анимированного фона — дополнительные пятна */
+body::after {
+  content: '';
+  position: fixed;
+  inset: -20vmax;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(30vmax 24vmax at 5% 90%, rgba(var(--accent-rgb), 0.06), transparent 65%),
+    radial-gradient(28vmax 20vmax at 90% 45%, rgba(122, 92, 255, 0.05), transparent 60%);
+  animation: auraDriftReverse 32s var(--ease-in-out) infinite alternate;
+  will-change: transform;
+}
+
+@keyframes auraDriftReverse {
+  0% { transform: translate3d(2%, -4%, 0) scale(1.05); }
+  50% { transform: translate3d(-3%, 2%, 0) scale(1); }
+  100% { transform: translate3d(-2%, 3%, 0) scale(1.06); }
+}
+
+/* ============================================================
+   SKELETON LOADER STYLES
+   ============================================================ */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.07) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-card {
+  width: 100%;
+  aspect-ratio: auto;
+  min-height: 200px;
+  border-radius: var(--media-radius);
+}
+
+/* ============================================================
+   RIPPLE EFFECT — Material Design стиль
+   ============================================================ */
+.ripple-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-container .ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0);
+  animation: rippleEffect 0.6s ease-out forwards;
+  pointer-events: none;
+}
+
+/* ============================================================
+   STAGGERED ANIMATION UTILITIES
+   ============================================================ */
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+.stagger-children > *:nth-child(n+9) { animation-delay: 400ms; }
+
+/* ============================================================
+   ENHANCED FOCUS STATES — Accessibility + Visual
+   ============================================================ */
+.enhanced-focus:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring), var(--shadow-glow-sm);
+}
+
+/* ============================================================
+   SCROLL-TO-TOP BUTTON — Улучшенный стиль
+   ============================================================ */
+.scroll-to-top-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9000;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px var(--accent-glow), var(--shadow-md);
+  transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  will-change: transform, opacity;
+}
+
+.scroll-to-top-btn:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 32px var(--accent-glow), var(--shadow-lg);
+}
+
+.scroll-to-top-btn:active {
+  transform: scale(0.94);
+}
+
+.scroll-to-top-btn.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(20px) scale(0.85);
 }

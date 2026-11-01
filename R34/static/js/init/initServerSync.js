@@ -17,7 +17,14 @@ const SETTINGS_SYNC_EXCLUDE_PREFIXES = [
     'r34_tagtype_',
     'r34_puzzle_',
     'r34_solved_',
-    'r34_tagcnt_'
+    'r34_tagcnt_',
+    // Старые переопределения акцента/фона из редактора стилей теперь живут
+    // в r34_theme_accent и r34_theme_bg. Если восстанавливать их с сервера,
+    // они снова перекроют тему и смена акцента перестанет работать.
+    'r34_expert_--accent',
+    'r34_expert_--body-bg',
+    'r34_expert_--dark',
+    'r34_expert_--light'
 ];
 
 const SETTINGS_SYNC_EXCLUDE_KEYS = new Set([

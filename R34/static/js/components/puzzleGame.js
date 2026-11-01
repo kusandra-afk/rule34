@@ -231,7 +231,10 @@ export class PuzzleGame {
             const isActive = (d.cols === this.cols && d.rows === this.rows);
             btn.className = `puzzle-diff-btn ${isActive ? 'active' : ''}`;
             btn.dataset.target = d.target;
-            btn.textContent = d.label;
+            // На телефоне широкая подпись «16 дет. (4x4)» — все 15 вариантов
+            // сложности не влезали в строку, и половина пряталась за краем
+            // в горизонтальной прокрутке. Короткий вариант — только число.
+            btn.innerHTML = `<span class="puzzle-diff-full">${d.label}</span><span class="puzzle-diff-short">${d.cols * d.rows}</span>`;
             btn.onclick = () => this.changeDifficulty(d.target);
             selector.appendChild(btn);
         });
@@ -468,10 +471,79 @@ export class PuzzleGame {
 
             this._layoutBoardRect = null;
             this._layoutTrayRect = null;
+            this._mobileTrayH = null;
         } else {
-            this.boardContainer.style.width = '';
-            this.boardContainer.style.height = '';
-            this.boardContainer.style.margin = '';
+            // Телефоны и планшеты: доска больше не «на всю ширину, а высота
+            // как получится». У вертикальных фото она вырастала до ~470px,
+            // лоток и кнопки уезжали за нижний край, и деталь приходилось
+            // тащить через прокрутку страницы — а прокрутка и перетаскивание
+            // конфликтуют. Считаем реальный бюджет по высоте: экран минус
+            // заголовок, статистика, лоток и кнопки.
+            this._mobileTrayH = null;
+            const card = this.card;
+            const vh = Math.round((window.visualViewport && window.visualViewport.height) || window.innerHeight || 0);
+            const cardW = card ? card.clientWidth : 0;
+            if (card && cardW > 0 && vh > 0) {
+                const cardCS = getComputedStyle(card);
+                const padX = parseFloat(cardCS.paddingLeft) + parseFloat(cardCS.paddingRight);
+                const padY = parseFloat(cardCS.paddingTop) + parseFloat(cardCS.paddingBottom);
+                const gap = parseFloat(cardCS.rowGap) || 0;
+                let chromeH = 0;
+                let visibleItems = 0;
+                card.querySelectorAll('.puzzle-header, .puzzle-stats-row, .puzzle-difficulty-selector, .puzzle-tray-cols-selector, .puzzle-id-selector, .puzzle-allow-long-container, .puzzle-info-warn-box, .puzzle-controls').forEach((el) => {
+                    const rect = el.getBoundingClientRect();
+                    if (rect.height <= 0) return;
+                    // Внешние отступы (у селекторов они 8/2px) — тоже занимают
+                    // место в колонке, без них бюджет занижался на ~30px и
+                    // кнопки всё равно сползали за нижний край.
+                    const cs = getComputedStyle(el);
+                    chromeH += rect.height + (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0);
+                    visibleItems += 1;
+                });
+                // Нижняя граница 140px — тот же минимум, что ставится лотку
+                // в его inline-стиле: иначе бюджет считал меньше, чем есть.
+                const trayMin = 140;
+                // Доска и лоток — тоже соседи в этой колонке, поэтому слотов
+                // для gap на один больше, чем видимых элементов обвязки.
+                const gapsH = (visibleItems + 1) * gap;
+                // База — фактическая высота карточки, а не innerHeight: у
+                // карточки может быть рамка/свой отступ, и каждый лишний
+                // пиксель потом вылезал нижними кнопками за край.
+                const boxH = card.clientHeight || vh;
+                const availForBoth = boxH - padY - chromeH - gapsH - 8;
+                const availW = cardW - padX - 4;
+                if (availForBoth - trayMin > 120 && availW > 120) {
+                    const targetW = Math.max(120, Math.min(availW, (availForBoth - trayMin) * boardRatio));
+                    const targetH = targetW / boardRatio;
+                    // Всё, что осталось после доски, отдаём лотку: у квадратных
+                    // и горизонтальных фото его ~300px, и раньше оно уходило
+                    // в пустоту под кнопками — теперь там видны лишние детали.
+                    const trayMax = Math.min(320, vh * 0.42);
+                    const trayH = Math.round(Math.max(trayMin, Math.min(trayMax, availForBoth - targetH)));
+                    this.boardContainer.style.width = `${targetW.toFixed(1)}px`;
+                    this.boardContainer.style.height = `${targetH.toFixed(1)}px`;
+                    this.boardContainer.style.margin = '0 auto';
+                    this._mobileTrayH = trayH;
+                } else if (availW > 120) {
+                    // Совсем низкий экран (телефон в ландшафте): вписать всё
+                    // нечего и пытаться — держим доску в разумных пределах
+                    // по высоте, остальное уходит в прокрутку.
+                    const targetH = Math.max(200, Math.min(260, vh * 0.55));
+                    const targetW = Math.min(availW, targetH * boardRatio);
+                    this.boardContainer.style.width = `${targetW.toFixed(1)}px`;
+                    this.boardContainer.style.height = `${(targetW / boardRatio).toFixed(1)}px`;
+                    this.boardContainer.style.margin = '0 auto';
+                    this._mobileTrayH = Math.round(Math.max(trayMin, Math.min(200, vh * 0.28)));
+                } else {
+                    this.boardContainer.style.width = '';
+                    this.boardContainer.style.height = '';
+                    this.boardContainer.style.margin = '0 auto';
+                }
+            } else {
+                this.boardContainer.style.width = '';
+                this.boardContainer.style.height = '';
+                this.boardContainer.style.margin = '';
+            }
         }
 
         this._trayGridDirty = true;
@@ -553,7 +625,10 @@ export class PuzzleGame {
                 }
                 this.boardContainer.classList.add('desktop-complex');
             } else {
-                const maxMobileTrayHeightPx = Math.min(260, Math.max(180, h * 0.28));
+                // Высоту лотка задаёт бюджет доски (см. updateBoardSize).
+                // Прежняя формула «28% высоты доски» не знала, сколько места
+                // осталось под кнопки, и у широких фото лоток съедал экран.
+                const maxMobileTrayHeightPx = this._mobileTrayH || Math.min(260, Math.max(180, h * 0.28));
                 if (this.trayDiv) {
                     this.trayDiv.style.position = 'relative';
                     this.trayDiv.style.bottom = '';
@@ -757,7 +832,7 @@ export class PuzzleGame {
             .puzzle-overlay {
                 position: fixed;
                 top: 0; left: 0;
-                width: 100vw; height: 100dvh;
+                width: 100%; height: 100dvh;
                 background:
                     radial-gradient(ellipse at 20% 20%, rgba(139,92,246,0.12), transparent 50%),
                     radial-gradient(ellipse at 80% 80%, rgba(236,72,153,0.08), transparent 50%),
@@ -839,40 +914,11 @@ export class PuzzleGame {
 
             .puzzle-stats-row { display: flex; gap: 10px; width: 100%; justify-content: center; flex-wrap: wrap; }
 
-            .puzzle-stats-content-container {
-                display: flex;
-                flex-direction: column;
-                gap: 20px;
-                width: 100%;
-                max-width: 1200px;
-                margin: 0 auto;
-            }
-            .puzzle-stats-variants {
-                order: 2;
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-            }
-            .puzzle-stats-image {
-                order: 1;
-                margin-bottom: 0 !important;
-            }
-            @media (min-width: 768px) {
-                .puzzle-stats-content-container {
-                    display: grid;
-                    grid-template-columns: 1.2fr 1fr;
-                    gap: 28px;
-                    align-items: start;
-                }
-                .puzzle-stats-variants {
-                    order: 1;
-                }
-                .puzzle-stats-image {
-                    order: 2;
-                    position: sticky;
-                    top: 20px;
-                }
-            }
+            /* Раскладку окна «Статистика пазла» задаёт styles/css/ui.css.
+               Здесь раньше лежали дубли этих правил (flex-колонка и grid с
+               order/sticky) — они висят глобально и перебивали сетку модалки:
+               картинка и блок информации сжимались до ширины своего
+               содержимого вместо полной ширины экрана. */
 
             /* // ИЗМЕНЕНО: Бейджи с цветовыми акцентами */
             .puzzle-badge {
@@ -1026,7 +1072,9 @@ export class PuzzleGame {
             }
 
             .puzzle-board { width: 100%; height: 100%; position: relative; overflow: visible; z-index: 1; }
-            .puzzle-tray { overflow: hidden; isolation: isolate; }
+            /* contain — чтобы прокрутка лотка на телефоне не «протекала» в
+               страницу под пазлом и не дёргала карточку. */
+            .puzzle-tray { overflow: hidden; isolation: isolate; overscroll-behavior: contain; }
 
             .puzzle-board.intro-mode .puzzle-tile { opacity: 1; filter: none !important; pointer-events: none; }
             .puzzle-board.intro-mode .puzzle-tile-outline,
@@ -1057,7 +1105,7 @@ export class PuzzleGame {
             .puzzle-tile:hover:not(.selected) {
                 z-index: 15;
                 transform: translateY(-4px) scale(1.02);
-                box-shadow: 0 8px 32px rgba(255, 59, 107, 0.25), 0 0 0 1px rgba(255, 59, 107, 0.15);
+                box-shadow: 0 8px 32px var(--accent-glow), 0 0 0 1px rgba(var(--accent-rgb), 0.25);
             }
             .puzzle-tile.group-hover { z-index: 10; transform: translateY(-2px) scale(1.005); }
 
@@ -1078,7 +1126,7 @@ export class PuzzleGame {
                 50% { opacity: 1; }
             }
             .puzzle-tile.selected .puzzle-tile-shading {
-                background: linear-gradient(135deg, rgba(255, 59, 107, 0.4) 0%, rgba(255,255,255,0.15) 50%, rgba(255, 59, 107, 0.4) 100%) !important;
+                background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.4) 0%, rgba(255,255,255,0.15) 50%, rgba(var(--accent-rgb), 0.4) 100%) !important;
                 opacity: 1 !important;
             }
             .puzzle-tile.selected .puzzle-tile-img { z-index: 2; }
@@ -1194,7 +1242,7 @@ export class PuzzleGame {
                 transform: translateY(-2px) scale(1.02);
             }
             .puzzle-btn:active:not(:disabled) { transform: scale(0.96); }
-            .puzzle-btn.active-toggle { background: rgba(255, 59, 107, 0.2); border-color: var(--accent); color: var(--accent); }
+            .puzzle-btn.active-toggle { background: rgba(var(--accent-rgb), 0.2); border-color: var(--accent); color: var(--accent); }
             .puzzle-btn:disabled.active-toggle { opacity: 0.85; }
             .puzzle-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
@@ -1246,9 +1294,9 @@ export class PuzzleGame {
                 filter: drop-shadow(0 0 20px var(--accent-glow));
                 text-align: center;
                 display: flex; align-items: center; justify-content: center; gap: 10px;
-                animation: win-appear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+                animation: puzzle-win-appear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
             }
-            @keyframes win-appear {
+            @keyframes puzzle-win-appear {
                 0% { transform: scale(0.8); opacity: 0; }
                 60% { transform: scale(1.05); opacity: 1; }
                 100% { transform: scale(1); opacity: 1; }
@@ -1288,26 +1336,97 @@ export class PuzzleGame {
                 width: 0%; height: 100%;
                 background: linear-gradient(90deg, var(--accent, #8b5cf6), var(--accent-alt, #ec4899), #f59e0b);
                 background-size: 200% 100%;
-                animation: progress-shine 2s linear infinite;
+                animation: puzzle-progress-shine 2s linear infinite;
                 transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
-            @keyframes progress-shine { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
             @keyframes puzzle-spin { to { transform: rotate(360deg); } }
 
             @media (max-width: 600px) {
-                .puzzle-card { padding: 12px 14px; border-radius: 0; gap: 10px; width: 100vw; height: 100vh; max-height: 100vh; }
-                .puzzle-title { font-size: 1.15rem; }
-                .puzzle-close { width: 32px; height: 32px; font-size: 1.1rem; }
-                .puzzle-badge { padding: 4px 8px; font-size: 0.75rem; }
+                /* 100vh на телефоне равен экрану без адресной строки: нижний
+                   ряд кнопок уезжал под неё. 100dvh учитывает живую панель
+                   браузера, а env() — вырез и полоску жестов. */
+                .puzzle-card {
+                    padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+                    border-radius: 0; gap: 8px;
+                    width: 100%; height: 100dvh; max-height: 100dvh;
+                }
+                .puzzle-title { font-size: 1.05rem; gap: 6px; }
+                .puzzle-close { width: 34px; height: 34px; font-size: 1.1rem; }
+                .puzzle-setup-toggle { width: 34px; height: 34px; flex-basis: 34px; }
+                /* Четыре бейджа переносились на вторую строку и забирали
+                   у доски ~30px. В один ряд с прокруткой они компактнее. */
+                .puzzle-stats-row { flex-wrap: nowrap; gap: 6px; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; flex: 0 0 auto; }
+                .puzzle-stats-row::-webkit-scrollbar { display: none; }
+                .puzzle-badge { padding: 4px 8px; font-size: 0.68rem; gap: 4px; flex: 0 0 auto; white-space: nowrap; }
                 .puzzle-mode-selector, .puzzle-difficulty-selector, .puzzle-shape-selector { gap: 8px; padding: 2px; border-radius: 10px; }
-                .puzzle-mode-btn, .puzzle-diff-btn, .puzzle-shape-btn { padding: 5px 6px; font-size: 0.72rem; border-radius: 8px; min-width: 45px; }
-                .puzzle-diff-full { display: none; }
-                .puzzle-diff-short { display: inline; }
-                .puzzle-controls { grid-template-columns: repeat(2, 1fr); gap: 6px; }
-                .puzzle-btn { padding: 12px 8px; font-size: 0.82rem; min-height: 44px; border-radius: 10px; }
+                .puzzle-mode-btn, .puzzle-diff-btn, .puzzle-shape-btn { padding: 6px 8px; font-size: 0.74rem; border-radius: 8px; min-width: 0; flex: 0 0 auto; }
+                .puzzle-diff-btn { min-width: 44px; }
+
+                /* Четыре кнопки в один ряд вместо сетки 2×2: освобождает
+                   ~85px высоты — ровно тот запас, которого не хватало доске. */
+                .puzzle-controls { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+                .puzzle-btn { padding: 8px 3px; font-size: 0.66rem; min-height: 46px; border-radius: 10px; gap: 3px; overflow: hidden; }
                 .puzzle-win-title { font-size: 1.3rem; }
                 .puzzle-win-text { font-size: 0.82rem; }
+            }
+
+            /* Кнопка «Настройки» — только на телефоне (см. @media ниже).
+               Сложность, лоток, «Открыть по ID» и тумблер длинных картинок
+               занимали четыре ряда над доской: доска и лоток уезжали ниже
+               экрана, и играть приходилось «через прокрутку», а деталь из
+               лотка было видно только вместе с половиной доски. */
+            .puzzle-setup-toggle {
+                display: none;
+                align-items: center; justify-content: center;
+                width: 36px; height: 36px; padding: 0; flex: 0 0 36px;
+                background: var(--glass-bg);
+                border: 1px solid var(--glass-border);
+                color: rgba(255,255,255,0.8);
+                border-radius: 50%; cursor: pointer;
+                transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+            }
+            .puzzle-setup-toggle:active { transform: scale(0.94); }
+            .puzzle-setup-toggle.active {
+                background: var(--accent); border-color: var(--accent);
+                color: var(--btn-primary-color, #fff);
+            }
+
+            /* До 900px игра живёт в одноколоночной раскладке (проверка
+               isDesktop в updateBoardSize), поэтому панель «Настройки»
+               нужна на всех таких ширинах — включая телефон в ландшафте,
+               где из-за четырёх строк настроек доска уезжала за экран. */
+            @media (max-width: 899px) {
+                .puzzle-setup-toggle { display: inline-flex; }
+                .puzzle-header { gap: 8px; }
+                .puzzle-card { overscroll-behavior: contain; }
+                .puzzle-stats-row { gap: 6px; }
+                /* Обычно всё свободное место съедает лоток (см. бюджет в
+                   updateBoardSize), а этот auto-отступ — страховка на случай,
+                   когда места не хватило: тогда кнопки всё равно остаются
+                   внизу, у большого пальца. Отступ ставим лотку, а не кнопкам:
+                   margin: auto на кнопках вычисляется в пиксели и попадает
+                   в бюджет как занятое место — доска ужималась вдвое. */
+                .puzzle-tray { margin-bottom: auto; }
+                /* На тач-экранах hover «залипает» после тапа: деталь и кнопка
+                   остаются приподнятыми и подсвеченными до следующего касания. */
+                .puzzle-tile:hover:not(.selected) { transform: none; box-shadow: none; }
+                .puzzle-btn:hover:not(:disabled) { transform: none; }
+                /* Свёрнутые настройки не занимают места: доска и лоток
+                   помещаются на экран без прокрутки. */
+                .puzzle-card:not(.setup-open) .puzzle-difficulty-selector,
+                .puzzle-card:not(.setup-open) .puzzle-tray-cols-selector,
+                .puzzle-card:not(.setup-open) .puzzle-id-selector,
+                .puzzle-card:not(.setup-open) .puzzle-allow-long-container,
+                .puzzle-card:not(.setup-open) .puzzle-info-warn-box { display: none; }
+                /* Сложность: на узком экране полные подписи «16 дет. (4x4)»
+                   не влезали, и часть вариантов пряталась в горизонтальной
+                   прокрутке. Короткие числа переносим в несколько рядов —
+                   все варианты видны сразу, без скрытых «где-то справа». */
+                .puzzle-difficulty-selector { flex-wrap: wrap; overflow-x: visible; }
+                .puzzle-diff-btn { flex: 0 0 auto; min-width: 44px; }
+                .puzzle-diff-full { display: none; }
+                .puzzle-diff-short { display: inline; }
             }
             .puzzle-tray-cols-selector select option { background: var(--modal-bg, #1a1a2e); color: var(--adaptive-text-main, #ffffff); padding: 4px 8px; }
             .puzzle-tray-cols-selector select:focus { border-color: rgba(139,92,246,0.6); box-shadow: 0 0 8px rgba(139,92,246,0.2); }
@@ -1355,7 +1474,32 @@ export class PuzzleGame {
         closeBtn.className = 'puzzle-close';
         closeBtn.innerHTML = icon('x', { size: 18 });
         closeBtn.onclick = () => this.destroy();
+
+        // На телефоне сложность/лоток/ID/длинные картинки прячутся под эту
+        // кнопку — иначе они сдвигают доску с лотком за нижний край экрана.
+        // На десктопе кнопка не показывается вовсе (CSS).
+        const setupToggle = document.createElement('button');
+        setupToggle.type = 'button';
+        setupToggle.className = 'puzzle-setup-toggle';
+        setupToggle.title = 'Настройки пазла';
+        setupToggle.setAttribute('aria-label', 'Настройки пазла');
+        setupToggle.setAttribute('aria-expanded', 'false');
+        setupToggle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+        setupToggle.onclick = () => {
+            const open = card.classList.toggle('setup-open');
+            setupToggle.classList.toggle('active', open);
+            setupToggle.setAttribute('aria-expanded', String(open));
+            setupToggle.title = open ? 'Скрыть настройки' : 'Настройки пазла';
+            playSound('click');
+            // Высота карточки изменилась — доска и лоток должны пересчитать
+            // свои размеры под новое свободное место. Считаем сразу: размеры
+            // панели читаются через getBoundingClientRect, а rAF-отложенный
+            // пересчёт в фоновых табах не выполняется вовсе.
+            this.updateBoardSize(true);
+        };
+
         header.appendChild(title);
+        header.appendChild(setupToggle);
         header.appendChild(closeBtn);
         leftPanel.appendChild(header);
 
@@ -1449,14 +1593,14 @@ export class PuzzleGame {
             const sizeKey = `${c}x${r}`;
             if (!seenSizes.has(sizeKey)) {
                 seenSizes.add(sizeKey);
-                diffs.push({ target: target, label: `${exactPieces} дет. (${c}x${r})` });
+                diffs.push({ target: target, cols: c, rows: r, label: `${exactPieces} дет. (${c}x${r})` });
             }
         });
         diffs.forEach(d => {
             const btn = document.createElement('button');
             btn.className = `puzzle-diff-btn ${d.target === this.targetPieces ? 'active' : ''}`;
             btn.dataset.target = d.target;
-            btn.textContent = d.label;
+            btn.innerHTML = `<span class="puzzle-diff-full">${d.label}</span><span class="puzzle-diff-short">${d.cols * d.rows}</span>`;
             btn.onclick = () => this.changeDifficulty(d.target);
             diffSelector.appendChild(btn);
         });
