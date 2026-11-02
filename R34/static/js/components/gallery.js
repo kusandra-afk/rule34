@@ -1,4 +1,5 @@
 import { formatCount, escapeHtml, throttle } from '../utils.js';
+import { localeTag } from '../i18n/i18n.js';
 import { VideoPlayer } from './videoPlayer.js';
 import { PhotoViewer } from './photoViewer.js';
 import { proxyUrl } from '../api.js';
@@ -202,11 +203,12 @@ export class Gallery {
             suffix = 'результатов';
         }
 
-        if (window.isCountExpanded) {
-            this.r34ResultsCount.textContent = `${countToDisplay.toLocaleString('ru-RU')} ${suffix}`;
-        } else {
-            this.r34ResultsCount.textContent = `${formatCount(countToDisplay)} ${suffix}`;
-        }
+        // Число и подпись — отдельные элементы: подпись переводится словарём
+        // по тексту, а число форматируется под язык интерфейса.
+        const value = window.isCountExpanded
+            ? countToDisplay.toLocaleString(localeTag())
+            : formatCount(countToDisplay);
+        this.r34ResultsCount.innerHTML = `<span class="r34-count-value">${value}</span> <span class="r34-count-suffix">${suffix}</span>`;
     }
 
     refreshCurrentView() {

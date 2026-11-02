@@ -2,6 +2,8 @@
  * Gallery / Profile (Favorites) Mode Controller
  */
 
+import { rememberScroll, restoreScroll } from '../scrollState.js';
+
 export class ModeController {
     constructor(options = {}) {
         this.gallery = options.gallery;
@@ -33,6 +35,11 @@ export class ModeController {
     setGalleryMode() {
         if (!this.modeGalleryBtn || !this.modeProfileBtn) return;
 
+        // Возврат из «Избранного»: лента галереи все это время была скрыта,
+        // и прокрутка обнулилась — ставим её обратно (см. scrollState.js).
+        const wasProfileMode = this.isProfileMode();
+        if (wasProfileMode) rememberScroll('favorites');
+
         this.modeGalleryBtn.classList.add('active');
         this.modeProfileBtn.classList.remove('active');
 
@@ -51,10 +58,18 @@ export class ModeController {
         }
 
         this.onModeChange('gallery');
+
+        if (wasProfileMode) restoreScroll('gallery');
     }
 
     setProfileMode() {
         if (!this.modeGalleryBtn || !this.modeProfileBtn) return;
+
+        // Лента галереи прячется целиком (display: none), документ становится
+        // короче и браузер обрезает прокрутку — позицию снимаем заранее, до
+        // переключения вида.
+        const wasGalleryMode = !this.isProfileMode();
+        if (wasGalleryMode) rememberScroll('gallery');
 
         this.modeProfileBtn.classList.add('active');
         this.modeGalleryBtn.classList.remove('active');
@@ -81,6 +96,10 @@ export class ModeController {
         }
 
         this.onModeChange('profile');
+
+        // Первый заход в «Избранное» запомненной позиции не имеет — тогда
+        // просто остаёмся там, куда встал браузер.
+        restoreScroll('favorites');
     }
 
     isProfileMode() {

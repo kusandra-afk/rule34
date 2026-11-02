@@ -2,6 +2,7 @@ import { icon } from '../icons.js';
 import { fetchPuzzleCompleted } from '../api.js';
 import { PuzzleStorage } from './puzzleStorage.js';
 import { makeCustomDropdown } from '../components/customDropdown.js';
+import { localeTag } from '../i18n/i18n.js';
 
 // Дальше PuzzleUI полностью переработан (библиотека пазлов). Вместо
 // полноэкранной панели — стеклянная карточка, вместо захардкоженных
@@ -32,7 +33,7 @@ function safeVariantList(puzzle) {
 function formatDate(puzzle) {
     const d = PuzzleStorage.getPuzzleDate(puzzle);
     if (!d) return '—';
-    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+    return d.toLocaleDateString(localeTag(), { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 // Формат времени: HH:MM:SS если час и больше.
@@ -137,6 +138,8 @@ export class PuzzleUI {
             state.trash = trash;
             trashBtn.classList.add('active');
             titleEl.textContent = 'Корзина';
+            // Чистить нечего: в корзине только помеченные на удаление.
+            clearBtn.style.display = 'none';
             renderGrid(trash);
             countEl.textContent = String(trash.length);
             summaryEl.innerHTML = '';
@@ -147,6 +150,7 @@ export class PuzzleUI {
             state.trash = [];
             trashBtn.classList.remove('active');
             titleEl.textContent = 'Библиотека Пазлов';
+            clearBtn.style.display = '';
             applyView();
         };
 
@@ -286,6 +290,12 @@ export class PuzzleUI {
                 modal.remove();
                 puzzleGame._libraryOpen = false;
                 if (puzzleGame.board) puzzleGame.board.style.display = 'grid';
+                // Кнопка «Библиотека» гасит таймеры предпросмотра (разбивку и
+                // разлёт). Если её открыли в этот момент, без перезапуска пазл
+                // навсегда оставался в состоянии «Предпросмотр».
+                if (puzzleGame.status === 'preview' && typeof puzzleGame.initPuzzle === 'function') {
+                    puzzleGame.initPuzzle();
+                }
                 PuzzleUI._releaseModalOpen();
             }, 180);
         };
@@ -304,14 +314,19 @@ export class PuzzleUI {
             if (restoreBtn) {
                 e.stopPropagation();
                 const card = restoreBtn.closest('.puzzle-lib-card');
-                const pid = card?.dataset.postId || '';
+                if (!card || card.classList.contains('is-busy')) return;
+                // Восстановление идёт запросом на сервер: спиннер нужен, чтобы
+                // карточка не выглядела зависшей и её не нажали повторно.
+                card.classList.add('is-busy');
+                const pid = card.dataset.postId || '';
                 const target = state.trash.find(p => String(p.postId || p.id || p.post?.id) === pid);
-                if (target) {
-                    PuzzleStorage.restorePuzzle(target).then(async () => {
-                        completedPuzzles = await PuzzleStorage.fetchActive();
-                        exitTrash();
-                    });
-                }
+                if (!target) { card.classList.remove('is-busy'); return; }
+                PuzzleStorage.restorePuzzle(target).then(async () => {
+                    completedPuzzles = await PuzzleStorage.fetchActive();
+                    card.classList.remove('is-busy');
+                    card.classList.add('is-removing');
+                    setTimeout(() => exitTrash(), 240);
+                }).catch(() => card.classList.remove('is-busy'));
                 return;
             }
             // Удаление из активной библиотеки.
@@ -319,12 +334,18 @@ export class PuzzleUI {
             if (delBtn) {
                 e.stopPropagation();
                 const card = delBtn.closest('.puzzle-lib-card');
-                const pid = card?.dataset.postId || '';
+                if (!card || card.classList.contains('is-busy')) return;
+                card.classList.add('is-busy');
+                const pid = card.dataset.postId || '';
                 const target = completedPuzzles.find(p => String(p.postId || p.id || p.post?.id) === pid);
                 PuzzleUI._confirmAndDelete(puzzleGame, target, completedPuzzles).then(next => {
+                    card.classList.remove('is-busy');
+                    // Отмена в подтверждении отдаёт тот же список — карточку не трогаем.
+                    if (next === completedPuzzles) return;
                     completedPuzzles = next;
-                    applyView();
-                });
+                    card.classList.add('is-removing');
+                    setTimeout(() => applyView(), 240);
+                }).catch(() => card.classList.remove('is-busy'));
                 return;
             }
             // Копирование ID по клику на бейдж.

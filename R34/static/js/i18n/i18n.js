@@ -20,7 +20,7 @@ import { EN } from './locales/en.js';
 const STORAGE_KEY = 'r34_language';
 const SUPPORTED = ['ru', 'en'];
 
-let currentLanguage = 'ru';
+let currentLanguage = 'en';
 let observer = null;
 let observerStarted = false;
 
@@ -50,7 +50,74 @@ const PATTERNS = [
     [/^Победитель: (.+)$/, (m) => `Winner: ${m[1]}`],
     [/^Участники \((\d+)\)$/, (m) => `Players (${m[1]})`],
     [/^Решено пазлов: (\d+)$/, (m) => `Puzzles solved: ${m[1]}`],
-    [/^Загрузка (\d+)%$/, (m) => `Loading ${m[1]}%`]
+    [/^Загрузка (\d+)%$/, (m) => `Loading ${m[1]}%`],
+    // «16 деталей (4x4)» — подписи сложности в выпадающих списках лобби
+    [/^(\d+) деталей \((\d+)x(\d+)\)$/, (m) => `${m[1]} pieces (${m[2]}x${m[3]})`],
+    [/^(\d+) деталь \((\d+)x(\d+)\)$/, (m) => `${m[1]} piece (${m[2]}x${m[3]})`],
+    [/^(\d+) деталей$/, (m) => `${m[1]} pieces`],
+    [/^(\d+) деталь$/, (m) => `${m[1]} piece`],
+
+    // Подстановки: числа, имена игроков, названия действий
+    [/^(\d+) столб\.$/, (m) => `${m[1]} cols`],
+    [/^(\d+) подряд$/, (m) => `${m[1]} in a row`],
+    [/^(\d+):(\d+) \((\d+)х\)$/, (m) => `${m[1]}:${m[2]} (${m[3]} moves)`],
+    [/^(\d+)x(\d+) \((\d+) дет\.\)$/, (m) => `${m[1]}x${m[2]} (${m[3]} pcs)`],
+    [/^(\d+) вариант\(ов\)$/, (m) => `${m[1]} ${Number(m[1]) === 1 ? 'variant' : 'variants'}`],
+    [/^(Рекорд|Опубликовано|Теги|Карточек|Отрисовано|Видео|Предзагрузка|Загрузка): (.+)$/, (m) => {
+        const labels = { 'Рекорд': 'Record', 'Опубликовано': 'Published', 'Теги': 'Tags', 'Карточек': 'Cards',
+            'Отрисовано': 'Rendered', 'Видео': 'Videos', 'Предзагрузка': 'Preload', 'Загрузка': 'Loading' };
+        return `${labels[m[1]]}: ${m[2]}`;
+    }],
+    [/^Рекорд: (.*)$/, (m) => `Record: ${m[1]}`],
+    [/^Загрузка: (.+)$/, (m) => `Loading: ${m[1]}`],
+    [/^Загрузка #(.+)\.\.\.$/, (m) => `Loading #${m[1]}...`],
+    [/^Очищено \((.+)\)$/, (m) => `Cleared (${m[1]})`],
+    [/^Всего постов в избранном: (.+)$/, (m) => `Total favorites: ${m[1]}`],
+    [/^Собрано всей командой: (.+)$/, (m) => `Collected by the team: ${m[1]}`],
+    [/^Раунд (\d+) · До победы:$/, (m) => `Round ${m[1]} · To win:`],
+    [/^Раунд (\d+) &middot; До победы:$/, (m) => `Round ${m[1]} · To win:`],
+    [/^Комната ([\w-]+)$/, (m) => `Room ${m[1]}`],
+    [/^При такой ширине экрана отображается не больше (\d+) колонок$/, (m) => `At this window width no more than ${m[1]} columns fit`],
+    [/^Ваш экран слишком мал для (\d+) колонок — сейчас доступно максимум (\d+)$/, (m) => `Your screen is too small for ${m[1]} columns — the maximum is ${m[2]}`],
+    [/^Нажмите на поиск (.+) для загрузки медиа$/, (m) => `Tap search ${m[1]} to load media`],
+    [/^Safe Screen • Нажмите (.+) или Esc, чтобы выйти$/, (m) => `Safe Screen • Press ${m[1]} or Esc to exit`],
+    [/^\[VR\] Не удалось загрузить модуль панорамного просмотра: (.+)$/, (m) => `[VR] Failed to load the panorama viewer module: ${m[1]}`],
+    [/^Верно! У (.+) (больше|меньше)$/, (m) => `Correct! ${m[1]} has ${m[2] === 'больше' ? 'more' : 'less'}`],
+    [/^Мимо! У (.+) (больше|меньше)$/, (m) => `Missed! ${m[1]} has ${m[2] === 'больше' ? 'more' : 'less'}`],
+    [/^Серия оборвалась на (.+)$/, (m) => `Streak ended at ${m[1]}`],
+
+    // Онлайн-лобби: имена игроков и названия действий приходят из шаблона.
+    [/^Игрок "(.+)" (вошёл|вошел) в лобби$/, (m) => `Player "${m[1]}" joined the lobby`],
+    [/^Игрок (.+) (вошёл|вошел) в лобби$/, (m) => `Player ${m[1]} joined the lobby`],
+    [/^Игрок "(.+)" покинул лобби$/, (m) => `Player "${m[1]}" left the lobby`],
+    [/^Игрок (.+) покинул лобби$/, (m) => `Player ${m[1]} left the lobby`],
+    [/^Игрок "(.+)" (подключился к игре|вышел из игры)$/, (m) => `Player "${m[1]}" ${m[2] === 'подключился к игре' ? 'joined the game' : 'left the game'}`],
+    [/^Игрок "(.+)" сдался \(автосбор\)$/, (m) => `Player "${m[1]}" gave up (auto-solve)`],
+    [/^Игрок "(.+)" первым собрал пазл!$/, (m) => `Player "${m[1]}" finished the puzzle first!`],
+    [/^Игрок (.+) хочет (.+) пазл\. Вы согласны\?$/, (m) => {
+        const action = /ПЕРЕЗАПУСТИТЬ|перезапуск/.test(m[2]) ? 'restart' : 'auto-solve';
+        return `Player ${m[1]} wants to ${action} the puzzle. Do you agree?`;
+    }],
+    [/^ПОБЕДА! Вы первым собрали пазл за (.+)!$/, (m) => `VICTORY! You finished the puzzle first in ${m[1]}!`],
+    [/^Игра началась! Режим: (.+)$/, (m) => `Game started! Mode: ${m[1] === 'Совместный сбор' ? 'team build' : 'speed race'}`],
+    [/^Запрос на (.+)\.\.\.$/, (m) => `Request: ${m[1] === 'перезапуск' ? 'restart' : 'auto-solve'}...`],
+    [/^⌛ Запрос на (.+) отправлен команде\.\.\.$/, (m) => `⌛ Sent to the team: ${m[1] === 'перезапуск' ? 'restart' : 'auto-solve'}...`],
+    [/^Действие (.+) одобрено (всеми|командой)!$/, (m) => `Approved: ${m[1] === 'перезапуск' ? 'restart' : 'auto-solve'}!`],
+    [/^Уже идет голосование за (.+)$/, (m) => `A vote is already running for ${m[1] === 'перезапуск' ? 'restart' : 'auto-solve'}`],
+    [/^Комната (.+) закрыта\. Соединение отключено\.$/, (m) => `Room ${m[1]} closed. Connection closed.`],
+    [/^Вы покинули комнату (.+)\. Соединение отключено\.$/, (m) => `You left room ${m[1]}. Connection closed.`],
+    [/^Подключаемся к комнате (.+)\.\.\.$/, (m) => `Connecting to room ${m[1]}...`],
+    [/^ID пазла (\d+) скопирован!$/, (m) => `Puzzle ID ${m[1]} copied!`],
+    [/^🏁 Гонка на скорость \((.+)\)$/, (m) => `🏁 Speed race (${m[1]})`],
+    [/^🤝 Совместная сборка \((.+)\)$/, (m) => `🤝 Team build (${m[1]})`],
+    [/^Собрано всей командой: (\d+) \/ (\d+) \((\d+)%\)$/, (m) => `Collected by the team: ${m[1]} / ${m[2]} (${m[3]}%)`],
+    [/^Вы собрали пазл \((\d+) дет\.\) за (.+)$/, (m) => `You solved the puzzle (${m[1]} pcs) in ${m[2]}`],
+
+    // Догоняющие правила: ошибка Turso, вкладка варианта пазла и процент
+    // игрока в итоговой таблице гонки.
+    [/^Код ответа (\d+) (.+)$/, (m) => `Response code ${m[1]} ${m[2]}`],
+    [/^(.+) • (\d+) ходов$/, (m) => `${m[1]} • ${m[2]} moves`],
+    [/^(\d+)% \((\d+) ходов\)$/, (m) => `${m[1]}% (${m[2]} moves)`]
 ];
 
 function translateString(text) {
@@ -159,8 +226,11 @@ export function applyLanguage(root = document.body) {
     }
 }
 
-// Новые узлы копятся и переводятся пачкой в одном кадре: на телефоне
+// Новые узлы копятся и переводятся пачкой в одной задаче: на телефоне
 // перерисовка карточек пачками заметно дешевле, чем по одной мутации.
+// Таймер, а не requestAnimationFrame: в фоновой вкладке rAF не вызывается
+// вообще, и добавленные там карточки оставались бы на русском до возврата
+// в вкладку.
 let pendingNodes = null;
 let pendingFrame = 0;
 
@@ -182,7 +252,7 @@ function flushPending() {
 function queueNode(node) {
     if (!pendingNodes) pendingNodes = new Set();
     pendingNodes.add(node);
-    if (!pendingFrame) pendingFrame = requestAnimationFrame(flushPending);
+    if (!pendingFrame) pendingFrame = setTimeout(flushPending, 0);
 }
 
 function startObserver() {
@@ -207,6 +277,11 @@ function startObserver() {
 
 export function getLanguage() {
     return currentLanguage;
+}
+
+/** Тег локали для toLocaleString/toLocaleDateString под текущий язык. */
+export function localeTag() {
+    return currentLanguage === 'ru' ? 'ru-RU' : 'en-US';
 }
 
 /**
@@ -285,11 +360,11 @@ export async function initI18n() {
                 if (SUPPORTED.includes(data.lang)) lang = data.lang;
             }
         } catch (e) {
-            /* офлайн — остаёмся на русском */
+            /* офлайн — остаёмся на английском (язык по умолчанию) */
         }
     }
 
-    currentLanguage = SUPPORTED.includes(lang) ? lang : 'ru';
+    currentLanguage = SUPPORTED.includes(lang) ? lang : 'en';
     document.documentElement.lang = currentLanguage;
 
     if (currentLanguage === 'en') {

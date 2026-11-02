@@ -106,6 +106,26 @@ def initialize_turso_tables(session=None, load_settings_func=None, load_turso_co
         )
     ''', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
     
+
+    # Отдельная колонка is_deleted для пазлов. Сам флаг живёт в JSON (data),
+    # но в консоли Turso его не видно, и чистка томбстонов зависела только от
+    # json_extract. Колонка — то же значение наружу: видно глазами, удобно
+    # фильтровать обычным SQL.
+    try:
+        execute_turso_query('ALTER TABLE puzzles ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
+    except Exception:
+        pass
+
+    # Бэкфилл: у записей, сохранённых до появления колонки, берём флаг из JSON,
+    # иначе уже удалённые пазлы остались бы с is_deleted=0.
+    try:
+        execute_turso_query(
+            "UPDATE puzzles SET is_deleted = COALESCE(json_extract(data, '$.is_deleted'), 0) "
+            "WHERE COALESCE(is_deleted, 0) <> COALESCE(json_extract(data, '$.is_deleted'), 0)",
+            session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
+    except Exception:
+        pass
+
     return True
 
 def get_turso_favorites(session=None, load_settings_func=None, load_turso_config_func=None, purge_days=None):
@@ -207,6 +227,33 @@ def get_turso_favorites(session=None, load_settings_func=None, load_turso_config
         print('[Turso Debug] execute_turso_query returned None')
     return None
 
+def _statement_errors(payload):
+    """Собирает ошибки отдельных SQL-инструкций из ответа libsql HTTP API.
+
+    HTTP 200 здесь означает лишь «пакет принят», а не «все строки записались»:
+    ошибка каждой инструкции (например, несуществующая колонка в ON CONFLICT
+    ... WHERE) приезжает внутри тела ответа. Раньше это не проверялось, и
+    сломанный апсерт пазлов печатал «Successfully batched and synced», не
+    записав ни одной строки.
+    """
+    errors = []
+
+    def walk(node):
+        if isinstance(node, dict):
+            if node.get('error'):
+                err = node['error']
+                message = err.get('message') if isinstance(err, dict) else err
+                errors.append(str(message))
+                return
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(payload)
+    return errors
+
 def save_turso_favorites(favorites, session=None, load_settings_func=None, load_turso_config_func=None):
     """Save favorites to Turso safely using chunked upserts (only id, change, is_deleted)"""
     url, token, enabled = get_turso_settings(load_settings_func, load_turso_config_func)
@@ -256,6 +303,14 @@ def save_turso_favorites(favorites, session=None, load_settings_func=None, load_
             if response.status_code != 200:
                 print(f'[Turso DB] Failed to save favorites chunk {i//batch_size + 1}. Status code: {response.status_code}')
                 all_success = False
+                continue
+            try:
+                errors = _statement_errors(response.json())
+            except Exception:
+                errors = []
+            if errors:
+                print(f'[Turso DB] Favorites upsert rejected: {errors[0]}')
+                all_success = False
 
         if all_success:
             print(f'[Turso DB] Successfully batched and synced {len(favorites)} favorites (safe upsert)')
@@ -276,7 +331,11 @@ def get_turso_puzzles(session=None, load_settings_func=None, load_turso_config_f
         try:
             cutoff = int(time.time() * 1000) - purge_days * 24 * 60 * 60 * 1000
             execute_turso_query(
-                "DELETE FROM puzzles WHERE json_extract(data, '$.is_deleted') = 1 AND json_extract(data, '$.change') < ?",
+                # Удаляем, если флаг выставлен в колонке ИЛИ в JSON (записи до бэкфилла),
+                # и с момента удаления прошло purge_days.
+                "DELETE FROM puzzles "
+                "WHERE MAX(COALESCE(is_deleted, 0), COALESCE(json_extract(data, '$.is_deleted'), 0)) = 1 "
+                "AND COALESCE(json_extract(data, '$.change'), 0) < ?",
                 params=[cutoff],
                 session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func
             )
@@ -317,16 +376,16 @@ def save_turso_puzzles(puzzles, session=None, load_settings_func=None, load_turs
     if not enabled:
         print('Turso sync disabled, skipping puzzles save')
         return False
-    
+
     try:
         if url.startswith('libsql://'):
             url = url.replace('libsql://', 'https://')
-        
+
         headers = {
             'Authorization': f'Bearer {token}',
             'Content-Type': 'application/json'
         }
-        
+
         statements = []
         now = int(time.time() * 1000)
         for puzzle in puzzles:
@@ -336,15 +395,20 @@ def save_turso_puzzles(puzzles, session=None, load_settings_func=None, load_turs
             if not puzzle_id:
                 continue
             data = json.dumps(puzzle, ensure_ascii=False)
+            # Флаг дублируется в колонку: так томбстон видно в консоли Turso и
+            # обычный SQL по нему работает без json_extract.
+            is_deleted = 1 if puzzle.get('is_deleted') else 0
             statements.append({
-                'q': '''INSERT INTO puzzles (id, data, updated_at) VALUES (?, ?, ?)
+                'q': '''INSERT INTO puzzles (id, data, updated_at, is_deleted) VALUES (?, ?, ?, ?)
                         ON CONFLICT(id) DO UPDATE SET
                             data = excluded.data,
-                            updated_at = excluded.updated_at
-                        WHERE excluded.change >= COALESCE(json_extract(puzzles.data, '$.change'), 0)''',
-                'params': [puzzle_id, data, now]
+                            updated_at = excluded.updated_at,
+                            is_deleted = excluded.is_deleted
+                        WHERE COALESCE(json_extract(excluded.data, '$.change'), 0)
+                              >= COALESCE(json_extract(puzzles.data, '$.change'), 0)''',
+                'params': [puzzle_id, data, now, is_deleted]
             })
-        
+
         if not statements:
             return True
 
@@ -355,6 +419,14 @@ def save_turso_puzzles(puzzles, session=None, load_settings_func=None, load_turs
             response = session.post(url, headers=headers, json={'statements': chunk}, timeout=20)
             if response.status_code != 200:
                 print(f'[Turso DB] Failed to save puzzles chunk. Status code: {response.status_code}')
+                all_success = False
+                continue
+            try:
+                errors = _statement_errors(response.json())
+            except Exception:
+                errors = []
+            if errors:
+                print(f'[Turso DB] Puzzles upsert rejected: {errors[0]}')
                 all_success = False
 
         if all_success:

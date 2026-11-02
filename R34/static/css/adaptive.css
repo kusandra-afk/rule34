@@ -81,8 +81,8 @@
 
   /* Умная шапка по скроллу работает на телефоне так же, как на ПК:
      панель уезжает вверх, снизу остаётся компактная полоска. Отступы
-     скрытой панели повторяют padding контейнера. */
-  .search-container.is-scrolled-away .r34-search-block {
+     полоски повторяют padding контейнера. */
+  .search-container.is-scrolled-away .r34-mini-bar {
     left: 16px;
     right: 16px;
   }
@@ -423,7 +423,7 @@
     padding: 0 10px;
   }
 
-  .search-container.is-scrolled-away .r34-search-block {
+  .search-container.is-scrolled-away .r34-mini-bar {
     left: 10px;
     right: 10px;
   }

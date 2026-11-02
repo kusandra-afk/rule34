@@ -7,6 +7,7 @@ import { PuzzleStorage } from '../puzzle/puzzleStorage.js';
 import { playSound } from '../puzzle/puzzleAudio.js';
 import { spawnConfetti } from '../puzzle/puzzleConfetti.js';
 import { drawJigsawEdge } from '../puzzle/puzzleGeometry.js';
+import { rememberScroll, restoreScroll } from '../scrollState.js';
 
 // ============================================================
 // Основной класс PuzzleGame
@@ -222,7 +223,7 @@ export class PuzzleGame {
             const sizeKey = `${c}x${r}`;
             if (!seenSizes.has(sizeKey)) {
                 seenSizes.add(sizeKey);
-                diffs.push({ target: target, cols: c, rows: r, label: `${exactPieces} дет. (${c}x${r})` });
+                diffs.push({ target: target, cols: c, rows: r, label: `${c}x${r} (${exactPieces} дет.)` });
             }
         });
 
@@ -238,6 +239,26 @@ export class PuzzleGame {
             btn.onclick = () => this.changeDifficulty(d.target);
             selector.appendChild(btn);
         });
+    }
+
+    // Колесо мыши над строкой сложности листает её вбок. Слушатель висит на
+    // самом оверлее и ищет строку по событию: updateDifficultyUI() перерисовывает
+    // кнопки, и подписка на конкретный узел могла теряться. Если строка
+    // помещается целиком или колесо и так горизонтальное (трекпад) — не трогаем.
+    _bindHorizontalWheel(root) {
+        if (!root || root._horizontalWheelBound) return;
+        root._horizontalWheelBound = true;
+        root.addEventListener('wheel', (e) => {
+            const row = e.target && e.target.closest
+                ? e.target.closest('.puzzle-difficulty-selector')
+                : null;
+            if (!row) return;
+            if (e.ctrlKey || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+            if (row.scrollWidth - row.clientWidth <= 0) return;
+            const before = row.scrollLeft;
+            row.scrollLeft = before + e.deltaY;
+            if (row.scrollLeft !== before) e.preventDefault();
+        }, { passive: false });
     }
 
     // ============================================================
@@ -751,6 +772,10 @@ export class PuzzleGame {
     async start() {
         const resultsDiv = document.getElementById('results');
         if (resultsDiv) {
+            // Галерея уходит из раскладки, документ схлопывается до высоты
+            // пазла, и прокрутка обрезается — запоминаем позицию ленты, чтобы
+            // вернуть её после выхода из игры (см. scrollState.js).
+            if (resultsDiv.style.display !== 'none') rememberScroll('page');
             resultsDiv.style.display = 'none';
         }
         document.body.style.overflow = 'hidden';
@@ -833,10 +858,14 @@ export class PuzzleGame {
                 position: fixed;
                 top: 0; left: 0;
                 width: 100%; height: 100dvh;
+                /* Фон сплошной, а не rgba(...,0.97): сквозь игру не должна
+                   просвечивать галерея — на светлых темах остаток прозрачности
+                   читался как «блок игры прозрачный». Градиенты поверх него
+                   дают тот же вид, но без просвета. */
                 background:
                     radial-gradient(ellipse at 20% 20%, rgba(139,92,246,0.12), transparent 50%),
                     radial-gradient(ellipse at 80% 80%, rgba(236,72,153,0.08), transparent 50%),
-                    rgba(8,8,16,0.97);
+                    #08090d;
                 z-index: 55000;
                 display: flex;
                 align-items: stretch;
@@ -1419,14 +1448,13 @@ export class PuzzleGame {
                 .puzzle-card:not(.setup-open) .puzzle-id-selector,
                 .puzzle-card:not(.setup-open) .puzzle-allow-long-container,
                 .puzzle-card:not(.setup-open) .puzzle-info-warn-box { display: none; }
-                /* Сложность: на узком экране полные подписи «16 дет. (4x4)»
-                   не влезали, и часть вариантов пряталась в горизонтальной
-                   прокрутке. Короткие числа переносим в несколько рядов —
-                   все варианты видны сразу, без скрытых «где-то справа». */
-                .puzzle-difficulty-selector { flex-wrap: wrap; overflow-x: visible; }
-                .puzzle-diff-btn { flex: 0 0 auto; min-width: 44px; }
-                .puzzle-diff-full { display: none; }
-                .puzzle-diff-short { display: inline; }
+                /* Сложность — как на ПК: один ряд с горизонтальной прокруткой
+                   и полными подписями «5x5 (25 дет.)». Перенос строк прятал
+                   половину вариантов и отнимал высоту у доски. */
+                .puzzle-difficulty-selector { flex-wrap: nowrap; overflow-x: auto; }
+                .puzzle-diff-btn { flex: 0 0 auto; min-width: 70px; }
+                .puzzle-diff-full { display: inline; }
+                .puzzle-diff-short { display: none; }
             }
             .puzzle-tray-cols-selector select option { background: var(--modal-bg, #1a1a2e); color: var(--adaptive-text-main, #ffffff); padding: 4px 8px; }
             .puzzle-tray-cols-selector select:focus { border-color: rgba(139,92,246,0.6); box-shadow: 0 0 8px rgba(139,92,246,0.2); }
@@ -1593,7 +1621,7 @@ export class PuzzleGame {
             const sizeKey = `${c}x${r}`;
             if (!seenSizes.has(sizeKey)) {
                 seenSizes.add(sizeKey);
-                diffs.push({ target: target, cols: c, rows: r, label: `${exactPieces} дет. (${c}x${r})` });
+                diffs.push({ target: target, cols: c, rows: r, label: `${c}x${r} (${exactPieces} дет.)` });
             }
         });
         diffs.forEach(d => {
@@ -1611,6 +1639,7 @@ export class PuzzleGame {
             diffSelector.style.cursor = 'not-allowed';
             diffSelector.title = 'Сложность нельзя менять в онлайн-режиме';
         }
+        this._bindHorizontalWheel(this.overlay);
         leftPanel.appendChild(diffSelector);
 
         // Tray Columns Selector
@@ -4205,6 +4234,8 @@ export class PuzzleGame {
             document.body.classList.remove('modal-open');
             document.documentElement.classList.remove('modal-open');
         }
+        // Возвращаем ленту туда, откуда её открывали (см. rememberScroll в start()).
+        restoreScroll('page');
         if (this.onClose) this.onClose();
     }
 }

@@ -60,11 +60,10 @@ export class OnlineUI {
 
         const modal = document.createElement('div');
         modal.id = 'puzzle-online-modal';
-        modal.className = 'game-overlay open';
+        modal.className = 'game-overlay open pz-overlay';
 
         const card = document.createElement('div');
-        card.className = 'game-card';
-        card.style.maxWidth = '580px';
+        card.className = 'game-card pz-shell pz-shell--lobby';
 
         const previewUrl = onlineMgr.roomData?.postUrl || (onlineMgr.roomData?.post ? (onlineMgr.roomData.post.sample_url || onlineMgr.roomData.post.preview_url || onlineMgr.roomData.post.file_url) : '') || (onlineMgr.game.post ? (onlineMgr.game.post.sample_url || onlineMgr.game.post.preview_url || onlineMgr.game.post.file_url) : '');
 
@@ -88,107 +87,104 @@ export class OnlineUI {
         let selectedDiff = diffs.find(d => d.target === defaultTarget) || diffs.find(d => d.target >= 36) || diffs[2];
         const optionsHtml = diffs.map(d => `<option value="${d.target}" style="background:#111;" ${d.target === selectedDiff.target ? 'selected' : ''}>${d.exactPieces} деталей (${d.c}x${d.r})</option>`).join('');
 
+        const modeLabel = onlineMgr.roomData?.mode === 'coop' ? 'Совместный сбор' : 'Гонка на скорость';
+        const maxPlayers = onlineMgr.roomData?.maxPlayers || 8;
+
+        // Шапка и карточка имеют одну и ту же ширину (см. .game-header--pz-lg и
+        // .pz-shell--lobby в lobby.css), иначе стрелка/крестик улетали к краям
+        // экрана и не читались как часть одного окна.
         modal.innerHTML = `
-            <div class="game-header">
+            <div class="game-header game-header--pz-lg">
                 <div class="game-title-group">
                     <div class="game-logo-icon game-logo-icon-puzzle">${icon('puzzle', { size: 20 })}</div>
-                    <h2 class="game-app-title">${onlineMgr.isHost ? 'Лобби Хоста' : 'Комната Мультиплеера'} <span style="font-size: 0.65em; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; padding: 2px 8px; border-radius: 8px; font-weight: 800; vertical-align: middle; margin-left: 6px;">БЕТА</span></h2>
+                    <h2 class="game-app-title">${onlineMgr.isHost ? 'Лобби Хоста' : 'Комната'} <span class="pz-beta">БЕТА</span></h2>
                 </div>
                 <button class="game-close-btn" id="pzOnlineCloseBtn" title="Закрыть">${icon('x', { size: 18 })}</button>
             </div>
         `;
 
+        // Две колонки: слева код комнаты и пазл, справа участники и запуск игры.
+        // Раньше всё шло одной колонкой высотой >1000px, и кнопка «Начать игру»
+        // вместе со списком игроков оказывалась за пределами экрана.
         card.innerHTML = `
-            <div class="game-menu-container" style="gap: 16px;">
-                <span class="game-hero-badge game-badge-gradient-secondary">
-                    ${onlineMgr.isHost ? 'Вы — Организатор (Хост)' : 'Вы подключились к комнате'} • ${onlineMgr.roomData?.mode === 'coop' ? 'Совместный сбор' : 'Гонка на скорость'}
-                </span>
-
-                <h1 class="game-menu-title" style="font-size: 1.75rem;">${onlineMgr.isHost ? 'Лобби Комнаты' : 'Подключение к Комнате'}</h1>
-
-                <div class="game-room-header-card game-room-card" style="width: 100%;">
-                    <div style="text-align: left;">
-                        <div style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.5); font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">КОД КОМНАТЫ:</div>
-                        <div class="game-room-code-val" style="color: #fbbf24; margin-top: 2px;">${onlineMgr.roomId}</div>
-                    </div>
-                    <button id="pzCopyCodeBtn" class="game-btn-secondary" style="padding: 8px 16px; font-size: 0.85rem; min-width: auto; gap: 6px;">
-                        ${icon('clipboard', { size: 14 })} Копировать
-                    </button>
-                </div>
-
-                <div class="game-form-box" style="width: 100%;">
-                    <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; text-align: left;">
-                        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); font-weight: bold; width: 100%; display: flex; justify-content: space-between; align-items: center;">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                ${currentPostId ? `
-                                    <span id="pzPuzzleIdPill" style="cursor: pointer; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 2px 6px; font-family: monospace; font-size: 0.75rem; color: #fbbf24; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px; vertical-align: middle;" title="Кликните, чтобы скопировать ID">
-                                        ID ${currentPostId}
-                                    </span>
-                                ` : `
-                                    <span id="pzPuzzleIdPill" style="cursor: pointer; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 2px 6px; font-family: monospace; font-size: 0.75rem; color: #fbbf24; transition: all 0.2s; display: none; align-items: center; gap: 4px; vertical-align: middle;" title="Кликните, чтобы скопировать ID">
-                                    </span>
-                                `}
-                                <span style="display:flex; align-items:center; gap:6px;">${icon('image', { size: 14 })} Выбранный пазл:</span>
-                            </div>
-                            ${onlineMgr.isHost ? `
-                                <button id="pzSkipPuzzleBtn" class="game-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; min-width: auto; height: auto;">
-                                    ${icon('refresh', { size: 12 })} Пропустить
-                                </button>
-                            ` : `
-                                <span style="font-size: 0.75rem; color: var(--accent, #a78bfa);" id="pzPiecesInfoText">${onlineMgr.roomData?.targetPieces || 36} деталей</span>
-                            `}
+            <div class="pz-lobby">
+                <div class="pz-lobby-col">
+                    <div class="pz-room">
+                        <div class="pz-room-info">
+                            <span class="pz-label">Код комнаты</span>
+                            <strong class="pz-room-code">${onlineMgr.roomId}</strong>
                         </div>
-                        <div id="pzPreviewImg" class="game-preview-img" style="background-image: url('${previewUrl}');"></div>
+                        <button id="pzCopyCodeBtn" class="game-btn-secondary pz-btn-sm">
+                            ${icon('clipboard', { size: 14 })} Копировать
+                        </button>
+                    </div>
 
-                        ${onlineMgr.isHost ? `
-                            <div style="display:flex; gap:8px; width:100%; margin-top:4px;">
-                                <input type="text" id="pzHostIdInput" class="game-input" placeholder="Поиск по ID (например, 10142981)" style="flex:1; font-size:0.85rem; padding:8px 12px; text-align:center;" />
-                                <button id="pzHostIdLoadBtn" class="game-btn-secondary" style="padding: 8px 16px; font-size: 0.85rem; min-width: auto;">Найти</button>
+                    <div class="pz-card">
+                        <div class="pz-card-head">
+                            <span class="pz-label">${icon('image', { size: 14 })} Пазл в комнате</span>
+                            <div class="pz-head-tools">
+                                <span id="pzPuzzleIdPill" class="pz-id-pill" title="Кликните, чтобы скопировать ID" style="${currentPostId ? '' : 'display: none;'}">ID ${currentPostId}</span>
+                                ${onlineMgr.isHost ? `
+                                    <button id="pzSkipPuzzleBtn" class="pz-mini-btn">
+                                        ${icon('refresh', { size: 12 })} Другой пазл
+                                    </button>
+                                ` : `
+                                    <span id="pzPiecesInfoText" class="pz-chip">${onlineMgr.roomData?.targetPieces || 36} деталей</span>
+                                `}
                             </div>
-
-                            <div style="width: 100%; display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
-                                <label class="game-form-label" style="font-size: 0.8rem;">Количество деталей:</label>
-                                <select id="pzPiecesSelect" class="game-input" style="font-weight: bold; cursor: pointer; font-size: 0.85rem; padding: 8px 12px; background: rgba(255, 255, 255, 0.06);">
-                                    ${optionsHtml}
-                                </select>
+                        </div>
+                        <div id="pzPreviewImg" class="pz-preview" style="background-image: url('${previewUrl}');"></div>
+                        ${onlineMgr.isHost ? `
+                            <div class="pz-tools">
+                                <div class="pz-field">
+                                    <label class="pz-field-label">Детали пазла</label>
+                                    <select id="pzPiecesSelect" class="game-input pz-select">
+                                        ${optionsHtml}
+                                    </select>
+                                </div>
+                                <div class="pz-field">
+                                    <label class="pz-field-label">Заменить по ID</label>
+                                    <div class="pz-id-row">
+                                        <input type="text" id="pzHostIdInput" class="game-input" placeholder="ID поста" inputmode="numeric" />
+                                        <button id="pzHostIdLoadBtn" class="pz-mini-btn pz-mini-btn--solid">Найти</button>
+                                    </div>
+                                </div>
                             </div>
                         ` : ''}
                     </div>
-
-                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 6px 0;">
-
-                    <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; text-align: left;">
-                        <div class="game-form-label" style="font-size: 0.85rem;">
-                            Участники (<span id="pzPlayerCount">1</span>/${onlineMgr.roomData.maxPlayers}):
-                        </div>
-                        <div id="pzPlayerList" class="game-leaderboard game-player-list" style="display: flex; flex-direction: column; gap: 6px; width: 100%; max-height: 140px; overflow-y: auto; box-sizing: border-box; padding: 10px;"></div>
-                    </div>
-
-                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 6px 0;">
-
-                    <div style="width: 100%; display: flex; flex-direction: column; gap: 4px; text-align: left;">
-                        <div style="font-size: 0.72rem; font-weight: 700; color: rgba(255, 255, 255, 0.4); text-transform: uppercase; letter-spacing: 0.5px;">Логи:</div>
-                        <div id="puzzle-sync-logs" class="game-sync-logs">
-                            Ожидание игроков...
-                        </div>
-                    </div>
-
-                    <div style="width: 100%; margin-top: 6px;">
-                        ${onlineMgr.isHost ? `
-                            <button id="pzStartGameBtn" class="game-btn-primary game-start-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                                ${icon('sparkles', { size: 16 })} НАЧАТЬ ИГРУ
-                            </button>
-                        ` : `
-                            <div class="game-waiting-indicator" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-                                ${icon('hourglass', { size: 16 })} Ожидание запуска игры организатором...
-                            </div>
-                        `}
-                    </div>
                 </div>
 
-                <button class="game-btn-secondary game-back-btn" id="pzLeaveRoomBtn" style="margin-top: 12px; width: 100%;">
-                    ${icon('arrowLeft', { size: 14 })} Выйти из комнаты
-                </button>
+                <div class="pz-lobby-col pz-lobby-col--side">
+                    <div class="pz-card pz-card--players">
+                        <div class="pz-card-head">
+                            <span class="pz-label">Участники <b class="pz-player-count"><span id="pzPlayerCount">1</span>/${maxPlayers}</b></span>
+                            <span class="pz-chip pz-chip--accent">${modeLabel}</span>
+                        </div>
+                        <div id="pzPlayerList" class="pz-players"></div>
+                    </div>
+
+                    <div class="pz-actions">
+                        ${onlineMgr.isHost ? `
+                            <button id="pzStartGameBtn" class="game-btn-primary game-start-btn pz-start">
+                                ${icon('sparkles', { size: 16 })} Начать игру
+                            </button>
+                        ` : `
+                            <div class="game-waiting-indicator pz-waiting">
+                                ${icon('hourglass', { size: 16 })} Ждём, пока организатор начнёт игру
+                            </div>
+                        `}
+                        <button class="game-btn-secondary pz-leave" id="pzLeaveRoomBtn">
+                            ${icon('arrowLeft', { size: 14 })} Выйти из комнаты
+                        </button>
+                    </div>
+
+                    <!-- Логи оставлены на экране: по ним видно, что происходит с
+                         соединением, когда комната «молчит». -->
+                    <div class="pz-logs">
+                        <div class="pz-logs-title">Логи подключения</div>
+                        <div id="puzzle-sync-logs" class="pz-logs-body">Ожидание игроков...</div>
+                    </div>
+                </div>
             </div>
         `;
 
@@ -212,10 +208,10 @@ export class OnlineUI {
         const puzzleIdPill = document.getElementById('pzPuzzleIdPill');
         if (puzzleIdPill) {
             puzzleIdPill.onclick = () => {
-                const currentPost = onlineMgr.roomData?.post || onlineMgr.game?.post;
-                if (currentPost && currentPost.id) {
-                    navigator.clipboard.writeText(currentPost.id.toString());
-                    OnlineUI.showToast(`ID пазла ${currentPost.id} скопирован!`, 'success');
+                const post = onlineMgr.roomData?.post || onlineMgr.game?.post;
+                if (post && post.id) {
+                    navigator.clipboard.writeText(post.id.toString());
+                    OnlineUI.showToast(`ID пазла ${post.id} скопирован!`, 'success');
                 }
             };
         }
@@ -241,7 +237,7 @@ export class OnlineUI {
                     const allPosts = Array.isArray(isFavActive ? window.gallery.favoritesPosts : window.gallery.currentPosts)
                         ? (isFavActive ? window.gallery.favoritesPosts : window.gallery.currentPosts)
                         : [];
-                        
+
                     const isVideo = p => p.file_url && (p.file_url.endsWith('.webm') || p.file_url.endsWith('.mp4'));
                     const allowLong = localStorage.getItem('r34_puzzle_allow_long_images') === 'true';
                     const isTooTall = p => {
@@ -249,17 +245,17 @@ export class OnlineUI {
                         return p.width && p.height && (p.height / p.width > 2.8);
                     };
                     let eligible = allPosts.filter(p => !isVideo(p) && !isTooTall(p));
-                    
+
                     let solvedIds = [];
                     try { solvedIds = JSON.parse(localStorage.getItem('r34_solved_puzzles') || '[]'); } catch (err) {}
-                    
+
                     const excludePostId = onlineMgr.roomData.post ? onlineMgr.roomData.post.id : null;
                     if (excludePostId) {
                         onlineMgr.skippedPuzzleIds.add(excludePostId);
                     }
 
                     let unsolved = eligible.filter(p => p && p.id && !solvedIds.includes(p.id) && p.id !== excludePostId && !onlineMgr.skippedPuzzleIds.has(p.id));
-                    
+
                     if (unsolved.length === 0 && typeof window.loadMorePostsForPuzzle === 'function') {
                         OnlineUI.showToast('Загружаем новые картинки...', 'info');
                         const loadedMore = await window.loadMorePostsForPuzzle(true);
@@ -306,6 +302,7 @@ export class OnlineUI {
                     if (previewImg) {
                         previewImg.style.backgroundImage = `url('${newPreviewUrl}')`;
                     }
+                    OnlineUI.updateLobbyPuzzleIdPill(onlineMgr);
                     OnlineUI.updateHostPiecesDropdown(onlineMgr);
                     onlineMgr.broadcastRoomData();
                     OnlineUI.showToast('Пазл изменен организатором!', 'success');
@@ -337,7 +334,7 @@ export class OnlineUI {
                             const newPreviewUrl = isGif ? (post.file_url || post.sample_url || post.preview_url) : (post.sample_url || post.preview_url || post.file_url);
                             onlineMgr.roomData.postUrl = newPreviewUrl;
                             onlineMgr.roomData.seamsSeed = Math.floor(Math.random() * 1000000000);
-                            
+
                             let ratio = 1.0;
                             if (post.width && post.height && post.width > 0 && post.height > 0) {
                                 ratio = post.width / post.height;
@@ -351,6 +348,7 @@ export class OnlineUI {
                             if (previewImg) {
                                 previewImg.style.backgroundImage = `url('${newPreviewUrl}')`;
                             }
+                            OnlineUI.updateLobbyPuzzleIdPill(onlineMgr);
                             OnlineUI.updateHostPiecesDropdown(onlineMgr);
                             onlineMgr.broadcastRoomData();
                             idInput.value = '';
@@ -382,77 +380,86 @@ export class OnlineUI {
 
         const modal = document.createElement('div');
         modal.id = 'puzzle-online-modal';
-        modal.className = 'game-overlay open';
+        modal.className = 'game-overlay open pz-overlay';
 
         const card = document.createElement('div');
-        card.className = 'game-card-setup';
+        card.className = 'game-card pz-shell pz-shell--setup';
+
+        const hasTurnKey = !!(localStorage.getItem('gameMeteredKey') || localStorage.getItem('hlMeteredKey'));
 
         modal.innerHTML = `
-            <div class="game-header">
+            <div class="game-header game-header--pz-sm">
                 <div class="game-title-group">
                     <div class="game-logo-icon game-logo-icon-puzzle">${icon('puzzle', { size: 20 })}</div>
-                    <h2 class="game-app-title">Онлайн Режим <span style="font-size: 0.65em; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; padding: 2px 8px; border-radius: 8px; font-weight: 800; vertical-align: middle; margin-left: 6px;">БЕТА</span></h2>
+                    <h2 class="game-app-title">Онлайн режим <span class="pz-beta">БЕТА</span></h2>
                 </div>
                 <button class="game-close-btn" id="pzSetupCloseBtn" title="Закрыть">${icon('x', { size: 18 })}</button>
             </div>
         `;
 
+        // Ник — общий для обоих сценариев, поэтому он живёт над колонками и не
+        // повторяется в каждой панели.
         card.innerHTML = `
-            <div class="game-menu-container-compact">
-                <span class="game-hero-badge game-badge-gradient-secondary">Интерактивный Онлайн</span>
+            <div class="pz-nickbar">
+                <div class="pz-nickbar-text">
+                    <span class="pz-label">${icon('user', { size: 14 })} Ваше имя</span>
+                    <span class="pz-hint">Так вас увидят остальные игроки.</span>
+                </div>
+                <input type="text" id="pzNickInput" class="game-input pz-nick-input" value="${onlineMgr.playerName}" placeholder="Никнейм" maxlength="20">
+            </div>
 
-                <h1 class="game-menu-title" style="font-size: 1.75rem;">Мультиплеерные Комнаты</h1>
-
-                <div class="game-form-box">
-                    ${!localStorage.getItem('gameMeteredKey') && !localStorage.getItem('hlMeteredKey') ? `
-                    <div style="background: rgba(245, 158, 11, 0.1); border: 1px dashed rgba(245, 158, 11, 0.4); padding: 12px; border-radius: 12px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px;">
-                        <span style="font-size: 1.2rem;">⚠️</span>
-                        <div style="font-size: 0.8rem; color: #f59e0b; line-height: 1.4; text-align: left;">
-                            <b>Ключ Metered не установлен.</b> Онлайн может работать нестабильно или не работать вовсе. Рекомендуется настроить ключ в главном меню (5 кликов по заголовку).
-                        </div>
-                    </div>
-                    ` : ''}
-                    <div class="game-form-field">
-                        <label class="game-form-label" style="display: flex; align-items: center; gap: 6px;">${icon('user', { size: 14 })} Твое Имя / Никнейм:</label>
-                        <input type="text" id="pzNickInput" class="game-input" value="${onlineMgr.playerName}" placeholder="Введите ваш ник..." maxlength="20">
-                    </div>
-
-                    <hr class="game-form-divider">
-
-                    <div class="game-form-group">
-                        <label class="game-form-label">Присоединиться к комнате:</label>
-                        <div class="game-form-row">
-                            <input type="text" id="pzJoinCodeInput" class="game-input game-code-input" placeholder="5-значный код" maxlength="5">
-                            <button class="game-btn-primary" id="pzJoinRoomBtn" style="min-width: auto; padding: 10px 18px;">${icon('arrowRight', { size: 16 })} Войти</button>
-                        </div>
-                        <input type="password" id="pzJoinPasswordInput" class="game-input" placeholder="Пароль комнаты (если задан)" style="margin-top: 8px;" autocomplete="new-password">
-                    </div>
-
-                    <hr class="game-form-divider">
-
-                    <div class="game-form-group">
-                        <label class="game-form-label">Создать новую комнату:</label>
-                        
-                        <div style="display: flex; flex-direction: column; gap: 8px; text-align: left;">
-                            <label class="game-form-label" style="font-size: 0.85rem;">Режим Мультиплеера:</label>
-                            <div class="game-category-pills" style="width: 100%;">
-                                <div id="pzModeRaceBtn" class="game-cat-pill game-pills-row active">
-                                    ${icon('zap', { size: 14 })} Гонка (Кто быстрее)
-                                </div>
-                                <div id="pzModeCoopBtn" class="game-cat-pill game-pills-row">
-                                    ${icon('users', { size: 14 })} Совместный сбор
-                                </div>
-                            </div>
-                        </div>
-
-                        <input type="password" id="pzCreatePasswordInput" class="game-input" placeholder="Пароль комнаты (необязательно)" autocomplete="new-password">
-
-                        <button id="pzCreateRoomBtn" class="game-btn-primary game-create-btn">
-                            ${icon('sparkles', { size: 16 })} Создать Комнату
-                        </button>
+            ${hasTurnKey ? '' : `
+                <div class="pz-notice">
+                    ${icon('warning', { size: 16 })}
+                    <div>
+                        <b>Ключ Metered не установлен.</b> Онлайн может работать нестабильно.
+                        Ключ вводится в главном меню игр — 5 кликов по заголовку.
                     </div>
                 </div>
+            `}
 
+            <div class="pz-setup-grid">
+                <section class="pz-panel">
+                    <div class="pz-panel-head">
+                        <h3 class="pz-panel-title">Присоединиться</h3>
+                        <p class="pz-panel-desc">Есть код от друга? Введите его — и вы в комнате.</p>
+                    </div>
+                    <input type="text" id="pzJoinCodeInput" class="game-input pz-code-input" placeholder="Код комнаты" maxlength="5" autocomplete="off">
+                    <input type="password" id="pzJoinPasswordInput" class="game-input" placeholder="Пароль, если он есть" autocomplete="new-password">
+                    <button class="game-btn-secondary pz-panel-btn" id="pzJoinRoomBtn">
+                        ${icon('arrowRight', { size: 16 })} Войти в комнату
+                    </button>
+                </section>
+
+                <section class="pz-panel pz-panel--accent">
+                    <div class="pz-panel-head">
+                        <h3 class="pz-panel-title">Создать комнату</h3>
+                        <p class="pz-panel-desc">Выберите стиль игры — код комнаты появится сразу.</p>
+                    </div>
+                    <div class="pz-switch-row">
+                        <button type="button" id="pzModeRaceBtn" class="pz-switch active">
+                            ${icon('zap', { size: 16 })}
+                            <span class="pz-switch-text">
+                                <b>Гонка</b>
+                                <small>Кто соберёт первым</small>
+                            </span>
+                        </button>
+                        <button type="button" id="pzModeCoopBtn" class="pz-switch">
+                            ${icon('users', { size: 16 })}
+                            <span class="pz-switch-text">
+                                <b>Вместе</b>
+                                <small>Один пазл на всех</small>
+                            </span>
+                        </button>
+                    </div>
+                    <input type="password" id="pzCreatePasswordInput" class="game-input" placeholder="Пароль (необязательно)" autocomplete="new-password">
+                    <button class="game-btn-primary game-create-btn pz-panel-btn" id="pzCreateRoomBtn">
+                        ${icon('sparkles', { size: 16 })} Создать комнату
+                    </button>
+                </section>
+            </div>
+
+            <div class="pz-setup-foot">
                 <button class="game-btn-secondary game-back-btn" id="pzBackMenuBtn">
                     ${icon('arrowLeft', { size: 14 })} Назад в меню
                 </button>
@@ -518,6 +525,13 @@ export class OnlineUI {
             }
             onlineMgr.joinRoom(code, password);
         };
+
+        // Enter в поле кода сразу отправляет форму — так не нужно тянуться к
+        // кнопке мышью.
+        const joinCodeInput = document.getElementById('pzJoinCodeInput');
+        joinCodeInput.onkeydown = (e) => {
+            if (e.key === 'Enter') document.getElementById('pzJoinRoomBtn').click();
+        };
     }
 
     static updateHostPiecesDropdown(onlineMgr) {
@@ -551,16 +565,17 @@ export class OnlineUI {
         const players = Object.values(onlineMgr.roomData.players || {});
         if (playerCount) playerCount.textContent = players.length;
 
+        // Статуса «готов» в лобби пазлов нет (готовность никто не отправляет),
+        // поэтому зелёная плашка «Готов» у всех подряд только вводила в
+        // заблуждение. Показываем роль участника.
         playerList.innerHTML = players.map(p => `
-            <div class="game-player-row" style="width: 100%; box-sizing: border-box;">
-                <div class="game-player-name">
-                    ${p.isHost ? icon('crown', { size: 16, className: 'game-host-crown' }) : icon('user', { size: 16 })} 
-                    <span>${p.name}</span> 
-                    ${p.id === onlineMgr.playerId ? '<small style="color: var(--accent, #a78bfa);">(Вы)</small>' : ''}
+            <div class="pz-player${p.id === onlineMgr.playerId ? ' pz-player--me' : ''}">
+                <div class="pz-player-name">
+                    ${p.isHost ? icon('crown', { size: 16, className: 'game-host-crown' }) : icon('user', { size: 16 })}
+                    <span>${p.name}</span>
+                    ${p.id === onlineMgr.playerId ? '<small class="pz-you">(Вы)</small>' : ''}
                 </div>
-                <div class="game-player-status game-status-done">
-                    Готов
-                </div>
+                <span class="pz-chip${p.isHost ? ' pz-chip--host' : ''}">${p.isHost ? 'Хост' : 'В лобби'}</span>
             </div>
         `).join('');
     }
@@ -585,7 +600,7 @@ export class OnlineUI {
 
         const modal = document.createElement('div');
         modal.id = 'puzzle-online-modal';
-        modal.className = 'game-overlay open';
+        modal.className = 'game-overlay open pz-overlay';
 
         const card = document.createElement('div');
         card.className = 'game-card';

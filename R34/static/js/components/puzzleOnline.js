@@ -5,6 +5,7 @@
 import { BaseOnlineEngine } from '../multiplayer.js';
 import { OnlineSync } from '../puzzle/onlineSync.js';
 import { OnlineUI } from '../puzzle/onlineUI.js';
+import { rememberScroll } from '../scrollState.js';
 
 export class PuzzleOnlineManager extends BaseOnlineEngine {
     constructor(puzzleGame) {
@@ -256,6 +257,9 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
 
             if (!this.game.card) {
                 const resultsDiv = document.getElementById('results');
+                // Онлайн-партия тоже прячет ленту — запоминаем позицию, чтобы
+                // после выхода из игры вернуться туда же (см. scrollState.js).
+                if (resultsDiv && resultsDiv.style.display !== 'none') rememberScroll('page');
                 if (resultsDiv) resultsDiv.style.display = 'none';
                 document.body.style.overflow = 'hidden';
                 if (window.gallery && window.gallery.observer) {

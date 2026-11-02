@@ -183,6 +183,42 @@ document.addEventListener('DOMContentLoaded', () => {
             miniTags.textContent = parts.join(' · ');
         };
 
+        // «Плавающая» шапка: контейнер прилип к верху вьюпорта (position:
+        // sticky сработал). Только в этом состоянии список тегов ограничен по
+        // высоте и скроллится внутри себя — иначе панель уходила бы за экран.
+        // Пока шапка на своём месте в потоке, теги могут занимать сколько
+        // угодно места: они просто раздвигают ленту, ничего не перекрывая.
+        //
+        // Порог «прилип» считаем по положению контейнера в документе (offsetTop),
+        // а не по живому getBoundingClientRect(). Ограничение тегов по высоте
+        // меняет высоту панели, а значит и раскладку под ней; если мерить
+        // прилипание по rect.top, класс переключается от собственного эффекта:
+        // панель сжимается → галерея подпрыгивает → scrollY уезжает назад →
+        // класс снимается → панель разворачивается — и так по кругу. На ПК из-за
+        // этого страницу было не прокрутить вниз, её перекидывало наверх.
+        let floatingThreshold = Infinity;
+
+        const docTop = (el) => {
+            let y = 0;
+            let node = el;
+            while (node) {
+                y += node.offsetTop || 0;
+                node = node.offsetParent;
+            }
+            return y;
+        };
+
+        const updateFloatingState = () => {
+            // offsetParent === null — контейнер скрыт (режим «Избранное»):
+            // оставляем прежний порог, чтобы возврат в галерею не мигал.
+            if (searchContainer.offsetParent) {
+                const stickyOffset = parseFloat(getComputedStyle(searchContainer).top) || 0;
+                floatingThreshold = Math.max(0, docTop(searchContainer) - stickyOffset);
+            }
+            const stuck = window.scrollY > floatingThreshold + 0.5;
+            searchContainer.classList.toggle('is-floating', stuck);
+        };
+
         const setHidden = (next) => {
             if (hidden === next) return;
             hidden = next;
@@ -203,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const revealBlock = () => {
             setHidden(false);
             lastScrollY = window.scrollY;
+            updateFloatingState();
         };
 
         const onScroll = () => {
@@ -235,10 +272,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 lastScrollY = y;
+                updateFloatingState();
             });
         };
 
         window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', updateFloatingState, { passive: true });
+        updateFloatingState();
 
         // Клик по полоске — просто раскрыть панель, фокус пользователь поставит сам
         if (miniBar) {

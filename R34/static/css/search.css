@@ -7,11 +7,20 @@
 /* ---------- Контейнер поиска ---------- */
 .search-container {
   position: relative;
+  /* flow-root: контейнер сам держит нижний отступ панели внутри себя. Без
+     этого поля блока схлопывались через контейнер, как только полоска уходила
+     из потока (position: absolute), и высота страницы менялась на эти 24px —
+     лента при скрытии шапки всё равно чуть подпрыгивала. */
+  display: flow-root;
   z-index: 100;
   width: 100%;
   max-width: 900px;
   margin: 0 auto;
   padding: 0 24px;
+  /* Панель меняет высоту (ограничение тегов при прилипании), а скролл-анкоринг
+     Chrome пытается компенсировать сдвиг и утягивает страницу назад —
+     отключаем привязку именно на этом контейнере. */
+  overflow-anchor: none;
 }
 
 /* Панель прилипает к верху при прокрутке, а при движении вниз
@@ -26,15 +35,13 @@
   }
 }
 
-/* Панель при скрытии полностью выходит из потока (position: absolute),
-   иначе она продолжала бы занимать высоту и полоска уезжала бы вслед
-   за ней. absolute — потому что сама панель прилипла бы к верху.
-   Работает и на ПК, и на телефоне. */
+/* Панель при скрытии уезжает вверх, но остаётся в потоке: контейнер держит
+   свою высоту, поэтому сворачивание и раскрытие шапки больше не меняют
+   высоту документа и лента под ней не сдвигается. Раньше здесь был
+   position: absolute — панель выпадала из потока, страница становилась ниже
+   ровно на её высоту, и браузер «прокручивал» галерею при каждом скрытии
+   и раскрытии. Работает и на ПК, и на телефоне. */
 .search-container.is-scrolled-away .r34-search-block {
-  position: absolute;
-  left: 24px;
-  right: 24px;
-  top: 0;
   opacity: 0;
   visibility: hidden;
   transform: translateY(-100%);
@@ -50,10 +57,23 @@
               transform var(--dur) var(--ease);
 }
 
-/* Скрытая панель вышла из потока (absolute), поэтому контейнер держит
-   только полоску — высоту задаёт она сама. */
+/* Свёрнутая шапка: полоска — оверлей поверх скрытой панели. Своей высоты в
+   поток она не добавляет, поэтому её появление и исчезновение тоже не
+   двигают галерею. Отступы слева/справа повторяют padding контейнера (на
+   телефоне их правит adaptive.css). */
+.search-container.is-scrolled-away .r34-mini-bar {
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 24px;
+  margin-bottom: 0;
+  pointer-events: auto;
+}
+
+/* Панель скрыта, её область прозрачна — она не должна перехватывать клики
+   по карточкам, которые прокручиваются под шапкой. Полоска кликабельна сама. */
 .search-container.is-scrolled-away {
-  min-height: 0;
+  pointer-events: none;
 }
 
 
@@ -393,6 +413,44 @@ body.can-hover .r34-hide-tags-label:hover, body:not(.can-hover) .r34-hide-tags-l
 }
 
 /* ---------- Активные теги ---------- */
+/* Ограничение высоты нужно только «плавающей» шапке — когда контейнер
+   прилип к верху при прокрутке (класс is-floating вешает main.js). Иначе
+   панель с десятком тегов уезжает за экран, и поле ввода оказывается за
+   его границей. Пока шапка стоит на своём месте в потоке, теги занимают
+   столько места, сколько нужно, и просто раздвигают ленту.
+   #activeTags, а не .active-tags: id перебивает правила темы и адаптива. */
+.search-container.is-floating #activeTags {
+  max-height: 168px;
+  max-height: clamp(84px, 26dvh, 168px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+  /* scrollbar-width здесь не задаём: в Chrome он отключает webkit-стилизацию
+     и вместо кастомной полоски из base.css рисует системную «тонкую». */
+}
+
+/* Полоска прокрутки — та же, что у остального сайта (base.css), только уже:
+   список тегов невысокий, и 8px съедали бы место под сами теги. */
+.search-container.is-floating #activeTags::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.search-container.is-floating #activeTags::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.search-container.is-floating #activeTags::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb-color, rgba(255, 255, 255, 0.14));
+  border-radius: 99px;
+  transition: background var(--transition-speed, 0.2s) var(--ease);
+}
+
+body.can-hover .search-container.is-floating #activeTags::-webkit-scrollbar-thumb:hover,
+body:not(.can-hover) .search-container.is-floating #activeTags::-webkit-scrollbar-thumb:active {
+  background: var(--accent);
+}
+
 .active-tags {
   display: flex;
   flex-wrap: wrap;
@@ -416,6 +474,13 @@ body.can-hover .r34-hide-tags-label:hover, body:not(.can-hover) .r34-hide-tags-l
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* Группа — отдельная строка во всю ширину панели. Без этого блок был
+     флекс-элементом по содержимому: у группы с парой тегов шапка выходила
+     короче панели, и тумблер «Игнорировать» вставал посреди строки вместо
+     правого края, как у соседней группы. */
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
 }
 
 .tags-group-label {

@@ -3,6 +3,7 @@
  */
 import { GuessGame, prettifyTag, postImageUrl, MAX_ARTS_PER_ENTRY } from './guessGame.js';
 import { icon } from '../icons.js';
+import { localeTag } from '../i18n/i18n.js';
 
 const TYPE_META = {
     anime: { label: 'Аниме', icon: 'tv' },
@@ -35,7 +36,7 @@ function escapeHtml(str) {
 }
 
 function fmt(n) {
-    return Number(n || 0).toLocaleString('ru-RU');
+    return Number(n || 0).toLocaleString(localeTag());
 }
 
 /**

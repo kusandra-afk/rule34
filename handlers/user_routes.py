@@ -8,7 +8,7 @@ from handlers.core_utils import (
     load_turso_config, save_turso_config, load_settings, save_settings, sanitize_settings,
     check_is_favorited, invalidate_caches, REAL_USER_AGENT, session, enrich_favorites_with_post_data,
     get_turso_puzzles, load_puzzle_completed, save_puzzle_completed_optimized, save_turso_puzzles,
-    enrich_puzzles_with_post_data, optimize_puzzles
+    enrich_puzzles_with_post_data, optimize_puzzles, merge_puzzle_lists
 )
 
 user_bp = Blueprint('user_bp', __name__)
@@ -320,23 +320,11 @@ def api_puzzle_completed():
 
             enriched = []
             if turso_puzzles and local_puzzles:
-                turso_map = {str(p.get('postId', p.get('id', ''))): p for p in turso_puzzles if p.get('postId') or p.get('id')}
-                local_map = {str(p.get('postId', p.get('id', ''))): p for p in local_puzzles if p.get('postId') or p.get('id')}
-
-                merged_map = {}
-                for pid, p in turso_map.items():
-                    merged_map[pid] = p
-                for pid, p in local_map.items():
-                    if pid not in merged_map:
-                        merged_map[pid] = p
-                    else:
-                        try:
-                            if p.get('lastUpdated', '') > merged_map[pid].get('lastUpdated', ''):
-                                merged_map[pid] = p
-                        except Exception:
-                            pass
-
-                optimized_puzzles = optimize_puzzles(list(merged_map.values()))
+                # Общий мердж (core_utils.merge_puzzle_lists): учитывает и
+                # lastUpdated, и change, поэтому отметка удаления не проигрывает
+                # старой живой копии.
+                optimized_puzzles = optimize_puzzles(
+                    merge_puzzle_lists(turso_puzzles, local_puzzles))
                 save_puzzle_completed_optimized(optimized_puzzles)
                 save_turso_puzzles(optimized_puzzles)
                 enriched = enrich_puzzles_with_post_data(optimized_puzzles)

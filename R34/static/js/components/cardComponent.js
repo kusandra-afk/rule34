@@ -1,4 +1,5 @@
 import { escapeHtml } from '../utils.js';
+import { localeTag } from '../i18n/i18n.js';
 
 export class CardComponent {
     static createCard(post, index, gallery) {
@@ -463,8 +464,8 @@ export class CardComponent {
         const dateInfo = dateObj ? (() => {
             try {
                 return {
-                    short: dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }),
-                    full: dateObj.toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    short: dateObj.toLocaleDateString(localeTag(), { day: 'numeric', month: 'short', year: 'numeric' }),
+                    full: dateObj.toLocaleString(localeTag(), { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                 };
             } catch (e) {
                 return null;

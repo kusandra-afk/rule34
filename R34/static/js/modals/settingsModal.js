@@ -10,6 +10,7 @@ import { saveTursoConfigToServer, saveSettingsToServer } from '../init/initServe
 import { colorPresets } from '../theme/themePresets.js';
 import { debouncedSaveSetting, setAccent } from '../theme/themeManager.js';
 import { OnlineUI } from '../puzzle/onlineUI.js';
+import { rememberScroll, restoreScroll } from '../scrollState.js';
 
 export function initSettingsModal(options = {}) {
     const {
@@ -236,6 +237,10 @@ export function initSettingsModal(options = {}) {
         // 1. Открытие/закрытие модального окна настроек
         if (settingsBtn && settingsModal) {
             settingsBtn.addEventListener('click', () => {
+                // Пока открыта модалка, прокрутка страницы под ней блокируется
+                // (overflow: hidden + height: 100vh в search.css), из-за чего
+                // scrollY обнуляется — позицию запоминаем заранее.
+                rememberScroll('page');
                 prepareSettingsFlyOut();
                 // Обновляем SafeScreen в настройках
                 if (window.safeScreen) {
@@ -664,21 +669,25 @@ export function initSettingsModal(options = {}) {
             });
         }
     
+        // Единая точка закрытия: снять блокировку прокрутки и вернуть страницу
+        // туда, где она была до открытия настроек (см. scrollState.js).
+        const closeSettingsModal = () => {
+            collapsePreviewFullscreen();
+            settingsModal.classList.remove('open');
+            if (typeof stopDemoScroll === 'function') stopDemoScroll();
+            checkAndRemoveModalOpenClass();
+            restoreScroll('page');
+        };
+
         if (settingsCloseBtn && settingsModal) {
             settingsCloseBtn.addEventListener('click', () => {
-                collapsePreviewFullscreen();
-                settingsModal.classList.remove('open');
-                if (typeof stopDemoScroll === 'function') stopDemoScroll();
-                checkAndRemoveModalOpenClass();
+                closeSettingsModal();
             });
 
             // Закрытие при клике по фону
             settingsModal.addEventListener('click', (e) => {
                 if (e.target === settingsModal) {
-                    collapsePreviewFullscreen();
-                    settingsModal.classList.remove('open');
-                    if (typeof stopDemoScroll === 'function') stopDemoScroll();
-                    checkAndRemoveModalOpenClass();
+                    closeSettingsModal();
                 }
             });
         }
@@ -693,10 +702,7 @@ export function initSettingsModal(options = {}) {
                 if (tutorialModal && tutorialModal.classList.contains('open')) {
                     closeTutorial();
                 } else if (settingsModal && settingsModal.classList.contains('open')) {
-                    collapsePreviewFullscreen();
-                    settingsModal.classList.remove('open');
-                    if (typeof stopDemoScroll === 'function') stopDemoScroll();
-                    checkAndRemoveModalOpenClass();
+                    closeSettingsModal();
                 }
             }
         });

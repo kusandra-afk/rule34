@@ -31,7 +31,9 @@ KEY_FILE = os.path.join(BASE_DIR, 'R34', '.secrets', 'local-https-key.pem')
 # чтобы при следующем запуске вопрос уже не задавался.
 LANGUAGE_FILE = os.path.join(BASE_DIR, 'R34', '.secrets', 'language.json')
 SUPPORTED_LANGUAGES = ('ru', 'en')
-DEFAULT_LANGUAGE = 'ru'
+# Интерфейс по умолчанию английский; русский остаётся доступен в настройках
+# (и флагом --lang ru).
+DEFAULT_LANGUAGE = 'en'
 
 
 def load_saved_language():
@@ -63,7 +65,7 @@ def save_language(lang):
 def choose_language(explicit_lang):
     """Определяет язык интерфейса.
 
-    Порядок: флаг --lang -> сохранённый выбор -> вопрос в консоли -> ru.
+    Порядок: флаг --lang -> сохранённый выбор -> вопрос в консоли -> en.
     Вопрос задаётся только ОДИН раз: после выбора язык пишется в файл, и при
     следующих запусках сервер молча берёт его оттуда.
     """
@@ -87,12 +89,12 @@ def choose_language(explicit_lang):
     print('  2  English')
     print()
     try:
-        answer = input('Language [1/2], Enter = 1: ').strip()
+        answer = input('Language [1/2], Enter = 2: ').strip()
     except (EOFError, KeyboardInterrupt):
         print()
         answer = ''
 
-    lang = 'en' if answer == '2' else DEFAULT_LANGUAGE
+    lang = 'ru' if answer == '1' else DEFAULT_LANGUAGE
     save_language(lang)
     print('Язык сохранён: / Language saved: ' + lang)
     return lang

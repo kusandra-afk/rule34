@@ -266,11 +266,11 @@ export function startPuzzleGame() {
 
         const menuModal = document.createElement('div');
         menuModal.id = 'puzzle-mode-menu-modal';
-        menuModal.className = 'game-overlay open';
+        menuModal.className = 'game-overlay open pz-overlay';
 
         menuModal.innerHTML = `
-            <div class="game-header">
-                <button class="game-back-btn" id="pzMenuBackBtn" title="Назад к выбору игр" style="background:none;border:none;color:#fff;cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center;border-radius:12px;transition:background 0.2s;">
+            <div class="game-header game-header--pz-sm">
+                <button class="pz-back" id="pzMenuBackBtn" title="Назад к выбору игр">
                     ${icon('arrowLeft', { size: 18 })}
                 </button>
                 <div class="game-title-group">
@@ -282,42 +282,65 @@ export function startPuzzleGame() {
         `;
 
         const card = document.createElement('div');
-        card.className = 'game-card';
+        card.className = 'game-card pz-menu-card';
 
+        // Раньше это был один заголовок и две почти одинаковые плашки: сходу
+        // нельзя было понять, чем онлайн отличается от одиночной игры, кроме
+        // жёлтой нашлёпки «Бета». Теперь у каждого режима есть короткое
+        // пояснение, что внутри, и подписанное действие внизу карточки.
         card.innerHTML = `
-            <div class="game-menu-container">
-                <span class="game-hero-badge game-badge-gradient-primary">Интерактивная Мини-Игра</span>
-                <h1 class="game-menu-title">Соберите картинку из элементов!</h1>
-
-                <!-- Выбор режима -->
-                <div class="game-modes-grid">
-                    <div class="game-mode-card primary-mode" id="pzStartSoloBtn">
-                        <div class="game-mode-icon-circle">
-                            ${icon('gamepad', { size: 24 })}
-                        </div>
-                        <h3 class="game-mode-title">Одиночный Режим</h3>
-                        <p class="game-mode-subtitle">Собирайте пазлы в своём темпе из любого выбранного арта в галерее.</p>
-                        <div class="game-mode-stat">Решено пазлов: <span id="pzSolvedCountValue">${solvedCount}</span></div>
-                    </div>
-
-                    <div class="game-mode-card multiplayer" id="pzStartMultiplayerBtn">
-                        <div class="game-mode-icon-circle">
-                            ${icon('users', { size: 24 })}
-                        </div>
-                        <h3 class="game-mode-title">Онлайн Бета</h3>
-                        <p class="game-mode-subtitle">Создавайте комнаты и соревнуйтесь в скорости или собирайте вместе в реальном времени.</p>
-                        <div class="game-mode-stat" style="color: #fcd34d; background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3);">
-                            Мультиплеер (до 15 чел.)
-                        </div>
-                    </div>
-                </div>
-
-                <div id="pzKeyWarningTag" class="game-warning-tag">ТРЕБУЕТСЯ API КЛЮЧ METERED.CA</div>
+            <div class="pz-hero">
+                <span class="game-hero-badge game-badge-gradient-primary">Интерактивная мини-игра</span>
+                <h1 class="game-menu-title pz-hero-title">Соберите картинку из элементов</h1>
+                <p class="pz-hero-desc">Пазл собирается из картинки, выбранной в галерее. Играйте сами или позовите друзей в общую комнату.</p>
             </div>
+
+            <div class="pz-modes">
+                <button type="button" class="pz-mode pz-mode--solo" id="pzStartSoloBtn">
+                    <div class="pz-mode-head">
+                        <span class="pz-mode-icon">${icon('gamepad', { size: 22 })}</span>
+                        <span class="pz-mode-titles">
+                            <span class="pz-mode-title">Одиночный режим</span>
+                            <span class="pz-mode-sub">Без сети и таймера</span>
+                        </span>
+                    </div>
+                    <p class="pz-mode-desc">Собирайте пазлы в своём темпе из любого выбранного арта в галерее.</p>
+                    <div class="pz-mode-meta">
+                        <span class="pz-mode-chip">Решено пазлов: <span id="pzSolvedCountValue">${solvedCount}</span></span>
+                    </div>
+                    <span class="pz-mode-cta">
+                        <span>Играть</span>
+                        ${icon('arrowRight', { size: 16 })}
+                    </span>
+                </button>
+
+                <button type="button" class="pz-mode pz-mode--online" id="pzStartMultiplayerBtn">
+                    <div class="pz-mode-head">
+                        <span class="pz-mode-icon">${icon('users', { size: 22 })}</span>
+                        <span class="pz-mode-titles">
+                            <span class="pz-mode-title">Онлайн режим</span>
+                            <span class="pz-mode-sub">С друзьями</span>
+                        </span>
+                        <span class="pz-mode-badge">Бета</span>
+                    </div>
+                    <p class="pz-mode-desc">Создайте комнату и соревнуйтесь в скорости или собирайте один пазл вместе.</p>
+                    <div class="pz-mode-meta">
+                        <span class="pz-mode-chip">До 8 игроков</span>
+                        <span class="pz-mode-chip">Вход по коду</span>
+                    </div>
+                    <span class="pz-mode-cta">
+                        <span>Создать комнату</span>
+                        ${icon('arrowRight', { size: 16 })}
+                    </span>
+                </button>
+            </div>
+
+            <div id="pzKeyWarningTag" class="game-warning-tag">Нужен ключ Metered — он вводится в меню игр</div>
         `;
 
         menuModal.appendChild(card);
         document.body.appendChild(menuModal);
+
 
         const closeMenu = () => {
             menuModal.style.animation = 'pzFadeOut 0.2s ease-out';

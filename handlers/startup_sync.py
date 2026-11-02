@@ -15,7 +15,8 @@ from handlers.core_utils import (
     get_turso_settings, initialize_turso_tables,
     get_turso_favorites, load_my_favorites, enrich_favorites_with_post_data,
     save_turso_favorites, get_turso_puzzles, load_puzzle_completed,
-    optimize_puzzles, save_turso_puzzles, save_puzzle_completed_optimized
+    optimize_puzzles, save_turso_puzzles, save_puzzle_completed_optimized,
+    merge_puzzle_lists
 )
 
 
@@ -37,22 +38,24 @@ def _merge_favorites(turso_favorites, local_favorites):
 
 
 def _merge_puzzles(turso_puzzles, local_puzzles):
-    """То же для пазлов, но свежесть определяется по lastUpdated (строкой)."""
-    merged = {str(p.get('postId', p.get('id', ''))): p
-              for p in turso_puzzles if p.get('postId') or p.get('id')}
-    for pid, p in {str(x.get('postId', x.get('id', ''))): x
-                   for x in local_puzzles if x.get('postId') or x.get('id')}.items():
-        if pid not in merged:
-            merged[pid] = p
-            continue
-        try:
-            if p.get('lastUpdated', '') > merged[pid].get('lastUpdated', ''):
-                merged[pid] = p
-        except Exception:
-            # Если lastUpdated не строка и сравнение падает — оставляем облачную
-            # запись. Ронять из-за этого весь старт сервера незачем.
-            pass
-    return list(merged.values())
+    """Сливает пазлы по ключу записи (свежесть — lastUpdated и change)."""
+    return merge_puzzle_lists(turso_puzzles, local_puzzles)
+
+
+def _puzzles_changed(turso_puzzles, merged_puzzles):
+    """Отличается ли слитый список от того, что уже лежит в Turso."""
+    turso_map = {str(p.get('postId', p.get('id', ''))): p for p in turso_puzzles}
+    for puzzle in merged_puzzles:
+        pid = str(puzzle.get('postId', puzzle.get('id', '')))
+        old = turso_map.get(pid)
+        if old is None:
+            return True
+        if (puzzle.get('lastUpdated', '') != old.get('lastUpdated', '')
+                or int(puzzle.get('change', 0) or 0) != int(old.get('change', 0) or 0)
+                or int(puzzle.get('is_deleted', 0) or 0) != int(old.get('is_deleted', 0) or 0)
+                or puzzle.get('variants') != old.get('variants')):
+            return True
+    return False
 
 
 def sync_favorites_on_startup():
@@ -84,7 +87,10 @@ def sync_puzzles_on_startup():
     if turso_puzzles and local_puzzles:
         merged = _merge_puzzles(turso_puzzles, local_puzzles)
         optimized = optimize_puzzles(merged)
-        if len(optimized) > len(turso_puzzles):
+        # Раньше наверх уезжало только когда записей стало БОЛЬШЕ. Изменение
+        # уже существующего пазла (новый вариант, отметка удаления) количество
+        # не меняет, и такой апдейт молча оставался локальным.
+        if len(optimized) > len(turso_puzzles) or _puzzles_changed(turso_puzzles, optimized):
             print(f'Merging puzzles: {len(turso_puzzles)} in Turso, '
                   f'{len(local_puzzles)} local, {len(optimized)} merged')
             save_turso_puzzles(optimized)

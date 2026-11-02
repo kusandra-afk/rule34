@@ -4,6 +4,7 @@
 import { OnlineUI } from '../puzzle/onlineUI.js';
 import { prettifyTag } from './guessGame.js';
 import { icon } from '../icons.js';
+import { localeTag } from '../i18n/i18n.js';
 // GuessOnlineManager НЕ импортируется здесь намеренно — guessOnline.js сам
 // импортирует GuessOnlineUI (чтобы дёргать рендер из хостовой логики раунда),
 // а статический import в обе стороны — циклическая зависимость модулей.
@@ -343,7 +344,7 @@ export class GuessOnlineUI {
             </div>
             <div class="guess-prompt">
                 У <b>${escapeHtml(prettifyTag(hid.tag))}</b> постов больше или меньше, чем
-                <span class="guess-prompt-num">${cur.count.toLocaleString('ru-RU')}</span>?
+                <span class="guess-prompt-num">${cur.count.toLocaleString(localeTag())}</span>?
             </div>
             <div class="guess-actions">
                 <button class="guess-btn guess-btn-more" id="gzMoreBtn">
@@ -442,7 +443,7 @@ export class GuessOnlineUI {
                 <div class="guess-type" id="gzType${side === 'left' ? 'Left' : 'Right'}"><span class="guess-type-skeleton"></span></div>
                 ${isRiddle
                     ? '<div class="guess-count guess-count-hidden" id="gzHiddenCount">? ? ?</div>'
-                    : `<div class="guess-count">${Number(entry.count || 0).toLocaleString('ru-RU')}</div>`}
+                    : `<div class="guess-count">${Number(entry.count || 0).toLocaleString(localeTag())}</div>`}
                 <div class="guess-count-label">постов</div>
             </div>
         `;
@@ -491,7 +492,7 @@ export class GuessOnlineUI {
         if (hiddenCountEl) {
             // «постов» теперь отдельной строкой под числом (.guess-count-label),
             // дописывать его к самому числу больше не нужно
-            hiddenCountEl.textContent = round.hidden.count.toLocaleString('ru-RU');
+            hiddenCountEl.textContent = round.hidden.count.toLocaleString(localeTag());
             hiddenCountEl.classList.remove('guess-count-hidden');
         }
 

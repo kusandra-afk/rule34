@@ -753,6 +753,70 @@ def purge_old_deleted_puzzles(puzzles, days=PUZZLES_PURGE_DAYS):
     return kept, len(kept) != len(puzzles)
 
 
+def _puzzle_key(puzzle):
+    """Ключ записи пазла во всех исторических форматах: postId / id / post.id."""
+    if not isinstance(puzzle, dict):
+        return ''
+    post = puzzle.get('post')
+    return str(
+        puzzle.get('postId')
+        or puzzle.get('id')
+        or (post.get('id') if isinstance(post, dict) else '')
+        or ''
+    )
+
+
+def _puzzle_touch_ms(puzzle):
+    """Когда запись последний раз менялась — в миллисекундах.
+
+    У живой записи это lastUpdated (ISO-строка, ставится при сборке), у
+    томбстона — change (мс, ставится при удалении/восстановлении). Берём
+    максимум: удаление, случившееся ПОСЛЕ последней сборки, должно побеждать
+    старую живую копию, иначе удалённый пазл «воскресал» из другой копии.
+    """
+    try:
+        change = int(puzzle.get('change') or 0)
+    except (TypeError, ValueError):
+        change = 0
+
+    updated = 0
+    raw = puzzle.get('lastUpdated')
+    if raw:
+        try:
+            from datetime import datetime
+            updated = int(datetime.fromisoformat(
+                str(raw).replace('Z', '+00:00')).timestamp() * 1000)
+        except Exception:
+            updated = 0
+
+    return max(change, updated)
+
+
+def merge_puzzle_lists(turso_puzzles, local_puzzles):
+    """Сливает списки пазлов по ключу записи, оставляя более свежую версию.
+
+    Раньше это сравнение было скопировано в startup_sync и в GET
+    /api/puzzle-completed и смотрело только на lastUpdated. Томбстон
+    (is_deleted=1) lastUpdated не меняет — по этой логике он проигрывал живой
+    копии, и удаление не доезжало до других устройств.
+    """
+    merged = {}
+    for puzzle in (turso_puzzles or []):
+        key = _puzzle_key(puzzle)
+        if key:
+            merged[key] = puzzle
+
+    for puzzle in (local_puzzles or []):
+        key = _puzzle_key(puzzle)
+        if not key:
+            continue
+        current = merged.get(key)
+        if current is None or _puzzle_touch_ms(puzzle) > _puzzle_touch_ms(current):
+            merged[key] = puzzle
+
+    return list(merged.values())
+
+
 @with_file_lock
 def save_puzzle_completed_optimized(puzzles):
     try:
