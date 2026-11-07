@@ -1318,38 +1318,11 @@ body.can-hover .r34-source-link-btn:hover .r34-link-arrow, body:not(.can-hover) 
    раскладки: карточка не может «дёрнуться» от них.
    ============================================================ */
 
-.media-container::after {
-  content: '';
-  position: absolute;
-  left: -10%;
-  right: -10%;
-  top: 0;
-  z-index: 2;
-  height: 38%;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    rgba(var(--accent-rgb), 0.08) 38%,
-    rgba(255, 255, 255, 0.14) 50%,
-    rgba(var(--accent-rgb), 0.08) 62%,
-    transparent 100%
-  );
-  opacity: 0;
-  transform: translateY(-70%);
-  pointer-events: none;
-  mix-blend-mode: screen;
-}
-
-body.can-hover .media-container:not(.card-reveal):hover::after {
-  animation: cardScanline 1.15s var(--ease-in-out);
-}
-
-@keyframes cardScanline {
-  0%   { opacity: 0; transform: translateY(-70%); }
-  12%  { opacity: 1; }
-  88%  { opacity: 1; }
-  100% { opacity: 0; transform: translateY(300%); }
-}
+/* Блик, пробегавший по карточке при наведении (cardScanline), убран вместе
+   со своим слоем: на ПК он «проезжал» по каждой карточке под курсором и
+   мешал смотреть медиа. Сам ::after существовал только ради этой анимации,
+   поэтому псевдоэлемент тоже удалён — заодно с карточки снят лишний слой
+   с mix-blend-mode, который композитор держал на каждой карточке. */
 
 /* Лайк: пульс + расходящееся кольцо света (box-shadow не режется overflow) */
 .like-btn.liked {
@@ -1367,9 +1340,6 @@ body.can-hover .media-container:not(.card-reveal):hover::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body.can-hover .media-container:not(.card-reveal):hover::after {
-    animation: none;
-  }
   .like-btn.liked {
     animation: none;
   }
@@ -1424,4 +1394,103 @@ body.can-hover .media-container:hover::before {
 @keyframes borderGlowPulse {
   0%, 100% { opacity: 0; }
   50% { opacity: 1; }
+}
+
+/* ============================================================
+   ПРОСМОТРЕННЫЕ ПОСТЫ
+   ============================================================ */
+.media-container.is-viewed {
+    opacity: 0.72;
+}
+
+.media-container.is-viewed img,
+.media-container.is-viewed video {
+    filter: saturate(0.55) brightness(0.82);
+}
+
+.media-container.is-viewed:hover {
+    opacity: 1;
+}
+
+.media-container.is-viewed:hover img,
+.media-container.is-viewed:hover video {
+    filter: none;
+}
+
+.media-container {
+    transition: opacity 0.18s ease;
+}
+/* ============================================================
+   СКАЧИВАНИЕ В БЛОКЕ ИСТОЧНИКА
+   Кнопка живёт в одной строке со ссылкой на источник: та же высота,
+   то же скругление и рамка, только компактная — иконка без подписи.
+   ============================================================ */
+.r34-source-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  min-width: 0;
+}
+
+.r34-source-row > .r34-source-link-container,
+.r34-source-row > .r34-source-plain-text-wrapper,
+.r34-source-row > .r34-source-empty-state {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.r34-source-download-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 46px;
+  min-width: 46px;
+  padding: 0;
+  border-radius: calc(var(--media-radius, 20px) / 1.5);
+  border: 1px solid var(--card-border-color, rgba(255, 255, 255, 0.08));
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--light, #f4f6fb);
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all var(--card-transition-speed, 300ms) var(--ease);
+}
+
+.r34-source-download-btn svg {
+  flex-shrink: 0;
+  color: var(--accent);
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+  transition: transform var(--card-transition-speed, 300ms) var(--ease),
+              filter var(--card-transition-speed, 300ms) var(--ease);
+}
+
+body.can-hover .r34-source-download-btn:hover,
+body:not(.can-hover) .r34-source-download-btn:active {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--accent);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3), 0 0 14px var(--accent-glow);
+}
+
+body.can-hover .r34-source-download-btn:hover svg,
+body:not(.can-hover) .r34-source-download-btn:active svg {
+  transform: translateY(2px) scale(1.08);
+  filter: drop-shadow(0 0 8px var(--accent-glow));
+}
+
+.r34-source-download-btn:active {
+  transform: scale(0.96) translateY(0);
+}
+
+@media (max-width: 520px) {
+  .r34-source-row {
+    gap: 8px;
+  }
+  .r34-source-download-btn {
+    width: 42px;
+    min-width: 42px;
+  }
 }

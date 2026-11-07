@@ -20,6 +20,7 @@ def proxy():
 
     user_id, api_key = get_saved_api_key()
 
+    response = None
     try:
         parsed = urlparse(target_url)
         query_params = parse_qsl(parsed.query, keep_blank_values=True)
@@ -39,6 +40,7 @@ def proxy():
         response = session.get(target_url, headers=headers, timeout=30, stream=True)
 
         if response.status_code in (401, 403):
+            response.close()
             clear_creds()
             return 'Ошибка авторизации Rule34 API. Пожалуйста, войдите заново.', 401
 
@@ -59,7 +61,13 @@ def proxy():
         status_code = response.status_code if response.status_code in (200, 206) else 200
 
         if 'json' in content_type.lower() or 'xml' in content_type.lower():
-            content_data = response.content
+            try:
+                content_data = response.content
+            finally:
+                # Тело прочитано целиком — соединение с rule34 больше не нужно.
+                # Раньше его никто не закрывал, и сессия держала сокет до
+                # следующего прохода сборщика мусора.
+                response.close()
             text_preview = content_data[:200].decode('utf-8', errors='ignore') if content_data else ""
             if "Missing authentication" in text_preview or "Unauthorized" in text_preview:
                 clear_creds()
@@ -68,11 +76,24 @@ def proxy():
             return Response(content_data, status=status_code, headers=pass_headers, content_type=content_type)
 
         def generate():
-            for chunk in response.iter_content(chunk_size=65536):
-                if chunk:
-                    yield chunk
+            try:
+                for chunk in response.iter_content(chunk_size=65536):
+                    if chunk:
+                        yield chunk
+            finally:
+                # Браузер постоянно бросает начатые загрузки (скролл ленты,
+                # перерисовка пазла). Flask закрывает генератор, а открытое
+                # соединение с rule34 и его буфер оставались жить: под
+                # нагрузкой такие «хвосты» копились сокетами, потоками и
+                # памятью — вплоть до MemoryError в dev-сервере.
+                response.close()
 
         return Response(stream_with_context(generate()), status=status_code, headers=pass_headers, content_type=content_type)
 
     except Exception as e:
+        if response is not None:
+            try:
+                response.close()
+            except Exception:
+                pass
         return f"Proxy error: {str(e)}", 500

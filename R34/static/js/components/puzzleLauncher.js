@@ -1,9 +1,11 @@
+import { lockPageScroll, releasePageScroll } from '../backgroundPause.js';
 /**
  * Puzzle Game Launcher & Menu Component
  */
 
 import { PuzzleGame } from './puzzleGame.js';
 import { PuzzleOnlineManager } from './puzzleOnline.js';
+import { loadResume, clearResume } from '../puzzle/resume.js';
 import { icon } from '../icons.js';
 import { getSavedExcludedTags } from '../init/initServerSync.js';
 import { openGameChoiceModal } from '../modals/gameChoiceModal.js';
@@ -196,6 +198,35 @@ export function startPuzzleGame() {
         return unsolved[idx];
     };
 
+    // Продолжение незаконченной сборки: та же картинка, та же сетка и те же
+    // позиции деталей. Игра создаётся обычным путём, а снимок применяется в
+    // момент, когда вступительная анимация закончилась (см. applyPendingResume).
+    const startResumeGame = (snapshot) => {
+        const post = snapshot && snapshot.post;
+        if (!post) return;
+
+        window.puzzleGameActive = true;
+        if (getEligiblePosts().length < 15) {
+            loadMorePostsForPuzzle();
+        }
+
+        const game = new PuzzleGame(post, null, async () => {
+            window.activePuzzleGame = null;
+            loadMorePostsForPuzzle();
+        });
+        window.activePuzzleGame = game;
+
+        if (post.width && post.height) {
+            game.aspectRatio = post.width / post.height;
+        }
+        game.targetPieces = snapshot.targetPieces || game.targetPieces;
+        game.seamsSeed = snapshot.seamsSeed;
+        game._pendingResume = snapshot;
+        game.start();
+
+        showPuzzleToast('Продолжаем незаконченный пазл', 2000);
+    };
+
     const startGame = (currentPost) => {
         if (!currentPost) {
             showPuzzleToast("Не удалось найти подходящих медиа для пазла!", 4000);
@@ -203,7 +234,9 @@ export function startPuzzleGame() {
         }
         
         window.puzzleGameActive = true;
-        
+        // Новая сборка заменяет сохранённую: продолжать старую уже не нужно.
+        clearResume();
+
         if (getEligiblePosts().length < 15) {
             loadMorePostsForPuzzle();
         }
@@ -267,6 +300,9 @@ export function startPuzzleGame() {
         const menuModal = document.createElement('div');
         menuModal.id = 'puzzle-mode-menu-modal';
         menuModal.className = 'game-overlay open pz-overlay';
+        menuModal.setAttribute('role', 'dialog');
+        menuModal.setAttribute('aria-modal', 'true');
+        menuModal.setAttribute('aria-label', 'Puzzle menu');
 
         menuModal.innerHTML = `
             <div class="game-header game-header--pz-sm">
@@ -341,12 +377,46 @@ export function startPuzzleGame() {
         menuModal.appendChild(card);
         document.body.appendChild(menuModal);
 
+        // Незаконченная сборка из прошлого захода: предлагаем вернуться к ней
+        // до выбора режима, чтобы она не терялась за новой игрой.
+        const resumeSnapshot = loadResume();
+        if (resumeSnapshot && resumeSnapshot.post) {
+            const total = (resumeSnapshot.cols || 0) * (resumeSnapshot.rows || 0);
+            const placed = total > 0
+                ? resumeSnapshot.tiles.filter(tile => Number.isInteger(tile.pos) && tile.pos < total).length
+                : 0;
+            const resumeBar = document.createElement('button');
+            resumeBar.type = 'button';
+            resumeBar.className = 'pz-resume';
+            resumeBar.id = 'pzResumeBtn';
+            resumeBar.innerHTML = `
+                <span class="pz-resume-icon">${icon('play', { size: 18 })}</span>
+                <span class="pz-resume-text">
+                    <b>Продолжить пазл</b>
+                    <small>${placed} из ${total} деталей уже на месте</small>
+                </span>
+                <span class="pz-resume-cta">Продолжить ${icon('arrowRight', { size: 14 })}</span>
+            `;
+            const modesGrid = card.querySelector('.pz-modes');
+            if (modesGrid) card.insertBefore(resumeBar, modesGrid);
+            resumeBar.onclick = () => {
+                closeMenu();
+                startResumeGame(resumeSnapshot);
+            };
+        }
+        // Меню полноэкранное: под ним страница не скроллится и не грузит
+        // ленту, пока оно открыто.
+        lockPageScroll();
+
 
         const closeMenu = () => {
             menuModal.style.animation = 'pzFadeOut 0.2s ease-out';
             card.style.animation = 'pzSlideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
             if (multiCheckInterval) clearInterval(multiCheckInterval);
-            setTimeout(() => menuModal.remove(), 200);
+            setTimeout(() => {
+                menuModal.remove();
+                releasePageScroll();
+            }, 200);
         };
 
         menuModal.querySelector('#pzMenuCloseBtn').onclick = closeMenu;

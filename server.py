@@ -275,11 +275,16 @@ def add_cors_headers(response):
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Range'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
         response.headers['Vary'] = 'Origin'
-    # Prevent stale browser caching of CSS/JS/HTML during development
-    if request.path.endswith(('.html', '.css', '.js', '/')) or request.path.startswith('/static/'):
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
+    # Статика с версией в адресе (?v=3.0.1) неизменяема: её можно кэшировать
+    # надолго. Раньше no-store стоял на всём, и при каждом обновлении страницы
+    # браузер заново скачивал все CSS/JS (десятки тысяч строк) — только чтобы
+    # получить те же байты. Всё остальное (HTML, модули без версии) отдаём с
+    # no-cache: браузер перепроверяет файл и получает 304 вместо копии.
+    is_static = request.path.startswith('/static/')
+    if is_static and request.args.get('v'):
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    elif is_static or request.path.endswith(('.html', '.css', '.js', '/')) or request.path == '/':
+        response.headers['Cache-Control'] = 'no-cache, must-revalidate'
     return response
 
 @app.errorhandler(404)

@@ -2066,19 +2066,34 @@ body.can-hover .guess-viewer-nav:hover { background: rgba(0, 0, 0, 0.8); }
 /* Короткие экраны стоят по центру окна, длинные — просто прокручиваются:
    margin: auto у flex-элемента схлопывается в 0, когда места не хватает,
    поэтому верх карточки никогда не обрезается. */
+/* Модалки игр (меню режима, создание комнаты, лобби) прокручиваются
+   ЦЕЛИКОМ. Раньше здесь был flex + `margin: auto` у карточки: пока
+   содержимое помещалось на экран, это давало центрирование, но как только
+   карточка становилась выше окна, auto-отступы забирали свободное место —
+   верх уезжал за край, а до низа нельзя было доскроллить, и кнопки
+   «Начать игру»/«Я готов» оказывались недоступны (и на ПК, и на телефоне).
+   `safe center` центрирует только когда места хватает, иначе прижимает к
+   началу; `flex-start` — фолбэк для браузеров без `safe`. */
 .game-overlay.pz-overlay {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  justify-content: safe center;
+  overscroll-behavior: contain;
 }
 
 .game-overlay.pz-overlay > .game-card {
-  margin: auto;
+  flex: 0 0 auto;
+  margin: 0 auto;
 }
 
 /* Шапка той же ширины, что и карточка: иначе стрелка «назад» и крестик
    оказывались на противоположных краях монитора и не читались как одно окно. */
-.game-header--pz-sm { max-width: 820px; }
-.game-header--pz-lg { max-width: 1000px; }
+/* Ширина шапки совпадает с шириной карточки: на ПК экран комнаты был
+   узким (820/1200 px), и справа/слева оставались пустые поля. */
+.game-header--pz-sm { max-width: min(1080px, 94vw); }
+.game-header--pz-lg { max-width: min(1440px, 94vw); }
 
 .pz-beta {
   font-size: 0.6em;
@@ -2116,9 +2131,8 @@ body:not(.can-hover) .pz-back:active {
 
 /* ── оболочки карточек ── */
 .pz-menu-card { max-width: 820px; gap: 26px; }
-.pz-shell--setup { max-width: 820px; gap: 18px; }
-.pz-shell--lobby { max-width: 1200px; gap: 18px; padding: 36px; }
-  min-height: 700px;
+.pz-shell--setup { max-width: min(1080px, 94vw); gap: 18px; }
+.pz-shell--lobby { max-width: min(1440px, 94vw); gap: 20px; padding: 36px; }
 
 @media (max-width: 640px) {
   .pz-shell--lobby { padding: 20px 16px; }
@@ -2575,7 +2589,8 @@ body:not(.can-hover) .pz-mini-btn:active {
 
 .pz-preview {
   width: 100%;
-  height: 190px;
+  /* На широком ПК превью пазла было 190px высотой и терялось в карточке. */
+  height: clamp(190px, 26vh, 320px);
   border-radius: 14px;
   background-color: rgba(0, 0, 0, 0.35);
   background-size: contain;
@@ -2619,6 +2634,18 @@ body:not(.can-hover) .pz-mini-btn:active {
   gap: 6px;
   max-height: 232px;
   overflow-y: auto;
+}
+
+/* Два вложенных скролла на одном пальце («окно» + список участников)
+   залипали: жест уходил внутреннему блоку, а окно стояло, и кнопки ниже
+   списка оставались недостижимыми. На узком экране список растёт вместе с
+   окном — прокручивается всё одним движением. Правило должно идти ПОСЛЕ
+   базового `.pz-players`, иначе его перекрывает `overflow-y: auto` выше. */
+@media (max-width: 880px) {
+  .pz-players {
+    max-height: none;
+    overflow-y: visible;
+  }
 }
 
 .pz-player {
@@ -2685,4 +2712,597 @@ body:not(.can-hover) .pz-mini-btn:active {
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.4);
   text-align: left;
+}
+
+/* ============================================================
+   ГОТОВНОСТЬ В ЛОББИ ПАЗЛОВ
+   ============================================================ */
+.pz-ready-btn.is-ready {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.35);
+}
+
+.pz-start:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
+    filter: saturate(0.55);
+}
+
+.pz-chip--ready {
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.12);
+    border-color: rgba(52, 211, 153, 0.4);
+}
+
+/* ============================================================
+   ВОЗВРАТ В КОМНАТУ ПОСЛЕ ПЕРЕЗАГРУЗКИ
+   ============================================================ */
+.pz-rejoin {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    margin-top: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(139, 92, 246, 0.12));
+}
+
+.pz-rejoin-text {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 0;
+    color: var(--text-primary, #fff);
+}
+
+.pz-rejoin-text b {
+    display: block;
+    font-size: 0.9rem;
+}
+
+.pz-rejoin-text small {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.76rem;
+    color: var(--text-secondary, #94a3b8);
+    line-height: 1.35;
+}
+
+.pz-rejoin-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.pz-rejoin-btn {
+    padding: 8px 16px !important;
+    font-size: 0.82rem !important;
+}
+
+.pz-rejoin-dismiss {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: transparent;
+    color: var(--text-secondary, #94a3b8);
+    cursor: pointer;
+}
+
+.pz-rejoin-dismiss:hover {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+@media (max-width: 600px) {
+    .pz-rejoin {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .pz-rejoin-actions {
+        justify-content: flex-end;
+    }
+}
+
+/* ============================================================
+   БЫСТРЫЕ ЭМОЦИИ И КАЧЕСТВО СОЕДИНЕНИЯ
+   ============================================================ */
+.pz-emotes {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.pz-emote-btn {
+    width: 38px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    line-height: 1;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.pz-emote-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateY(-1px);
+}
+
+.pz-emote-btn:active {
+    transform: scale(0.94);
+}
+
+.pz-conn-badge {
+    margin-left: auto;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 3px 8px;
+    border-radius: 20px;
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.12);
+    border: 1px solid rgba(52, 211, 153, 0.35);
+}
+
+.pz-conn-badge:empty {
+    display: none;
+}
+
+.pz-conn-badge.is-relay {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.12);
+    border-color: rgba(251, 191, 36, 0.35);
+}
+
+.pz-emote-float {
+    position: fixed;
+    bottom: 18vh;
+    font-size: 2.4rem;
+    z-index: 65000;
+    pointer-events: none;
+    animation: pzEmoteFloat 2.4s ease-out forwards;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
+}
+
+@keyframes pzEmoteFloat {
+    0% { opacity: 0; transform: translateY(14px) scale(0.7); }
+    15% { opacity: 1; transform: translateY(0) scale(1.1); }
+    30% { transform: translateY(-6px) scale(1); }
+    100% { opacity: 0; transform: translateY(-90px) scale(0.9); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pz-emote-float {
+        animation-duration: 0.01ms;
+        opacity: 1;
+    }
+}
+
+/* ============================================================
+   ИНФО-ПАНЕЛЬ ОНЛАЙН-ПАЗЛА (гонка / совместный сбор)
+   Панель стоит под шапкой пазла и отвечает за режим, код комнаты,
+   общий прогресс и вклад каждого участника. Раньше это была одна
+   инлайновая строка: на телефоне заголовок и полоски переносились
+   вперемешку, проценты липли к нику, а у совместного режима вообще не
+   было ни бара, ни разбивки по игрокам.
+   ============================================================ */
+.pz-hud {
+    --pz-hud-accent: #a78bfa;
+    --pz-hud-accent-rgb: 167, 139, 250;
+    position: relative;
+    display: flex;
+    /* Карточка пазла — flex-колонка на всю высоту окна: без этого панель
+       сжималась до 22 px и её содержимое обрезалось. */
+    flex: 0 0 auto;
+    /* Шапка игры имеет order: 1, бейджи — 2. Без своего order панель
+       оказывалась нулевой и выталкивала строку с заголовком и крестиком вниз. */
+    order: 2;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 12px 14px;
+    border-radius: 16px;
+    box-sizing: border-box;
+    background: linear-gradient(135deg, rgba(22, 22, 38, 0.92), rgba(14, 14, 26, 0.92));
+    border: 1px solid rgba(var(--pz-hud-accent-rgb), 0.22);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32);
+    overflow: hidden;
+}
+
+.pz-hud::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--pz-hud-accent), transparent);
+    opacity: 0.75;
+}
+
+.pz-hud--race { --pz-hud-accent: #fbbf24; --pz-hud-accent-rgb: 251, 191, 36; }
+.pz-hud--coop { --pz-hud-accent: #38bdf8; --pz-hud-accent-rgb: 56, 189, 248; }
+
+.pz-hud-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.pz-hud-mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: #fff;
+}
+
+.pz-hud-mode-icon {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 9px;
+    font-size: 0.82rem;
+    background: rgba(var(--pz-hud-accent-rgb), 0.14);
+    border: 1px solid rgba(var(--pz-hud-accent-rgb), 0.32);
+}
+
+.pz-hud-mode-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pz-hud-tags { display: flex; align-items: center; gap: 6px; }
+
+.pz-hud-code {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    padding: 3px 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--pz-hud-accent);
+}
+
+.pz-hud-count {
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.5);
+    font-variant-numeric: tabular-nums;
+}
+
+.pz-hud-progress { display: flex; flex-direction: column; gap: 6px; }
+
+.pz-hud-progress-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+
+.pz-hud-progress-label {
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pz-hud-progress-count {
+    font-size: 0.74rem;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.85);
+    font-variant-numeric: tabular-nums;
+}
+
+.pz-hud-progress-pct {
+    margin-left: auto;
+    font-size: 0.95rem;
+    font-weight: 900;
+    color: var(--pz-hud-accent);
+    font-variant-numeric: tabular-nums;
+}
+
+.pz-hud-bar {
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.pz-hud-bar--thin { height: 5px; }
+
+.pz-hud-bar-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--pz-hud-accent), #ec4899);
+    transition: width 0.35s ease;
+}
+
+.pz-hud-players {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+}
+
+.pz-hud-player {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+    padding: 7px 9px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pz-hud-player.is-me {
+    background: rgba(var(--pz-hud-accent-rgb), 0.09);
+    border-color: rgba(var(--pz-hud-accent-rgb), 0.4);
+}
+
+.pz-hud-rank {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 900;
+    line-height: 1;
+    color: rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255, 0.07);
+    font-variant-numeric: tabular-nums;
+}
+
+.pz-hud-player.is-leader .pz-hud-rank {
+    color: #1a1206;
+    background: linear-gradient(135deg, #fcd34d, #f59e0b);
+    box-shadow: 0 0 10px rgba(251, 191, 36, 0.35);
+}
+
+.pz-hud-player-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.pz-hud-player-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+}
+
+.pz-hud-player-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.pz-hud-player-pct {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    font-weight: 900;
+    color: var(--pz-hud-accent);
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 480px) {
+    .pz-hud { padding: 10px 11px; border-radius: 14px; gap: 8px; }
+    .pz-hud-mode { font-size: 0.76rem; }
+    .pz-hud-mode-icon { width: 22px; height: 22px; font-size: 0.72rem; }
+    .pz-hud-players { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 6px; }
+    .pz-hud-player { padding: 6px 7px; gap: 6px; }
+    .pz-hud-player-name { font-size: 0.68rem; }
+    .pz-hud-rank { width: 20px; height: 20px; font-size: 0.64rem; }
+}
+
+/* ============================================================
+   СПИСОК ОТКРЫТЫХ КОМНАТ
+   ============================================================ */
+.pz-panel--rooms {
+    grid-column: 1 / -1;
+    margin-top: 12px;
+}
+
+.pz-rooms-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.pz-rooms-refresh {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: transparent;
+    color: var(--text-secondary, #94a3b8);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.pz-rooms-refresh:hover {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+.pz-rooms-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+    max-height: 190px;
+    overflow-y: auto;
+}
+
+.pz-rooms-empty {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #94a3b8);
+    padding: 8px 2px;
+}
+
+.pz-room-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pz-room-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pz-room-info b {
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    color: var(--text-primary, #fff);
+}
+
+.pz-room-info small {
+    font-size: 0.72rem;
+    color: var(--text-secondary, #94a3b8);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pz-room-join {
+    padding: 6px 14px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    background: rgba(56, 189, 248, 0.12);
+    color: #7dd3fc;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.pz-room-join:hover {
+    background: rgba(56, 189, 248, 0.22);
+    color: #fff;
+}
+
+/* ============================================================
+   ПРОДОЛЖЕНИЕ НЕЗАКОНЧЕННОГО ПАЗЛА
+   ============================================================ */
+.pz-resume {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: calc(100% - 32px);
+    margin: 0 16px 14px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(251, 191, 36, 0.45);
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(245, 158, 11, 0.08));
+    color: var(--text-primary, #fff);
+    cursor: pointer;
+    text-align: left;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.pz-resume:hover {
+    transform: translateY(-1px);
+    border-color: rgba(251, 191, 36, 0.75);
+}
+
+.pz-resume-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: rgba(251, 191, 36, 0.18);
+    color: #fbbf24;
+    flex-shrink: 0;
+}
+
+.pz-resume-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.pz-resume-text b {
+    font-size: 0.88rem;
+}
+
+.pz-resume-text small {
+    font-size: 0.74rem;
+    color: var(--text-secondary, #94a3b8);
+}
+
+.pz-resume-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #fbbf24;
+    flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+    .pz-resume {
+        width: calc(100% - 24px);
+        margin: 0 12px 12px;
+    }
+    .pz-resume-cta {
+        display: none;
+    }
 }

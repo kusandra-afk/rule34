@@ -580,15 +580,20 @@ export class GalleryController {
         document.body.appendChild(sentinel);
 
         const scrollObserver = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting) {
-                if (this.loading || this.reachedEnd) return;
-                const scrollMode = localStorage.getItem('r34_scroll_mode') || 'infinite';
-                if (scrollMode !== 'infinite') return;
-                this.page++;
-                this.immediateLoadPosts(this.tagSearch?.getTagsQuery() || '', true);
-            }
+            if (!entries[0].isIntersecting) return;
+            if (this.loading || this.reachedEnd) return;
+            // Под полноэкранным окном лента не догружается: страницу всё
+            // равно не видно, а сеть и рендер были бы заняты зря
+            // (см. backgroundPause.js).
+            if (document.body.classList.contains('modal-open')) return;
+            const scrollMode = localStorage.getItem('r34_scroll_mode') || 'infinite';
+            if (scrollMode !== 'infinite') return;
+            this.page++;
+            this.immediateLoadPosts(this.tagSearch?.getTagsQuery() || '', true);
         }, { rootMargin: '800px' });
 
+        this._scrollObserver = scrollObserver;
+        this._scrollSentinel = sentinel;
         scrollObserver.observe(sentinel);
 
         // Используем MutationObserver вместо setInterval для отслеживания перемещения sentinel
@@ -602,6 +607,14 @@ export class GalleryController {
         if (this.resultsDiv) {
             sentinelObserver.observe(this.resultsDiv.parentElement, { childList: true });
         }
+    }
+
+    // Вызывается, когда полноэкранное окно закрылось: конец ленты мог быть
+    // уже на экране всё то время, пока наблюдатель молчал.
+    resumeInfiniteScroll() {
+        if (!this._scrollObserver || !this._scrollSentinel) return;
+        this._scrollObserver.unobserve(this._scrollSentinel);
+        this._scrollObserver.observe(this._scrollSentinel);
     }
 
     bindEvents() {

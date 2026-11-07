@@ -104,6 +104,11 @@
     "title": "Genshin Impact",
     "type": "game"
   },
+  "beerus": {
+    "source": "wikidata",
+    "title": "Dragon Ball",
+    "type": "franchise"
+  },
   "big_macintosh_(mlp)": {
     "source": "wikidata",
     "title": "My Little Pony",
@@ -284,6 +289,11 @@
     "title": "ONE PUNCH MAN: A HERO NOBODY KNOWS",
     "type": "game"
   },
+  "fujimaru_ritsuka_(male)": {
+    "source": "vndb",
+    "title": "Fate/Grand Order: Unofficial Story Port",
+    "type": "visual_novel"
+  },
   "ganyu_(genshin_impact)": {
     "source": "kitsu",
     "title": "Genshin Impact",
@@ -334,6 +344,11 @@
     "title": "Batman: Arkham Knight",
     "type": "game"
   },
+  "haru_okumura": {
+    "source": "vndb",
+    "title": "Persona 5: Visual Novel",
+    "type": "visual_novel"
+  },
   "haruno_sakura": {
     "source": "steam",
     "title": "NARUTO: Ultimate Ninja STORM",
@@ -377,6 +392,11 @@
   "izuku_midoriya": {
     "source": "steam",
     "title": "MY HERO ACADEMIA: All’s Justice",
+    "type": "game"
+  },
+  "jaina_proudmoore": {
+    "source": "wikidata",
+    "title": "World of Warcraft",
     "type": "game"
   },
   "jane_doe_(zenless_zone_zero)": {
@@ -438,6 +458,11 @@
     "source": "kitsu",
     "title": "Jujutsu Kaisen",
     "type": "anime"
+  },
+  "kyoka_jiro": {
+    "source": "wikidata",
+    "title": "My Hero Academia",
+    "type": "manga"
   },
   "lara_croft": {
     "source": "wikidata",
@@ -519,6 +544,11 @@
     "title": "My Dress-Up Darling",
     "type": "manga"
   },
+  "marinette_dupain-cheng": {
+    "source": "anilist_character_guess",
+    "title": "Miraculous: Tales of Ladybug & Cat Noir",
+    "type": "manga"
+  },
   "marisa_kirisame": {
     "source": "wikidata",
     "title": "Touhou Project",
@@ -584,6 +614,11 @@
     "title": "Pokémon",
     "type": "franchise"
   },
+  "momo_yaoyorozu": {
+    "source": "wikidata",
+    "title": "My Hero Academia",
+    "type": "manga"
+  },
   "mona_(genshin_impact)": {
     "source": "wikidata",
     "title": "Genshin Impact",
@@ -598,6 +633,11 @@
     "source": "none",
     "title": null,
     "type": "unknown"
+  },
+  "mutant_(marvel)": {
+    "source": "wikidata",
+    "title": "Marvel Cinematic Universe",
+    "type": "franchise"
   },
   "mythra": {
     "source": "none",
@@ -619,6 +659,11 @@
     "title": "One Piece",
     "type": "game"
   },
+  "nicole_demara": {
+    "source": "none",
+    "title": null,
+    "type": "unknown"
+  },
   "ninetales": {
     "source": "wikidata",
     "title": "Pokémon",
@@ -628,6 +673,11 @@
     "source": "kitsu",
     "title": "Jujutsu Kaisen",
     "type": "anime"
+  },
+  "pacifica_northwest": {
+    "source": "wikidata",
+    "title": "Gravity Falls",
+    "type": "cartoon"
   },
   "peridot_(steven_universe)": {
     "source": "wikidata",
@@ -819,6 +869,11 @@
     "title": "Pokémon",
     "type": "franchise"
   },
+  "she-hulk": {
+    "source": "kitsu",
+    "title": "Aoki Hagane no Arpeggio: Ars Nova DC",
+    "type": "anime"
+  },
   "shihouin_yoruichi": {
     "source": "kitsu",
     "title": "BLEACH",
@@ -858,6 +913,11 @@
     "source": "kitsu",
     "title": "Aoki Hagane no Arpeggio: Ars Nova DC",
     "type": "anime"
+  },
+  "storm_(x-men)": {
+    "source": "wikidata",
+    "title": "Marvel Cinematic Universe",
+    "type": "franchise"
   },
   "sunset_shimmer": {
     "source": "wikidata",
@@ -904,6 +964,11 @@
     "title": "My Hero Academia",
     "type": "manga"
   },
+  "tohru_(dragon_maid)": {
+    "source": "wikidata",
+    "title": "Miss Kobayashi's Dragon Maid",
+    "type": "manga"
+  },
   "toriel": {
     "source": "wikidata",
     "title": "Undertale",
@@ -913,6 +978,11 @@
     "source": "steam",
     "title": "NARUTO: Ultimate Ninja STORM",
     "type": "game"
+  },
+  "twilight_sparkle_(mlp)": {
+    "source": "wikidata",
+    "title": "My Little Pony",
+    "type": "franchise"
   },
   "ty_lee": {
     "source": "wikidata",
@@ -1008,6 +1078,11 @@
     "source": "wikidata",
     "title": "Fire Emblem",
     "type": "game"
+  },
+  "wolverine_(x-men)": {
+    "source": "wikidata",
+    "title": "Marvel Cinematic Universe",
+    "type": "franchise"
   },
   "wonder_woman": {
     "source": "kitsu",

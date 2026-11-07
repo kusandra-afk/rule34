@@ -1,6 +1,8 @@
+import { lockPageScroll, releasePageScroll } from '../backgroundPause.js';
 import { icon } from '../icons.js';
 import { makeCustomDropdown } from '../components/customDropdown.js';
 import { fetchPostById } from '../api.js';
+import { loadRoomSession, clearRoomSession } from './session.js';
 
 // ntfy.sh молча превращает сообщение в файл-вложение, если тело превышает
 // ~4096 байт, а клиент такое вложение не читает (JSON.parse падает на тексте
@@ -50,6 +52,7 @@ export class OnlineUI {
     static closeLobbyModal() {
         const existing = document.getElementById('puzzle-online-modal');
         if (existing) existing.remove();
+        releasePageScroll();
     }
 
     static renderLobbyUI(onlineMgr) {
@@ -61,6 +64,8 @@ export class OnlineUI {
         const modal = document.createElement('div');
         modal.id = 'puzzle-online-modal';
         modal.className = 'game-overlay open pz-overlay';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
 
         const card = document.createElement('div');
         card.className = 'game-card pz-shell pz-shell--lobby';
@@ -169,6 +174,9 @@ export class OnlineUI {
                                 ${icon('sparkles', { size: 16 })} Начать игру
                             </button>
                         ` : `
+                            <button id="pzReadyBtn" class="game-btn-primary pz-start pz-ready-btn" aria-pressed="false">
+                                ${icon('check', { size: 16 })} Я готов
+                            </button>
                             <div class="game-waiting-indicator pz-waiting">
                                 ${icon('hourglass', { size: 16 })} Ждём, пока организатор начнёт игру
                             </div>
@@ -190,6 +198,7 @@ export class OnlineUI {
 
         modal.appendChild(card);
         document.body.appendChild(modal);
+        lockPageScroll();
 
         const handleLeaveToSetup = () => {
             onlineMgr.leaveRoom();
@@ -369,6 +378,37 @@ export class OnlineUI {
             }
         }
 
+        // Готовность гостя. Флаг летит хосту, тот кладёт его в roomData и
+        // рассылает обратно — поэтому после ответа сервера список сам покажет
+        // актуальный статус у всех участников.
+        const readyBtn = document.getElementById('pzReadyBtn');
+        if (readyBtn && !onlineMgr.isHost) {
+            let isReady = !!onlineMgr.roomData?.players?.[onlineMgr.playerId]?.ready;
+            const paintReady = () => {
+                readyBtn.classList.toggle('is-ready', isReady);
+                readyBtn.setAttribute('aria-pressed', String(isReady));
+                readyBtn.innerHTML = isReady
+                    ? `${icon('check', { size: 16 })} Готов`
+                    : `${icon('check', { size: 16 })} Я готов`;
+            };
+            paintReady();
+            readyBtn.onclick = () => {
+                isReady = !isReady;
+                paintReady();
+                const me = onlineMgr.roomData?.players?.[onlineMgr.playerId];
+                if (me) me.ready = isReady;
+                onlineMgr.broadcast({
+                    type: 'PLAYER_READY',
+                    playerId: onlineMgr.playerId,
+                    ready: isReady
+                });
+                if (typeof onlineMgr.addSyncLog === 'function') {
+                    onlineMgr.addSyncLog(isReady ? 'Вы готовы' : 'Вы не готовы');
+                }
+                onlineMgr.updateLobbyPlayerList();
+            };
+        }
+
         OnlineUI.updateLobbyPlayerList(onlineMgr);
     }
 
@@ -381,11 +421,38 @@ export class OnlineUI {
         const modal = document.createElement('div');
         modal.id = 'puzzle-online-modal';
         modal.className = 'game-overlay open pz-overlay';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
 
         const card = document.createElement('div');
         card.className = 'game-card pz-shell pz-shell--setup';
 
         const hasTurnKey = !!(localStorage.getItem('gameMeteredKey') || localStorage.getItem('hlMeteredKey'));
+
+        // Комната из прошлой сессии вкладки: после случайной перезагрузки
+        // (или возврата на страницу) предлагаем вернуться одним нажатием.
+        const savedSession = loadRoomSession();
+        const rejoinBanner = savedSession ? `
+            <div class="pz-rejoin">
+                <div class="pz-rejoin-text">
+                    ${icon('refresh', { size: 18 })}
+                    <div>
+                        <b>Есть незакрытая комната ${savedSession.roomId}</b>
+                        <small>${savedSession.isHost
+                            ? 'Вы были организатором — комната переоткроется с тем же кодом.'
+                            : 'Вы были участником — можно вернуться в лобби.'}</small>
+                    </div>
+                </div>
+                <div class="pz-rejoin-actions">
+                    <button type="button" class="game-btn-primary pz-rejoin-btn" id="pzRejoinBtn">
+                        ${icon('arrowRight', { size: 16 })} Продолжить
+                    </button>
+                    <button type="button" class="pz-rejoin-dismiss" id="pzRejoinDismiss" title="Забыть комнату">
+                        ${icon('x', { size: 14 })}
+                    </button>
+                </div>
+            </div>
+        ` : '';
 
         modal.innerHTML = `
             <div class="game-header game-header--pz-sm">
@@ -407,6 +474,8 @@ export class OnlineUI {
                 </div>
                 <input type="text" id="pzNickInput" class="game-input pz-nick-input" value="${onlineMgr.playerName}" placeholder="Никнейм" maxlength="20">
             </div>
+
+            ${rejoinBanner}
 
             ${hasTurnKey ? '' : `
                 <div class="pz-notice">
@@ -459,6 +528,21 @@ export class OnlineUI {
                 </section>
             </div>
 
+            <section class="pz-panel pz-panel--rooms">
+                <div class="pz-panel-head pz-rooms-head">
+                    <div>
+                        <h3 class="pz-panel-title">Открытые комнаты</h3>
+                        <p class="pz-panel-desc">Можно войти без кода, если не нужен пароль.</p>
+                    </div>
+                    <button type="button" class="pz-rooms-refresh" id="pzRoomsRefresh" title="Обновить список">
+                        ${icon('refresh', { size: 14 })}
+                    </button>
+                </div>
+                <div class="pz-rooms-list" id="pzRoomsList">
+                    <div class="pz-rooms-empty">Загружаем...</div>
+                </div>
+            </section>
+
             <div class="pz-setup-foot">
                 <button class="game-btn-secondary game-back-btn" id="pzBackMenuBtn">
                     ${icon('arrowLeft', { size: 14 })} Назад в меню
@@ -468,6 +552,7 @@ export class OnlineUI {
 
         modal.appendChild(card);
         document.body.appendChild(modal);
+        lockPageScroll();
 
         let selectedMode = 'race';
 
@@ -475,6 +560,21 @@ export class OnlineUI {
         nickInput.oninput = () => {
             onlineMgr.setPlayerName(nickInput.value);
         };
+
+        const rejoinBtn = document.getElementById('pzRejoinBtn');
+        if (rejoinBtn) {
+            rejoinBtn.onclick = () => {
+                OnlineUI.closeLobbyModal();
+                onlineMgr.restoreSession();
+            };
+        }
+        const rejoinDismiss = document.getElementById('pzRejoinDismiss');
+        if (rejoinDismiss) {
+            rejoinDismiss.onclick = () => {
+                clearRoomSession();
+                OnlineUI.renderLobbySetupUI(onlineMgr);
+            };
+        }
 
         const modeRaceBtn = document.getElementById('pzModeRaceBtn');
         const modeCoopBtn = document.getElementById('pzModeCoopBtn');
@@ -496,6 +596,7 @@ export class OnlineUI {
                 onlineMgr.game.destroy();
             }
             modal.remove();
+            releasePageScroll();
         };
 
         const goBackToMenu = () => {
@@ -503,12 +604,28 @@ export class OnlineUI {
                 onlineMgr.game.destroy();
             }
             modal.remove();
+            releasePageScroll();
             if (typeof window.openPuzzleMenu === 'function') {
                 window.openPuzzleMenu();
             }
         };
 
         document.getElementById('pzBackMenuBtn').onclick = goBackToMenu;
+
+        // Список комнат обновляем, пока открыт этот экран: таймер сам
+        // останавливается, когда модалка убрана из DOM.
+        OnlineUI.loadOpenRooms(onlineMgr);
+        const roomsTimer = setInterval(() => {
+            if (!modal.isConnected) {
+                clearInterval(roomsTimer);
+                return;
+            }
+            OnlineUI.loadOpenRooms(onlineMgr);
+        }, 12000);
+        const roomsRefreshBtn = document.getElementById('pzRoomsRefresh');
+        if (roomsRefreshBtn) {
+            roomsRefreshBtn.onclick = () => OnlineUI.loadOpenRooms(onlineMgr);
+        }
         document.getElementById('pzSetupCloseBtn').onclick = closeSetup;
 
         document.getElementById('pzCreateRoomBtn').onclick = () => {
@@ -532,6 +649,52 @@ export class OnlineUI {
         joinCodeInput.onkeydown = (e) => {
             if (e.key === 'Enter') document.getElementById('pzJoinRoomBtn').click();
         };
+    }
+
+    static async loadOpenRooms(onlineMgr) {
+        const list = document.getElementById('pzRoomsList');
+        if (!list) return;
+        try {
+            const res = await fetch('/api/rooms/list?gameType=puzzle', { credentials: 'same-origin' });
+            const data = await res.json();
+            if (!list.isConnected) return;
+            const rooms = (data && data.rooms) || [];
+            if (rooms.length === 0) {
+                list.innerHTML = '<div class="pz-rooms-empty">Пока никто не хостит — создайте комнату.</div>';
+                return;
+            }
+            list.innerHTML = rooms.map(room => `
+                <div class="pz-room-row">
+                    <div class="pz-room-info">
+                        <b>${room.id}</b>
+                        <small>${room.hostName} · ${room.mode === 'coop' ? 'Вместе' : 'Гонка'} · ${room.players}/${room.maxPlayers}${room.hasPassword ? ' · 🔒' : ''}</small>
+                    </div>
+                    <button type="button" class="pz-room-join" data-code="${room.id}" data-locked="${room.hasPassword ? '1' : ''}">
+                        Войти
+                    </button>
+                </div>
+            `).join('');
+            list.querySelectorAll('.pz-room-join').forEach(btn => {
+                btn.onclick = () => {
+                    const code = btn.dataset.code;
+                    if (btn.dataset.locked === '1') {
+                        // Пароль нельзя угадать — подставляем код и переводим
+                        // фокус в поле пароля, чтобы игрок его ввёл.
+                        const codeInput = document.getElementById('pzJoinCodeInput');
+                        const passInput = document.getElementById('pzJoinPasswordInput');
+                        if (codeInput) codeInput.value = code;
+                        if (passInput) passInput.focus();
+                        OnlineUI.showToast('Комната под паролем — введите пароль.', 'info', 'lock');
+                        return;
+                    }
+                    onlineMgr.joinRoom(code);
+                };
+            });
+        } catch (e) {
+            if (list.isConnected) {
+                list.innerHTML = '<div class="pz-rooms-empty">Не удалось загрузить список комнат.</div>';
+            }
+        }
     }
 
     static updateHostPiecesDropdown(onlineMgr) {
@@ -565,19 +728,66 @@ export class OnlineUI {
         const players = Object.values(onlineMgr.roomData.players || {});
         if (playerCount) playerCount.textContent = players.length;
 
-        // Статуса «готов» в лобби пазлов нет (готовность никто не отправляет),
-        // поэтому зелёная плашка «Готов» у всех подряд только вводила в
-        // заблуждение. Показываем роль участника.
-        playerList.innerHTML = players.map(p => `
+        // Гость отмечается готовым сам, хост видит статус и не может начать
+        // игру, пока не готовы все. Хост считается готовым всегда.
+        const guests = players.filter(p => !p.isHost);
+        const readyCount = guests.filter(p => !!p.ready).length;
+
+        playerList.innerHTML = players.map(p => {
+            const chipClass = p.isHost ? ' pz-chip--host' : (p.ready ? ' pz-chip--ready' : '');
+            const chipText = p.isHost ? 'Хост' : (p.ready ? 'Готов' : 'Не готов');
+            return `
             <div class="pz-player${p.id === onlineMgr.playerId ? ' pz-player--me' : ''}">
                 <div class="pz-player-name">
                     ${p.isHost ? icon('crown', { size: 16, className: 'game-host-crown' }) : icon('user', { size: 16 })}
                     <span>${p.name}</span>
                     ${p.id === onlineMgr.playerId ? '<small class="pz-you">(Вы)</small>' : ''}
                 </div>
-                <span class="pz-chip${p.isHost ? ' pz-chip--host' : ''}">${p.isHost ? 'Хост' : 'В лобби'}</span>
+                <span class="pz-chip${chipClass}">${chipText}</span>
             </div>
-        `).join('');
+        `;
+        }).join('');
+
+        // Старт доступен, когда готовы все приглашённые. Если гостей ещё нет,
+        // хост может начинать один — одиночная игра в комнате остаётся рабочей.
+        // Панель быстрых эмоций. Создаётся один раз и переиспользуется:
+        // updateLobbyPlayerList вызывается на каждое обновление комнаты.
+        if (!document.getElementById('pzEmoteBar') && playerList.parentNode) {
+            const bar = document.createElement('div');
+            bar.id = 'pzEmoteBar';
+            bar.className = 'pz-emotes';
+            bar.innerHTML = ['👍', '👏', '😂', '🔥']
+                .map(e => `<button type="button" class="pz-emote-btn" data-emoji="${e}" title="Отправить эмоцию">${e}</button>`)
+                .join('') + '<span class="pz-conn-badge" id="pzConnBadge"></span>';
+            playerList.parentNode.insertBefore(bar, playerList.nextSibling);
+            bar.querySelectorAll('.pz-emote-btn').forEach(btn => {
+                btn.onclick = () => {
+                    if (typeof onlineMgr.sendEmote === 'function') onlineMgr.sendEmote(btn.dataset.emoji);
+                };
+            });
+        }
+        const connBadge = document.getElementById('pzConnBadge');
+        if (connBadge) {
+            const connType = onlineMgr.connectionType;
+            connBadge.textContent = connType === 'relay' ? 'Релей' : (connType === 'direct' ? 'Напрямую' : '');
+            connBadge.classList.toggle('is-relay', connType === 'relay');
+            connBadge.title = connType === 'relay'
+                ? 'Соединение идёт через TURN-релей — возможна задержка'
+                : (connType === 'direct' ? 'Прямое P2P-соединение' : 'Тип соединения определяется...');
+        }
+
+        const startBtn = document.getElementById('pzStartGameBtn');
+        if (startBtn) {
+            const waiting = guests.length > 0 && readyCount < guests.length;
+            startBtn.disabled = waiting;
+            startBtn.classList.toggle('is-waiting', waiting);
+            startBtn.innerHTML = waiting
+                ? `${icon('hourglass', { size: 16 })} Ждём готовности ${readyCount}/${guests.length}`
+                : `${icon('sparkles', { size: 16 })} Начать игру`;
+            startBtn.title = waiting
+                ? 'Начать игру можно, когда все участники нажмут «Я готов»'
+                : '';
+        }
     }
 
     static updateLobbyPuzzleIdPill(onlineMgr) {
@@ -601,6 +811,8 @@ export class OnlineUI {
         const modal = document.createElement('div');
         modal.id = 'puzzle-online-modal';
         modal.className = 'game-overlay open pz-overlay';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
 
         const card = document.createElement('div');
         card.className = 'game-card';
@@ -618,6 +830,7 @@ export class OnlineUI {
 
         modal.appendChild(card);
         document.body.appendChild(modal);
+        lockPageScroll();
 
         document.getElementById('pzCancelSyncBtn').onclick = () => onlineMgr.leaveRoom();
     }
@@ -629,32 +842,40 @@ export class OnlineUI {
         const card = onlineMgr.game.card;
         if (!card) return;
 
+        const isRace = onlineMgr.gameMode === 'race';
         const hud = document.createElement('div');
         hud.id = 'puzzle-online-hud';
-        hud.style.cssText = `
-            width: 100%; background: linear-gradient(135deg, rgba(20,20,35,0.9), rgba(30,30,50,0.9));
-            border: 1px solid rgba(139,92,246,0.3); border-radius: 12px;
-            padding: 8px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px;
-            flex-wrap: wrap; margin-bottom: 6px; box-sizing: border-box;
-        `;
+        hud.className = `pz-hud ${isRace ? 'pz-hud--race' : 'pz-hud--coop'}`;
+        hud.setAttribute('role', 'status');
+        hud.setAttribute('aria-live', 'polite');
 
-        if (onlineMgr.gameMode === 'race') {
-            hud.innerHTML = `
-                <div style="font-size:0.8rem; font-weight:bold; color:var(--accent, #a78bfa); display:flex; align-items:center; gap:6px;">
-                    🏁 Гонка на скорость (${onlineMgr.roomId})
+        // Шапка панели: режим + код комнаты + счётчик участников. Раньше всё
+        // висело одной инлайновой строкой, и на телефоне заголовок с кодом и
+        // полоски прогресса переносились вперемешку.
+        hud.innerHTML = `
+            <div class="pz-hud-top">
+                <div class="pz-hud-mode">
+                    <span class="pz-hud-mode-icon">${isRace ? '🏁' : '🤝'}</span>
+                    <span class="pz-hud-mode-title">${isRace ? 'Гонка на скорость' : 'Совместная сборка'}</span>
                 </div>
-                <div id="pzRaceLeaderboardBars" style="display:flex; align-items:center; gap:12px; flex:1; overflow-x:auto;"></div>
-            `;
-        } else {
-            hud.innerHTML = `
-                <div style="font-size:0.8rem; font-weight:bold; color:var(--accent, #a78bfa); display:flex; align-items:center; gap:6px;">
-                    🤝 Совместная сборка (${onlineMgr.roomId})
+                <div class="pz-hud-tags">
+                    <span class="pz-hud-code" title="Код комнаты">${onlineMgr.roomId}</span>
+                    <span class="pz-hud-count" id="pzHudPlayerCount"></span>
                 </div>
-                <div id="pzCoopStatusText" style="font-size:0.85rem; font-weight:bold; color:#38bdf8;">
-                    Собрано всей командой: 0%
+            </div>
+            ${isRace ? '' : `
+            <div class="pz-hud-progress">
+                <div class="pz-hud-progress-head">
+                    <span class="pz-hud-progress-label" id="pzCoopStatusText">Собрано всей командой</span>
+                    <span class="pz-hud-progress-count" id="pzCoopCount">0 / 0</span>
+                    <span class="pz-hud-progress-pct" id="pzCoopPct">0%</span>
                 </div>
-            `;
-        }
+                <div class="pz-hud-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="pzCoopBar">
+                    <div class="pz-hud-bar-fill" id="pzCoopBarFill" style="width:0%"></div>
+                </div>
+            </div>`}
+            <div class="pz-hud-players" id="pzRaceLeaderboardBars"></div>
+        `;
 
         const leftPanel = card.querySelector('.puzzle-left-panel');
         if (leftPanel) {
@@ -667,37 +888,90 @@ export class OnlineUI {
     static updateOnlineHUD(onlineMgr) {
         if (!onlineMgr.inGame || !onlineMgr.roomData) return;
 
+        const players = Object.values(onlineMgr.roomData.players || {});
+        const countEl = document.getElementById('pzHudPlayerCount');
+        if (countEl) countEl.textContent = `${players.length}/${onlineMgr.roomData.maxPlayers || 8}`;
+
         if (onlineMgr.gameMode === 'race') {
             const container = document.getElementById('pzRaceLeaderboardBars');
             if (!container) return;
 
-            const players = Object.values(onlineMgr.roomData.players || {});
-            container.innerHTML = players.map(p => {
+            // Лидеры сверху: в гонке важен порядок, а не порядок подключения.
+            const ranked = [...players].sort((a, b) => {
+                if (a.surrendered !== b.surrendered) return a.surrendered ? 1 : -1;
+                if (b.won !== a.won) return b.won ? 1 : -1;
+                return (b.progressPct || 0) - (a.progressPct || 0);
+            });
+
+            container.innerHTML = ranked.map((p, i) => {
                 const isMe = p.id === onlineMgr.playerId;
-                const pct = p.progressPct || 0;
+                const pct = Math.max(0, Math.min(100, p.progressPct || 0));
+                const rank = p.won ? '🏆' : (p.surrendered ? '🏳️' : i + 1);
                 return `
-                    <div style="display:flex; flex-direction:column; gap:2px; min-width:110px; flex:1; background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:6px; border:${isMe ? '1px solid #38bdf8' : '1px solid transparent'};">
-                        <div style="display:flex; justify-content:space-between; font-size:0.72rem; font-weight:bold; color:${isMe ? '#38bdf8' : '#fff'};">
-                            <span>${p.name}</span>
-                            <span>${pct}%</span>
-                        </div>
-                        <div style="width:100%; height:4px; background:rgba(255,255,255,0.1); border-radius:4px; overflow:hidden;">
-                            <div style="width:${pct}%; height:100%; background:linear-gradient(90deg,var(--accent, #8b5cf6),var(--accent-alt, #ec4899)); transition:width 0.3s ease;"></div>
+                    <div class="pz-hud-player${isMe ? ' is-me' : ''}${i === 0 && !p.surrendered ? ' is-leader' : ''}">
+                        <span class="pz-hud-rank">${rank}</span>
+                        <div class="pz-hud-player-main">
+                            <div class="pz-hud-player-line">
+                                <span class="pz-hud-player-name">${p.name}${isMe ? ' <small class="pz-you">(Вы)</small>' : ''}</span>
+                                <span class="pz-hud-player-pct">${pct}%</span>
+                            </div>
+                            <div class="pz-hud-bar pz-hud-bar--thin">
+                                <div class="pz-hud-bar-fill" style="width:${pct}%"></div>
+                            </div>
                         </div>
                     </div>
                 `;
             }).join('');
         } else if (onlineMgr.gameMode === 'coop') {
-            const coopStatus = document.getElementById('pzCoopStatusText');
-            if (coopStatus && onlineMgr.game) {
-                const progress = onlineMgr.game.getConnectionProgress();
-                const pct = progress.pct;
-                coopStatus.textContent = `Собрано всей командой: ${progress.connected} / ${progress.total} (${pct}%)`;
-            }
+            if (!onlineMgr.game) return;
+            const progress = onlineMgr.game.getConnectionProgress();
+            const pct = Math.max(0, Math.min(100, progress.pct || 0));
+
+            const countEl2 = document.getElementById('pzCoopCount');
+            if (countEl2) countEl2.textContent = `${progress.connected} / ${progress.total}`;
+            const pctEl = document.getElementById('pzCoopPct');
+            if (pctEl) pctEl.textContent = `${pct}%`;
+            const fill = document.getElementById('pzCoopBarFill');
+            if (fill) fill.style.width = `${pct}%`;
+            const bar = document.getElementById('pzCoopBar');
+            if (bar) bar.setAttribute('aria-valuenow', String(pct));
+
+            // Вклад каждого: детали, уже стоящие на своих местах. Полоска
+            // считается от общего числа деталей пазла.
+            const container = document.getElementById('pzRaceLeaderboardBars');
+            if (!container) return;
+            const totalPieces = Math.max(1, (onlineMgr.game.cols || 0) * (onlineMgr.game.rows || 0));
+            const sorted = [...players].sort((a, b) => (b.placedCount || 0) - (a.placedCount || 0));
+            container.innerHTML = sorted.map((p) => {
+                const isMe = p.id === onlineMgr.playerId;
+                const placed = Math.max(0, p.placedCount || 0);
+                const share = Math.max(0, Math.min(100, Math.round((placed / totalPieces) * 100)));
+                return `
+                    <div class="pz-hud-player${isMe ? ' is-me' : ''}">
+                        <span class="pz-hud-rank">${icon('puzzle', { size: 14 })}</span>
+                        <div class="pz-hud-player-main">
+                            <div class="pz-hud-player-line">
+                                <span class="pz-hud-player-name">${p.name}${isMe ? ' <small class="pz-you">(Вы)</small>' : ''}</span>
+                                <span class="pz-hud-player-pct">${placed}</span>
+                            </div>
+                            <div class="pz-hud-bar pz-hud-bar--thin">
+                                <div class="pz-hud-bar-fill" style="width:${share}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
     }
 
     static renderLeaderboardModal(onlineMgr, winData) {
+        // В совместном режиме финал приходит сразу от всех участников, да ещё
+        // и ретрансляцией от хоста. Модалка с одним и тем же id создавалась
+        // несколько раз, а обработчики кнопок привязывались к ПЕРВОЙ копии в
+        // документе — нажатия же попадали в верхнюю, без обработчиков. Отсюда
+        // «не работают» реванш/лобби/выход. Старые копии просто убираем.
+        document.querySelectorAll('#puzzle-online-modal').forEach(el => el.remove());
+
         const modal = document.createElement('div');
         modal.id = 'puzzle-online-modal';
         modal.className = 'puzzle-overlay';
@@ -746,6 +1020,9 @@ export class OnlineUI {
 
                 <div style="width:100%; display:flex; flex-direction:column; gap:10px; margin-top: 8px;">
                     ${onlineMgr.isHost ? `
+                        <button id="pzRematchBtn" style="width:100%; padding:12px; background:linear-gradient(135deg,#f59e0b,#d97706); border:none; border-radius:10px; color:#fff; font-weight:bold; font-size:0.95rem; cursor:pointer; transition: opacity 0.2s;">
+                            Реванш — новый пазл
+                        </button>
                         <button id="pzReturnToLobbyBtn" style="width:100%; padding:12px; background:linear-gradient(135deg,#38bdf8,#0284c7); border:none; border-radius:10px; color:#fff; font-weight:bold; font-size:0.95rem; cursor:pointer; transition: opacity 0.2s;">
                             Вернуться в лобби
                         </button>
@@ -810,6 +1087,9 @@ export class OnlineUI {
                         </button>
                     ` : ''}
                     ${onlineMgr.isHost ? `
+                        <button id="pzRematchBtn" style="width:100%; padding:12px; background:linear-gradient(135deg,#f59e0b,#d97706); border:none; border-radius:10px; color:#fff; font-weight:bold; font-size:0.95rem; cursor:pointer; transition: opacity 0.2s;">
+                            Реванш — новый пазл
+                        </button>
                         <button id="pzReturnToLobbyBtn" style="width:100%; padding:12px; background:linear-gradient(135deg,#10b981,#059669); border:none; border-radius:10px; color:#fff; font-weight:bold; font-size:0.95rem; cursor:pointer; transition: opacity 0.2s;">
                             Вернуться в лобби
                         </button>
@@ -828,11 +1108,13 @@ export class OnlineUI {
 
         modal.appendChild(card);
         document.body.appendChild(modal);
+        lockPageScroll();
 
-        const continueBtn = document.getElementById('pzContinueAssemblingBtn');
+        const continueBtn = modal.querySelector('#pzContinueAssemblingBtn');
         if (continueBtn) {
             continueBtn.onclick = () => {
                 modal.remove();
+                releasePageScroll();
                 
                 const existingBtn = document.getElementById('puzzle-online-show-leaderboard-btn');
                 if (existingBtn) existingBtn.remove();
@@ -859,19 +1141,27 @@ export class OnlineUI {
         }
 
         if (onlineMgr.isHost) {
-            const returnBtn = document.getElementById('pzReturnToLobbyBtn');
+            const returnBtn = modal.querySelector('#pzReturnToLobbyBtn');
             if (returnBtn) {
                 returnBtn.onclick = () => {
                     onlineMgr.hostReturnToLobby();
                 };
             }
+            const rematchBtn = modal.querySelector('#pzRematchBtn');
+            if (rematchBtn) {
+                rematchBtn.onclick = () => {
+                    rematchBtn.disabled = true;
+                    onlineMgr.hostRematch();
+                };
+            }
         }
 
-        const finishBtn = document.getElementById('pzFinishOnlineBtn');
+        const finishBtn = modal.querySelector('#pzFinishOnlineBtn');
         if (finishBtn) {
             finishBtn.onclick = () => {
                 onlineMgr.leaveRoom();
                 modal.remove();
+                releasePageScroll();
             };
         }
     }

@@ -23,6 +23,7 @@ import { tursoSync } from './tursoSync.js';
 import { initEffects } from './effects/ripple.js';
 import { initI18n } from './i18n/i18n.js';
 import { initLanguageSettings } from './settings/languageSettings.js';
+import { initBackgroundPause } from './backgroundPause.js';
 
 // Export globally for backwards compatibility and inline handlers
 window.applyThemeSettings = applyThemeSettings;
@@ -50,6 +51,10 @@ window.saveSavedExcludedTags = saveSavedExcludedTags;
 // Язык интерфейса: берём сохранённый выбор (в браузере или на сервере)
 // и, если это английский, переводим страницу до отрисовки контента.
 initI18n();
+
+// Галерея под полноэкранными окнами (игра, лобби, настройки, библиотека)
+// перестаёт догружать страницы и крутить видео — см. backgroundPause.js.
+initBackgroundPause();
 
 // Initialize server sync before DOM ready
 initServerSync();
@@ -242,6 +247,20 @@ document.addEventListener('DOMContentLoaded', () => {
             updateFloatingState();
         };
 
+        // Пока пользователь работает с самой панелью, «умная шапка» не должна
+        // её прятать. Клик внутри панели и сворачивание группы тегов меняют
+        // высоту документа (список тегов схлопывается анимацией ~0.4s), и
+        // браузер подтягивает прокрутку — для обработчика ниже это выглядит
+        // как рывок вниз на десятки пикселей, и панель уезжала прямо из-под
+        // курсора. holdPanelOpen() гасит ровно это окно, а жест пользователя
+        // (колесо, свайп) снова прячет панель, как только оно истечёт.
+        let suppressHideUntil = 0;
+
+        const holdPanelOpen = () => {
+            suppressHideUntil = performance.now() + 800;
+            lastScrollY = window.scrollY;
+        };
+
         const onScroll = () => {
             if (ticking) return;
             ticking = true;
@@ -250,6 +269,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const y = window.scrollY;
                 const delta = y - lastScrollY;
+
+                // Панель только что трогали: прокрутка ниже — не жест
+                // пользователя, а подстройка после смены высоты панели.
+                // Просто выравниваем отсчёт, чтобы следующий настоящий скролл
+                // считался от нового положения.
+                if (performance.now() < suppressHideUntil) {
+                    lastScrollY = y;
+                    updateFloatingState();
+                    return;
+                }
 
                 // В самом верху страницы панель всегда видна
                 if (y <= HIDE_AFTER) {
@@ -279,6 +308,14 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('scroll', onScroll, { passive: true });
         window.addEventListener('resize', updateFloatingState, { passive: true });
         updateFloatingState();
+
+        // Любое взаимодействие с панелью (клик по тегу, по полю, по шапке
+        // группы, фокус в поле) держит её раскрытой — см. holdPanelOpen.
+        if (searchContainer) {
+            searchContainer.addEventListener('pointerdown', holdPanelOpen, { passive: true });
+            searchContainer.addEventListener('click', holdPanelOpen, { passive: true });
+            searchContainer.addEventListener('focusin', holdPanelOpen);
+        }
 
         // Клик по полоске — просто раскрыть панель, фокус пользователь поставит сам
         if (miniBar) {

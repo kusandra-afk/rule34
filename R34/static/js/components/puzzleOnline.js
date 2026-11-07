@@ -6,10 +6,15 @@ import { BaseOnlineEngine } from '../multiplayer.js';
 import { OnlineSync } from '../puzzle/onlineSync.js';
 import { OnlineUI } from '../puzzle/onlineUI.js';
 import { rememberScroll } from '../scrollState.js';
+import { saveRoomSession, loadRoomSession, clearRoomSession } from '../puzzle/session.js';
 
 export class PuzzleOnlineManager extends BaseOnlineEngine {
     constructor(puzzleGame) {
-        super();
+        // gameType уходит в заявку /api/rooms/announce и по нему же фильтрует
+        // список открытых комнат. Без него комната объявлялась как 'generic',
+        // а /api/rooms/list?gameType=puzzle всегда возвращал пустой список —
+        // «поиск открытых комнат не работает».
+        super('puzzle');
         this.game = puzzleGame;
         this.playerName = localStorage.getItem('r34_puzzle_nickname') || 'Игрок_' + Math.floor(Math.random() * 8999 + 1000);
         this.gameMode = 'race'; // 'race' | 'coop'
@@ -39,6 +44,31 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
             if (this.isHost || !player) return;
             const actionStr = this.inGame ? 'вышел из игры' : 'покинул лобби';
             this.showToast(`Игрок "${player.name}" ${actionStr}`, 'danger', 'logOut');
+        });
+
+        // Обрыв соединения (перезагрузка вкладки, потеря сети) не присылает
+        // LEAVE — раньше хост видел только строчку «Соединение с ... закрыто»
+        // в логах, игрок навсегда оставался в списке участников, а остальные
+        // не получали никакого уведомления. Теперь хост сам убирает его из
+        // комнаты и рассылает обновлённый список (гости показывают тост по
+        // событию playerLeft).
+        this.on('dcClose', (closedId) => {
+            if (!this.active) return;
+            if (this.isHost) {
+                const gone = this.roomData && this.roomData.players ? this.roomData.players[closedId] : null;
+                if (!gone) return;
+                delete this.roomData.players[closedId];
+                if (this.game && typeof this.game.clearRemoteDrag === 'function') {
+                    this.game.clearRemoteDrag(closedId);
+                }
+                this.broadcastRoomData();
+                if (!this.inGame) this.updateLobbyPlayerList(); else this.updateOnlineHUD();
+                this.showToast(`Игрок "${gone.name}" отключился`, 'danger', 'logOut');
+                this.addSyncLog(`Игрок ${gone.name} отключился (соединение закрыто)`);
+            } else {
+                this.showToast('Соединение с организатором потеряно — можно переподключиться.', 'danger', 'ban');
+                this.addSyncLog('Соединение с хостом закрыто');
+            }
         });
 
         this.on('syncLog', (msg) => {
@@ -166,6 +196,14 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
         try {
             const success = await super.createRoom(roomData, options.password || '');
             if (success) {
+                saveRoomSession({
+                    roomId: this.roomId,
+                    playerId: this.playerId,
+                    playerName: this.playerName,
+                    isHost: true,
+                    password: options.password || '',
+                    roomSetup: roomData
+                });
                 this.renderLobbyUI();
             } else {
                 this.showToast('Не удалось создать комнату. Попробуйте ещё раз.', 'danger');
@@ -186,6 +224,14 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
             if (!success) {
                 this.showToast('Не удалось подключиться к комнате.', 'danger');
                 this.renderLobbySetupUI();
+            } else {
+                saveRoomSession({
+                    roomId: this.roomId,
+                    playerId: this.playerId,
+                    playerName: this.playerName,
+                    isHost: false,
+                    password: password || ''
+                });
             }
         } catch (err) {
             console.error('[PuzzleOnline] Room join failed:', err);
@@ -217,6 +263,9 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
                 this.roomData.players[id].won = false;
                 this.roomData.players[id].progressPct = 0;
                 this.roomData.players[id].moves = 0;
+                // Готовность относится к конкретному запуску: после партии её
+                // надо подтвердить заново, иначе хост стартует «по старой памяти».
+                this.roomData.players[id].ready = false;
             }
         }
         this.roomData.teamProgress = 0;
@@ -245,7 +294,7 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
         this.showToast('Вы вернулись в лобби', 'info');
     }
 
-    async startGameFromData(roomData) {
+    async startGameFromData(roomData, opts = {}) {
         this.inGame = true;
         this.closeLobbyModal();
         
@@ -273,6 +322,21 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
             const post = roomData.post;
             const targetPieces = roomData.targetPieces;
             const seamsSeed = roomData.seamsSeed;
+
+            // Переподключение к идущей совместной партии: сначала забираем
+            // снимок поля у хоста, чтобы initPuzzle сразу расставил детали
+            // как у всех и не проигрывал вступление (предпросмотр → разлёт
+            // в лоток). Обычный старт партии этим не занимается.
+            if (!opts.rejoin || this.isHost) {
+                if (this.game) this.game._pendingCoopSnapshot = null;
+            }
+            if (opts.rejoin && !this.isHost && roomData.mode === 'coop') {
+                await this.waitForCoopState(3000);
+                if (this._pendingCoopState && this.game) {
+                    this.game._pendingCoopSnapshot = this._pendingCoopState;
+                    this._pendingCoopState = null;
+                }
+            }
             
             this.showToast(`Игра началась! Режим: ${roomData.mode === 'race' ? 'Гонка на скорость' : 'Совместный сбор'}`, 'success', 'play');
             this.game.seamsSeed = seamsSeed;
@@ -284,7 +348,175 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
             }
 
             this.renderOnlineHUD();
+
+            // Вернувшийся в идущую совместную игру гость собирает пазл заново;
+            // просим у хоста актуальную расстановку деталей (см. onlineSync
+            // COOP_STATE и applyBoardSnapshot).
+            if (!this.isHost && roomData.mode === 'coop') {
+                this.requestCoopState();
+            }
         }
+    }
+
+    // --- ВОССТАНОВЛЕНИЕ ПОЛЯ ПОСЛЕ ПЕРЕПОДКЛЮЧЕНИЯ ---
+    // Ждёт ответ хоста со снимком поля. Канал unreliable, поэтому запрос
+    // повторяется, пока снимок не придёт или не истечёт таймаут.
+    waitForCoopState(timeoutMs = 3000) {
+        return new Promise(resolve => {
+            if (!this.active || this._pendingCoopState) return resolve();
+            const startedAt = performance.now();
+            let lastRequest = 0;
+            const tick = setInterval(() => {
+                if (!this.active || this._pendingCoopState) {
+                    clearInterval(tick);
+                    resolve();
+                    return;
+                }
+                if (performance.now() - startedAt >= timeoutMs) {
+                    clearInterval(tick);
+                    resolve();
+                    return;
+                }
+                if (performance.now() - lastRequest > 900) {
+                    lastRequest = performance.now();
+                    this.sendToHost({ type: 'COOP_STATE_REQUEST' });
+                }
+            }, 120);
+            this.sendToHost({ type: 'COOP_STATE_REQUEST' });
+            lastRequest = performance.now();
+        });
+    }
+
+    applyCoopStateIfReady() {
+        if (!this._pendingCoopState) return false;
+        const game = this.game;
+        if (!game || !game.isPlaying || !game.tiles || !game.tiles.length) return false;
+        // Пока пазл проигрывает вступление (предпросмотр → разлёт в лоток),
+        // расстановку применять нельзя: разлёт перезапишет currentPos всех
+        // деталей, и с поля пропадут уже поставленные. Ждём status === 'playing'
+        // (его выставляет конец вступления — там же вызывается этот метод).
+        if (game.status !== 'playing') return false;
+        if (game.applyBoardSnapshot(this._pendingCoopState)) {
+            this._pendingCoopState = null;
+            if (this._coopStateTimer) {
+                clearInterval(this._coopStateTimer);
+                this._coopStateTimer = null;
+            }
+            this.showToast('Поле восстановлено', 'success', 'check');
+            this.addSyncLog('Поле восстановлено по снимку хоста');
+            return true;
+        }
+        return false;
+    }
+
+    // Канал до хоста unreliable — один запрос со снимком может потеряться,
+    // поэтому повторяем, пока поле не восстановится (или не кончатся попытки).
+    requestCoopState() {
+        if (this.isHost || !this.active) return;
+        if (this.applyCoopStateIfReady()) return;
+        if (this._coopStateTimer) clearInterval(this._coopStateTimer);
+        let attempts = 0;
+        const tick = () => {
+            if (!this.active || this.isHost || this.applyCoopStateIfReady()) {
+                clearInterval(this._coopStateTimer);
+                this._coopStateTimer = null;
+                return;
+            }
+            if (attempts++ >= 20) {
+                clearInterval(this._coopStateTimer);
+                this._coopStateTimer = null;
+                return;
+            }
+            this.sendToHost({ type: 'COOP_STATE_REQUEST' });
+        };
+        this._coopStateTimer = setInterval(tick, 1200);
+        tick();
+    }
+
+    // Реванш: тот же состав и комната, но новая картинка и обнулённый счёт.
+    // Отдельный метод, а не «в лобби и заново», потому что после партии экран
+    // результатов ещё открыт — игроки должны сразу увидеть новый пазл.
+    hostRematch() {
+        if (!this.isHost || !this.roomData) return;
+
+        let nextPost = null;
+        if (window.gallery) {
+            const isFav = window.gallery.isFavoritesActive;
+            const posts = (isFav ? window.gallery.favoritesPosts : window.gallery.currentPosts) || [];
+            const isVideo = p => p && p.file_url && (p.file_url.endsWith('.webm') || p.file_url.endsWith('.mp4'));
+            const allowLong = localStorage.getItem('r34_puzzle_allow_long_images') === 'true';
+            const isTooTall = p => !allowLong && p && p.width && p.height && (p.height / p.width > 2.8);
+            const currentId = this.roomData.post ? this.roomData.post.id : null;
+            const candidates = posts.filter(p => p && p.file_url && p.id !== currentId && !isVideo(p) && !isTooTall(p));
+            if (candidates.length > 0) {
+                const pick = candidates[Math.floor(Math.random() * candidates.length)];
+                nextPost = {
+                    id: pick.id,
+                    width: pick.width,
+                    height: pick.height,
+                    sample_url: pick.sample_url,
+                    preview_url: pick.preview_url,
+                    file_url: pick.file_url
+                };
+            }
+        }
+
+        if (nextPost) {
+            this.roomData.post = nextPost;
+            this.roomData.postUrl = nextPost.sample_url || nextPost.preview_url || nextPost.file_url || '';
+            const ratio = (nextPost.width && nextPost.height) ? nextPost.width / nextPost.height : 1;
+            this.roomData.aspectRatio = Math.max(0.4, Math.min(1.8, ratio));
+            this.roomData.seamsSeed = Math.floor(Math.random() * 1000000000);
+        }
+
+        this.roomData.status = 'playing';
+        if (this.roomData.players) {
+            for (const id in this.roomData.players) {
+                Object.assign(this.roomData.players[id], {
+                    won: false,
+                    surrendered: false,
+                    progressPct: 0,
+                    moves: 0,
+                    placedCount: 0,
+                    ready: true
+                });
+            }
+        }
+        this.roomData.teamProgress = 0;
+
+        this.broadcast({ type: 'START_GAME', roomData: this.roomData });
+        this.startGameFromData(this.roomData);
+    }
+
+    // Быстрые эмоции: короткие сообщения без чата и модерации. Хост пересылает
+    // их всем, потому что гости соединены только с ним (звезда, не mesh).
+    sendEmote(emoji) {
+        if (!this.active || !emoji) return;
+        if (Date.now() - (this._lastEmoteAt || 0) < 900) return;
+        this._lastEmoteAt = Date.now();
+
+        this.showEmote(emoji, this.playerName);
+        if (this.isHost) {
+            this.broadcast({ type: 'EMOTE', emoji, name: this.playerName, playerId: this.playerId });
+        } else {
+            this.broadcast({ type: 'EMOTE', emoji });
+        }
+    }
+
+    showEmote(emoji, name) {
+        const allowed = ['👍', '👏', '😂', '🔥', '😮', '🙈'];
+        const safe = allowed.includes(emoji) ? emoji : String(emoji || '').slice(0, 4);
+        if (!safe) return;
+
+        const el = document.createElement('div');
+        el.className = 'pz-emote-float';
+        el.textContent = safe;
+        if (name) el.title = name;
+        // Разные эмоции не должны наезжать друг на друга — раскидываем по
+        // горизонтали, чтобы «👍» и «🔥» от двух игроков читались отдельно.
+        el.style.left = `${12 + Math.random() * 62}%`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 2400);
     }
 
     // --- EMIT GAME EVENTS ---
@@ -446,7 +678,45 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
         }
     }
 
+    // Возврат в комнату после случайной перезагрузки страницы.
+    async restoreSession() {
+        const session = loadRoomSession();
+        if (!session) return false;
+
+        this.playerId = session.playerId;
+        if (session.playerName) this.setPlayerName(session.playerName);
+        this.gameMode = (session.roomSetup && session.roomSetup.mode) || this.gameMode;
+
+        if (session.isHost) {
+            this.renderSyncScreen('Восстанавливаем комнату...', `Комната ${session.roomId} переоткрывается с тем же кодом.`);
+            try {
+                await super.createRoom(session.roomSetup || {}, session.password || '', session.roomId);
+                this.addSyncLog(`Комната ${session.roomId} восстановлена после перезагрузки.`);
+                this.renderLobbyUI();
+                return true;
+            } catch (err) {
+                console.error('[PuzzleOnline] Room restore failed:', err);
+                clearRoomSession();
+                this.showToast('Не удалось восстановить комнату — создайте новую.', 'danger');
+                this.renderLobbySetupUI();
+                return false;
+            }
+        }
+
+        // Гость: хост держит тот же предсказуемый peer id, поэтому достаточно
+        // подключиться заново с прежним playerId — для хоста это будет JOIN
+        // того же участника, без дубля в списке.
+        await this.joinRoom(session.roomId, session.password || '');
+        return true;
+    }
+
     leaveRoom() {
+        clearRoomSession();
+        if (this._coopStateTimer) {
+            clearInterval(this._coopStateTimer);
+            this._coopStateTimer = null;
+        }
+        this._pendingCoopState = null;
         const wasHost = this.isHost;
         const prevRoomId = this.roomId;
 

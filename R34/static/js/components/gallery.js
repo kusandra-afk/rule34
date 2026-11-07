@@ -6,6 +6,7 @@ import { proxyUrl } from '../api.js';
 import { icon } from '../icons.js';
 import { StorageManager } from '../storage.js';
 import { CardComponent } from './cardComponent.js';
+import { markViewed } from '../viewedPosts.js';
 import { FullscreenViewer } from './fullscreenViewer.js';
 import { FavoritesManager } from './favoritesManager.js';
 
@@ -484,6 +485,7 @@ export class Gallery {
     renderGallery(append = false, offset = 0) {
         if (!append) {
             this.resultsDiv.innerHTML = '';
+            this._dropPreloadCaches();
             if (this.observer) this.observer.disconnect();
             this.observer = null;
             if (this._playbackObserver) this._playbackObserver.disconnect();
@@ -524,9 +526,16 @@ export class Gallery {
             // В режиме слабых устройств карточки сворачиваются в заглушки
             // раньше: живых карточек в DOM заметно меньше, а значит меньше
             // декодированных медиа и composited-слоёв.
+            // Запас виртуализации — это НЕ запас предзагрузки медиа (его задаёт
+            // this.observer с куда меньшим отступом). Здесь решается, сколько
+            // пустых, но всё ещё настоящих карточек (с рамкой, тенью и blur-
+            // слоем) висит в DOM вокруг экрана. ±4000px держало больше десятка
+            // экранов карточек, и на длинной ленте это заметный вес в памяти и
+            // GPU. ±2000px достаточно, чтобы карточка гарантированно успела
+            // собраться обратно задолго до того, как её увидит человек.
             this._virtualObserver = new window.IntersectionObserver(this.handleVirtualIntersection.bind(this), {
                 root: null,
-                rootMargin: this.isLowPowerMode() ? '1500px 0px 1500px 0px' : '4000px 0px 4000px 0px',
+                rootMargin: this.isLowPowerMode() ? '1200px 0px 1200px 0px' : '2000px 0px 2000px 0px',
                 threshold: 0
             });
         }
@@ -1747,6 +1756,54 @@ export class Gallery {
         return false; // Keep if duration is not yet known
     }
 
+    // Предзагрузка соседних слайдов держала элементы Image/video в двух
+    // словарях, из которых записи никогда не удалялись. Загруженный Image —
+    // это декодированный битмап в несколько мегабайт, поэтому за долгую
+    // прокрутку в памяти оседали сотни картинок и вкладка росла до гигабайтов.
+    // Держим только последние N элементов, а при смене содержимого ленты
+    // сбрасываем кэш целиком.
+    _rememberPreload(bucketName, key, element, limit) {
+        if (!this[bucketName]) this[bucketName] = {};
+        const bucket = this[bucketName];
+        const previous = bucket[key];
+        if (previous && previous !== element) {
+            this._releasePreload(previous);
+        }
+        bucket[key] = element;
+        const keys = Object.keys(bucket);
+        while (keys.length > limit) {
+            const staleKey = keys.shift();
+            if (staleKey === undefined) break;
+            const stale = bucket[staleKey];
+            delete bucket[staleKey];
+            this._releasePreload(stale);
+        }
+    }
+
+    _releasePreload(element) {
+        if (!element) return;
+        try {
+            if (element.tagName === 'VIDEO') {
+                element.pause();
+                element.removeAttribute('src');
+                element.load();
+            } else {
+                element.src = '';
+            }
+        } catch (e) {
+            // Элемент уже выгружен браузером — освобождать нечего.
+        }
+    }
+
+    _dropPreloadCaches() {
+        ['_preloadedImages', '_preloadedVideos'].forEach(name => {
+            const bucket = this[name];
+            if (!bucket) return;
+            Object.keys(bucket).forEach(key => this._releasePreload(bucket[key]));
+            this[name] = {};
+        });
+    }
+
     _preloadAdjacent(index) {
         const postsList = this._activeFullscreenPosts || (this.isFavoritesActive ? this.favoritesPosts : this.currentPosts);
         if (!postsList) return;
@@ -1792,7 +1849,7 @@ export class Gallery {
                             localStorage.setItem(`r34_duration_${p.id}`, d.toString());
                         }
                     });
-                    this._preloadedVideos[p.file_url] = vid;
+                    this._rememberPreload('_preloadedVideos', p.file_url, vid, 6);
                 }
             } else {
                 const url = p.sample_url || p.file_url;
@@ -1801,7 +1858,7 @@ export class Gallery {
                     if (!this._preloadedImages[url]) {
                         const img = new Image();
                         img.src = url;
-                        this._preloadedImages[url] = img;
+                        this._rememberPreload('_preloadedImages', url, img, 30);
                     }
                 }
             }
@@ -1809,6 +1866,15 @@ export class Gallery {
     }
 
     openFullscreen(index, customPostsList) {
+        // Отмечаем пост просмотренным до открытия: карточка в ленте должна
+        // потускнеть сразу, а не после того, как полноэкранный режим закроют.
+        const posts = customPostsList || (this.isFavoritesActive ? this.favoritesPosts : this.currentPosts);
+        const post = posts ? posts[index] : null;
+        if (post && post.id !== undefined) {
+            markViewed(post.id);
+            const card = document.querySelector(`.media-container[data-idx="${index}"]`);
+            if (card) card.classList.add('is-viewed');
+        }
         this.fullscreenViewer.openFullscreen(index, customPostsList);
     }
 

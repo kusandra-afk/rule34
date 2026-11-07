@@ -1,5 +1,7 @@
 import { escapeHtml } from '../utils.js';
 import { localeTag } from '../i18n/i18n.js';
+import { isViewed } from '../viewedPosts.js';
+import { downloadMedia } from '../mediaDownload.js';
 
 export class CardComponent {
     static createCard(post, index, gallery) {
@@ -62,6 +64,9 @@ export class CardComponent {
             container.classList.add('custom-cols');
         }
         container.dataset.idx = index;
+        if (isViewed(post.id)) {
+            container.classList.add('is-viewed');
+        }
 
         if (isVideo) {
             const cachedDuration = parseFloat(localStorage.getItem(`r34_duration_${post.id}`));
@@ -291,6 +296,7 @@ export class CardComponent {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
                 Источник медиафайла
             </div>
+            <div class="r34-source-row">
             ${isEmptySource ? `
                 <div class="r34-source-empty-state">
                     <span class="r34-source-empty-label">Источник не указан</span>
@@ -315,7 +321,27 @@ export class CardComponent {
                     </div>
                 </div>
             `}
+
+                <button type="button" class="r34-source-download-btn" id="dl-btn-${post.id}" title="Скачать" aria-label="Скачать">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                </button>
+            </div>
         `;
+
+        const downloadBtn = sourceBlock.querySelector('.r34-source-download-btn');
+        if (downloadBtn) {
+            // stopPropagation: клик по кнопке не должен заодно закрывать блок
+            // источника (у карточки есть общий обработчик клика).
+            downloadBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                downloadMedia(post);
+            });
+        }
 
         const btn = sourceBlock.querySelector('.r34-source-link-btn');
         if (btn) {

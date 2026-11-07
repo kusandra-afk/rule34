@@ -1051,3 +1051,63 @@ body.can-hover .fullscreen-vr-btn:hover, body:not(.can-hover) .fullscreen-vr-btn
         left: 119px;
     }
 }
+
+/* ============================================================
+   Кнопка скачивания текущего медиа
+   Стоит в одном ряду с крестиком (слева) и «i» (справа): справа
+   от неё, чтобы не перекрывать ни то, ни другое.
+   ============================================================ */
+.fullscreen-download-btn {
+    position: absolute;
+    top: 30px;
+    right: 88px;
+    z-index: 52000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    background: var(--glass-bg, rgba(255, 255, 255, 0.08));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.15));
+    border-radius: 50%;
+    color: var(--light, #fff);
+    cursor: pointer;
+    transition: background var(--transition-speed, 0.2s) var(--ease),
+                border-color var(--transition-speed, 0.2s) var(--ease),
+                transform var(--transition-speed, 0.2s) var(--ease),
+                box-shadow var(--transition-speed, 0.2s) var(--ease);
+}
+
+body.can-hover .fullscreen-download-btn:hover,
+body:not(.can-hover) .fullscreen-download-btn:active {
+    background: var(--glass-bg-strong, rgba(255, 255, 255, 0.18));
+    border-color: var(--accent, #ff3b6b);
+    transform: scale(1.05);
+    box-shadow: 0 0 15px var(--accent-glow, rgba(255, 59, 107, 0.4));
+}
+
+.fullscreen-download-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+@media (max-width: 600px) {
+    .fullscreen-download-btn {
+        top: 15px;
+        right: 67px;
+        width: 44px;
+        height: 44px;
+    }
+    .fullscreen-download-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+}

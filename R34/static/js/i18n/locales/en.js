@@ -1192,6 +1192,8 @@ const PART9 = [
     ["Участники", "Players"],
     ["Гонка на скорость", "Speed race"],
     ["Совместный сбор", "Team build"],
+    ["Совместная сборка", "Team build"],
+    ["Собрано всей командой", "Collected by the team"],
 ];
 
 
@@ -1266,6 +1268,45 @@ const PART11 = [
     ["для загрузки медиа", "to load media"],
 ];
 
+// Готовность в лобби онлайн-пазлов.
+const PART12 = [
+    ["Я готов", "I'm ready"],
+    ["Готов", "Ready"],
+    ["Не готов", "Not ready"],
+    ["Начать игру можно, когда все участники нажмут «Я готов»", "You can start once every player has tapped I'm ready"],
+    ["Скачать", "Download"],
+    ["Скачать файл", "Download file"],
+    ["Скачать текущее медиа", "Download this media"],
+    ["Продолжить", "Continue"],
+    ["Забыть комнату", "Forget room"],
+    ["Есть незакрытая комната", "You have an open room"],
+    ["Вы были организатором — комната переоткроется с тем же кодом.", "You were the host — the room will reopen with the same code."],
+    ["Вы были участником — можно вернуться в лобби.", "You were a player — you can return to the lobby."],
+    ["Восстанавливаем комнату...", "Restoring the room..."],
+    ["Реванш — новый пазл", "Rematch — new puzzle"],
+    ["Открытые комнаты", "Open rooms"],
+    ["Недавние запросы", "Recent searches"],
+    ["Продолжить пазл", "Resume puzzle"],
+    ["Продолжаем незаконченный пазл", "Resuming your unfinished puzzle"],
+    ["деталей уже на месте", "pieces already placed"],
+    ["Убрать из истории", "Remove from history"],
+    ["Можно войти без кода, если не нужен пароль.", "Join without a code when no password is needed."],
+    ["Обновить список", "Refresh the list"],
+    ["Загружаем...", "Loading..."],
+    ["Пока никто не хостит — создайте комнату.", "Nobody is hosting yet — create a room."],
+    ["Не удалось загрузить список комнат.", "Could not load the room list."],
+    ["Войти", "Join"],
+    ["Вместе", "Together"],
+    ["Комната под паролем — введите пароль.", "This room has a password — enter it."],
+    ["Новый пул", "New pool"],
+    ["Релей", "Relay"],
+    ["Напрямую", "Direct"],
+    ["Соединение идёт через TURN-релей — возможна задержка", "Connection goes through a TURN relay — expect extra latency"],
+    ["Прямое P2P-соединение", "Direct P2P connection"],
+    ["Отправить эмоцию", "Send an emote"],
+    ["Комната переоткрывается с тем же кодом.", "The room is reopening with the same code."],
+];
+
 export const EN = Object.fromEntries(
-    [].concat(PART1, PART2, PART3, PART4, PART5, PART6, PART7, PART8, PART9, PART10, PART11)
+    [].concat(PART1, PART2, PART3, PART4, PART5, PART6, PART7, PART8, PART9, PART10, PART11, PART12)
 );

@@ -161,7 +161,12 @@ export class BaseOnlineEngine {
     // --- LOGGING ---
     addSyncLog(msg) {
         const timestamp = new Date().toLocaleTimeString();
+        // В панели видно только последние 6 строк, а массив рос всю сессию:
+        // после часа игры в комнате в нём оседали тысячи строк.
         this.syncLogs.push(`[${timestamp}] ${msg}`);
+        if (this.syncLogs.length > 200) {
+            this.syncLogs.splice(0, this.syncLogs.length - 200);
+        }
         console.log(`[BaseOnlineEngine] ${msg}`);
         const logContainer = document.getElementById('puzzle-sync-logs');
         if (logContainer) {
@@ -219,9 +224,85 @@ export class BaseOnlineEngine {
         }));
     }
 
+    // --- ПУБЛИЧНЫЙ СПРАВОЧНИК КОМНАТ ---
+    // Комната живёт в браузере хоста, поэтому «список открытых комнат» — это
+    // не серверное состояние, а витрина: хост раз в 20 секунд сообщает, что
+    // он ещё здесь. Сервер выбрасывает запись через 45 секунд молчания, так
+    // что закрытая вкладка исчезает из списка сама.
+    _roomAnnouncePayload() {
+        const players = this.roomData && this.roomData.players
+            ? Object.keys(this.roomData.players).length
+            : 1;
+        return {
+            roomId: this.roomId,
+            hostId: this.playerId,
+            hostName: this.playerName,
+            gameType: this.gameType || 'generic',
+            mode: (this.roomData && this.roomData.mode) || '',
+            players,
+            maxPlayers: (this.roomData && this.roomData.maxPlayers) || 8,
+            hasPassword: !!this.roomPassword
+        };
+    }
+
+    startRoomAnnounce() {
+        // Здесь намеренно НЕ вызываем stopRoomAnnounce(): он отправляет
+        // /unannounce для текущей комнаты, и при создании комнаты/восстановлении
+        // сессии этот запрос мог дойти до сервера уже ПОСЛЕ announce, стирая
+        // свежую запись — комната пропадала из «Открытых комнат» до следующего
+        // heartbeat (20 с). Достаточно сбросить таймер.
+        if (this._announceTimer) {
+            clearInterval(this._announceTimer);
+            this._announceTimer = null;
+        }
+        const send = () => {
+            if (!this.active || !this.isHost || !this.roomId) {
+                // Комната уже закрыта, а таймер почему-то жив — гасим его сами,
+                // иначе /api/rooms/announce продолжал бы ходить каждые 20 секунд
+                // до закрытия вкладки.
+                if (this._announceTimer) {
+                    clearInterval(this._announceTimer);
+                    this._announceTimer = null;
+                }
+                return;
+            }
+            try {
+                fetch('/api/rooms/announce', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(this._roomAnnouncePayload())
+                }).catch(() => {});
+            } catch (e) {
+                // Старый браузер без fetch — список комнат просто не работает.
+            }
+        };
+        send();
+        this._announceTimer = setInterval(send, 20000);
+    }
+
+    stopRoomAnnounce() {
+        if (this._announceTimer) {
+            clearInterval(this._announceTimer);
+            this._announceTimer = null;
+        }
+        if (!this.roomId) return;
+        try {
+            fetch('/api/rooms/unannounce', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ roomId: this.roomId, hostId: this.playerId })
+            }).catch(() => {});
+        } catch (e) {}
+    }
+
     // --- ROOM CREATION & JOINING ---
-    async createRoom(customInitialData = {}, password = '') {
-        this.roomId = this.generateRoomCode();
+    async createRoom(customInitialData = {}, password = '', fixedCode = null) {
+        // fixedCode передаётся только при восстановлении комнаты после
+        // перезагрузки: peer id хоста выводится из кода, поэтому с тем же
+        // кодом гости находят комнату по прежнему адресу.
+        this.roomId = fixedCode ? String(fixedCode).trim().toUpperCase() : this.generateRoomCode();
         this.isHost = true;
         this.active = true;
         this.roomPassword = (password || '').trim();
@@ -252,6 +333,7 @@ export class BaseOnlineEngine {
             this.addSyncLog(`Создана комната ${this.roomId}. Режим хоста.`);
 
             this.startHeartbeat();
+            this.startRoomAnnounce();
 
             return this.roomData;
         } catch (err) {
@@ -420,6 +502,42 @@ export class BaseOnlineEngine {
         conn.on('error', (err) => {
             console.error('[BaseOnlineEngine] DataConnection error:', err);
         });
+        // Прямое соединение или TURN-релей видно только из ICE-статистики, а
+        // выбранная пара появляется не мгновенно — поэтому с небольшой
+        // задержкой после открытия канала.
+        conn.on('open', () => {
+            setTimeout(() => this._detectConnectionType(conn), 1500);
+        });
+    }
+
+    async _detectConnectionType(conn) {
+        try {
+            const pc = conn && conn.peerConnection;
+            if (!pc || typeof pc.getStats !== 'function') return;
+            const stats = await pc.getStats();
+            let pair = null;
+            stats.forEach(report => {
+                if (report.type === 'candidate-pair' && (report.nominated || report.state === 'succeeded')) {
+                    pair = report;
+                }
+            });
+            if (!pair) return;
+            let local = null;
+            let remote = null;
+            stats.forEach(report => {
+                if (report.id === pair.localCandidateId) local = report;
+                if (report.id === pair.remoteCandidateId) remote = report;
+            });
+            const viaRelay = (local && local.candidateType === 'relay') || (remote && remote.candidateType === 'relay');
+            const type = viaRelay ? 'relay' : 'direct';
+            if (type !== this.connectionType) {
+                this.connectionType = type;
+                this.addSyncLog(`Соединение: ${type === 'relay' ? 'через релей (TURN)' : 'напрямую (P2P)'}`);
+                this.emit('quality', type);
+            }
+        } catch (e) {
+            // getStats недоступен или канал уже закрыт — это не ошибка.
+        }
     }
 
     // Регистрирует связь playerId -> conn у хоста при первом же пакете от
@@ -615,6 +733,7 @@ export class BaseOnlineEngine {
         }
 
         this.stopHeartbeat();
+        this.stopRoomAnnounce();
 
         const peerToDestroy = this.peer;
         this.peer = null;

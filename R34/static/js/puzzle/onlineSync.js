@@ -14,6 +14,22 @@ export class OnlineSync {
             onlineMgr.addSyncLog(`Игрок ${packet.player.name} вошел в лобби`);
             onlineMgr.broadcastRoomData();
             if (!onlineMgr.inGame) onlineMgr.updateLobbyPlayerList();
+            // Вернувшийся посреди партии гость собирает пазл заново с нуля —
+            // отдаём ему текущую расстановку деталей, иначе он видит пустое поле.
+            if (onlineMgr.inGame && onlineMgr.roomData.mode === 'coop'
+                && onlineMgr.game && typeof onlineMgr.game.getBoardSnapshot === 'function') {
+                const tiles = onlineMgr.game.getBoardSnapshot();
+                if (tiles && tiles.length) {
+                    onlineMgr.sendToPlayer(clientPlayerId, { type: 'COOP_STATE', tiles });
+                }
+            }
+        } else if (packet.type === 'PLAYER_READY') {
+            const readyPlayer = onlineMgr.roomData?.players?.[clientPlayerId];
+            if (readyPlayer) {
+                readyPlayer.ready = !!packet.ready;
+                onlineMgr.broadcastRoomData();
+                if (!onlineMgr.inGame) onlineMgr.updateLobbyPlayerList();
+            }
         } else if (packet.type === 'RACE_PROGRESS') {
             if (onlineMgr.roomData.players[clientPlayerId]) {
                 Object.assign(onlineMgr.roomData.players[clientPlayerId], packet);
@@ -34,6 +50,28 @@ export class OnlineSync {
             if (onlineMgr.game && typeof onlineMgr.game.handleRemoteCoopMove === 'function') {
                 onlineMgr.game.handleRemoteCoopMove(packet);
             }
+        } else if (packet.type === 'COOP_STATE_REQUEST') {
+            // Гость переподключился и просит актуальное поле. Повторяет запрос,
+            // потому что канал unreliable — один пакет со снимком может потеряться.
+            if (onlineMgr.inGame && onlineMgr.game && typeof onlineMgr.game.getBoardSnapshot === 'function') {
+                const tiles = onlineMgr.game.getBoardSnapshot();
+                if (tiles && tiles.length) {
+                    onlineMgr.sendToPlayer(clientPlayerId, { type: 'COOP_STATE', tiles });
+                }
+            }
+        } else if (packet.type === 'EMOTE') {
+            const emotePlayer = onlineMgr.roomData?.players?.[clientPlayerId];
+            const emoteName = (emotePlayer && emotePlayer.name) || 'Игрок';
+            const emoji = String(packet.emoji || '').slice(0, 8);
+            // broadcast уходит только гостям — хост эмоцию гостя должен
+            // показать себе сам, иначе её видит лишь отправитель.
+            onlineMgr.showEmote(emoji, emoteName);
+            onlineMgr.broadcast({
+                type: 'EMOTE',
+                emoji,
+                name: emoteName,
+                playerId: clientPlayerId
+            });
         } else if (packet.type === 'PLAYER_WIN') {
             if (onlineMgr.roomData.players[clientPlayerId]) {
                 onlineMgr.roomData.players[clientPlayerId].won = true;
@@ -139,6 +177,16 @@ export class OnlineSync {
         } else if (packet.type === 'COOP_DRAG') {
             if (packet.playerId !== onlineMgr.playerId && onlineMgr.game && typeof onlineMgr.game.handleRemoteCoopDrag === 'function') {
                 onlineMgr.game.handleRemoteCoopDrag(packet);
+            }
+        } else if (packet.type === 'COOP_STATE') {
+            // Снимок поля может прийти раньше, чем гость достроил пазл после
+            // переподключения (startGameFromData грузит картинку асинхронно) —
+            // тогда держим его до готовности доски.
+            onlineMgr._pendingCoopState = Array.isArray(packet.tiles) ? packet.tiles : null;
+            onlineMgr.applyCoopStateIfReady();
+        } else if (packet.type === 'EMOTE') {
+            if (packet.playerId !== onlineMgr.playerId) {
+                onlineMgr.showEmote(packet.emoji, packet.name);
             }
         } else if (packet.type === 'PLAYER_WIN') {
             if (onlineMgr.roomData?.players[packet.winnerId]) {

@@ -220,3 +220,7 @@ expert style editor for detailed tweaks.
 The project was written entirely by free AI models — hence the occasionally rough code. Found
 a bug or want to improve something? Fork it, patch it, open a pull request. Any help is
 welcome; that is exactly why this project is public.
+
+## What's new (November 2026)
+
+See the «Что нового» section in README.md: static asset caching, media download in fullscreen, lobby ready-check, room reconnect, rematch, quick emotes and a direct/relay connection badge.

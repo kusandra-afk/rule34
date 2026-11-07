@@ -1,6 +1,8 @@
 import { escapeHtml } from '../utils.js';
 import { PhotoViewer } from './photoViewer.js';
 import { VideoPlayer } from './videoPlayer.js';
+import { markViewed } from '../viewedPosts.js';
+import { downloadMedia } from '../mediaDownload.js';
 
 export class FullscreenViewer {
     constructor(gallery) {
@@ -38,6 +40,22 @@ export class FullscreenViewer {
             this._toggleFullscreenInfoDrawer();
         };
         fsContainer.appendChild(infoBtn);
+
+        // Скачивание текущего медиа. Ссылка идёт через собственный /proxy:
+        // файлы лежат на api-cdn.rule34.xxx, а браузер игнорирует атрибут
+        // download для чужого origin — вместо сохранения открылась бы
+        // вкладка с картинкой. Через прокси адрес свой, download работает,
+        // и файл при этом не держится целиком в памяти (сервер стримит).
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'fullscreen-download-btn';
+        downloadBtn.title = 'Скачать';
+        downloadBtn.setAttribute('aria-label', 'Скачать текущее медиа');
+        downloadBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
+        downloadBtn.onclick = (e) => {
+            e.stopPropagation();
+            this._downloadCurrentMedia();
+        };
+        fsContainer.appendChild(downloadBtn);
 
         // Кнопка VR/панорамы появляется только если включена экспериментальная
         // настройка — иначе она бы мозолила глаза всем, кому панорамный
@@ -105,6 +123,16 @@ export class FullscreenViewer {
         this._bindFullscreenHandlers();
     }
 
+    _downloadCurrentMedia() {
+        const g = this.gallery;
+        const posts = g._activeFullscreenPosts
+            || (g.isFavoritesActive ? g.favoritesPosts : g.currentPosts);
+        const post = posts ? posts[g.fullscreenIdx] : null;
+        if (!post || !post.file_url) return;
+
+        downloadMedia(post);
+    }
+
     _renderFullscreenMedia(direction = 'down') {
         const g = this.gallery;
         if (!g.fullscreenContainer) return;
@@ -129,6 +157,14 @@ export class FullscreenViewer {
         const postsList = g._activeFullscreenPosts || (g.isFavoritesActive ? g.favoritesPosts : g.currentPosts);
         const post = postsList ? postsList[idx] : null;
         if (!post) return;
+
+        // Листание — тоже просмотр: помечаем пост, который реально показан,
+        // а не только тот, по карточке которого кликнули.
+        if (post.id !== undefined) {
+            markViewed(post.id);
+            const viewedCard = document.querySelector(`.media-container[data-idx="${idx}"]`);
+            if (viewedCard) viewedCard.classList.add('is-viewed');
+        }
 
         g._preloadAdjacent(idx);
 

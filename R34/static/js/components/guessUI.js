@@ -612,7 +612,7 @@ export class GuessUI {
                 <div class="guess-over-actions">
                     <button class="game-btn-primary guess-btn-again" id="guessAgainBtn">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
-                        Играть ещё раз
+                        ${result.poolExhausted ? 'Новый пул' : 'Играть ещё раз'}
                     </button>
                     <button class="game-btn-secondary" id="guessMenuBtn">В меню игр</button>
                 </div>

@@ -21,6 +21,7 @@ export class TagSearch {
         this.excludedTagsCollapsed = savedExcludedCollapsed === null ? true : savedExcludedCollapsed === 'true';
         this.includedTagsCollapsed = localStorage.getItem('r34_included_tags_collapsed') === 'true';
         this._debounceTimer = null;
+        this.searchHistory = this._loadSearchHistory();
         this._renderFrame = null;
         this._bindEvents();
         this._updateTagModeButton();
@@ -46,14 +47,14 @@ export class TagSearch {
                 this.addTag();
             }
             // Запустить поиск по текущим тегам
-            if (this.onTagsChange) this.onTagsChange(this.getTagsQuery());
+            this._submitSearch();
         });
         this.tagInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 if (this.tagInput.value.trim()) {
                     this.addTag();
                 }
-                if (this.onTagsChange) this.onTagsChange(this.getTagsQuery());
+                this._submitSearch();
             }
         });
         
@@ -84,6 +85,10 @@ export class TagSearch {
             const val = this.tagInput.value.trim();
             if (val) {
                 this.loadTagSuggestions(val);
+            } else {
+                // Пустое поле — показываем, что искали раньше: это быстрее,
+                // чем вспоминать точное написание тега.
+                this.showSearchHistory();
             }
         });
 
@@ -639,6 +644,83 @@ export class TagSearch {
         
         const apiTags = [...activeToUse, ...apiInactive.map(t => '-' + t)];
         return apiTags.join(' ');
+    }
+
+    // --- ИСТОРИЯ ПОИСКА ---
+    _loadSearchHistory() {
+        try {
+            const raw = JSON.parse(localStorage.getItem('r34_search_history') || '[]');
+            return Array.isArray(raw)
+                ? raw.filter(item => typeof item === 'string' && item.trim()).slice(0, 10)
+                : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    _saveSearchHistory() {
+        try {
+            localStorage.setItem('r34_search_history', JSON.stringify(this.searchHistory));
+        } catch (e) {}
+    }
+
+    _rememberSearch(query) {
+        const q = (query || '').trim();
+        if (!q) return;
+        this.searchHistory = [q, ...this.searchHistory.filter(item => item !== q)].slice(0, 10);
+        this._saveSearchHistory();
+    }
+
+    _submitSearch() {
+        const query = this.getTagsQuery();
+        this._rememberSearch(query);
+        if (this.onTagsChange) this.onTagsChange(query);
+    }
+
+    showSearchHistory() {
+        if (!this.searchHistory || this.searchHistory.length === 0) {
+            this.hideSuggestions();
+            return;
+        }
+        this.suggestionsContainer.innerHTML = '';
+
+        const label = document.createElement('div');
+        label.className = 'suggestion-item suggestion-history-label';
+        label.textContent = 'Недавние запросы';
+        this.suggestionsContainer.appendChild(label);
+
+        this.searchHistory.forEach(query => {
+            const item = document.createElement('div');
+            item.className = 'suggestion-item suggestion-history';
+            item.textContent = query;
+
+            const remove = document.createElement('span');
+            remove.className = 'suggestion-history-remove';
+            remove.textContent = '×';
+            remove.title = 'Убрать из истории';
+            remove.onclick = (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                this.searchHistory = this.searchHistory.filter(value => value !== query);
+                this._saveSearchHistory();
+                this.showSearchHistory();
+            };
+            item.appendChild(remove);
+
+            item.onclick = (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                // Повторяем ровно тот запрос, который уже давал результат:
+                // активные теги могли измениться, а строка запроса — нет.
+                this.tagInput.value = query;
+                this._rememberSearch(query);
+                this.hideSuggestions();
+                if (this.onTagsChange) this.onTagsChange(query);
+            };
+            this.suggestionsContainer.appendChild(item);
+        });
+
+        this.suggestionsContainer.style.display = 'block';
     }
 
     loadTagSuggestions(value) {
