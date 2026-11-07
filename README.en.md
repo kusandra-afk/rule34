@@ -129,8 +129,6 @@ shuffling and saved progress. Works offline and with two to four players over th
   a Metered key is entered in the online game window, with instructions right there.
 - **Signaling** uses the public PeerJS broker (`0.peerjs.com`). If your provider blocks it, a
   room can't be created and the app shows `Lost connection`. A VPN works around it.
-- **There is no reconnect**: reloading the page, closing the tab or sleeping the device drops
-  the session. If the host leaves, the room closes for everyone.
 
 ### 🎲 Higher/Lower
 
@@ -220,7 +218,3 @@ expert style editor for detailed tweaks.
 The project was written entirely by free AI models — hence the occasionally rough code. Found
 a bug or want to improve something? Fork it, patch it, open a pull request. Any help is
 welcome; that is exactly why this project is public.
-
-## What's new (November 2026)
-
-See the «Что нового» section in README.md: static asset caching, media download in fullscreen, lobby ready-check, room reconnect, rematch, quick emotes and a direct/relay connection badge.
