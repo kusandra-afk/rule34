@@ -2,7 +2,7 @@ import { setRangeGradient } from '../utils.js';
 import { icon } from '../icons.js';
 import { StorageManager } from '../storage.js';
 
-// Кастомные контролы для видео
+// Custom video controls
 export class VideoPlayer {
     constructor(videoElement, container, options = {}) {
         this.video = videoElement;
@@ -35,26 +35,30 @@ export class VideoPlayer {
         this._freezeCanvas = null;
         this._isDragging = false;
         this._animationFrameId = null;
+        // Keep the user's mute choice across play/pause and source unload/restore.
+        this._userMuted = this.video.muted;
 
         const originalPlay = this.video.play;
-        this.video.play = () => {
+        this.video.play = (...args) => {
             if (this._pausedSrc) {
                 this._shouldPlayOnRestore = true;
                 this._restoreVideoSourceIfNeeded();
                 return Promise.resolve();
             }
-            return originalPlay.apply(this.video);
+            // Some mobile browsers reset muted when playback begins. Apply our
+            // saved choice immediately before delegating to the native method.
+            this.video.muted = this._userMuted;
+            return originalPlay.apply(this.video, args);
         };
 
         const originalPause = this.video.pause;
-        this.video.pause = () => {
+        this.video.pause = (...args) => {
             this._shouldPlayOnRestore = false;
-            return originalPause.apply(this.video);
+            return originalPause.apply(this.video, args);
         };
 
         this._initControls();
 
-        // Register player to handle global scroll hiding
         window.activeVideoPlayers = window.activeVideoPlayers || [];
         window.activeVideoPlayers.push(this);
     }
@@ -64,13 +68,10 @@ export class VideoPlayer {
             this.container.style.position = 'relative';
         }
         this.controlsBar = document.createElement('div');
-        if (this.fullscreenMode) {
-            this.controlsBar.className = 'custom-video-controls gallery-video-controls-wrapper';
-        } else {
-            this.controlsBar.className = 'custom-video-controls in-card-controls';
-        }
+        this.controlsBar.className = this.fullscreenMode
+            ? 'custom-video-controls gallery-video-controls-wrapper'
+            : 'custom-video-controls in-card-controls';
 
-        // Кнопка Play/Pause внизу в панели управления
         if (this.fullscreenMode) {
             this.bottomPlayBtn = document.createElement('button');
             this.bottomPlayBtn.className = 'video-bottom-play-btn';
@@ -115,12 +116,10 @@ export class VideoPlayer {
             } else if (duration) {
                 this.video.currentTime = progressValue * duration;
             }
-            // Update gradient immediately for smooth dragging feedback
             this._updateProgress(true);
         };
         this.controlsBar.appendChild(this.progressBar);
 
-        // Добавляем timeLabel для длительности
         this.timeLabel = document.createElement('span');
         this.timeLabel.className = 'video-time';
         this.timeLabel.textContent = '0:00 / 0:00';
@@ -134,7 +133,6 @@ export class VideoPlayer {
         this.loadingSpinner.className = 'video-loading-spinner';
         this.container.appendChild(this.loadingSpinner);
 
-        // Кнопка управления звуком
         if (this.fullscreenMode) {
             const defaultVol = localStorage.getItem('r34_default_volume');
             if (defaultVol !== null) {
@@ -145,8 +143,8 @@ export class VideoPlayer {
             this.soundBtn.className = 'video-bottom-sound-btn';
             this.soundBtn.onclick = (e) => {
                 e.stopPropagation();
-                this.video.muted = !this.video.muted;
-                if (!this.video.muted) {
+                this._setMuted(!this._userMuted);
+                if (!this._userMuted) {
                     const savedVol = localStorage.getItem('r34_default_volume');
                     this.video.volume = savedVol !== null ? (parseFloat(savedVol) || 50) / 100 : 0.50;
                 }
@@ -154,16 +152,11 @@ export class VideoPlayer {
             };
             this.controlsBar.appendChild(this.soundBtn);
 
-            // Ползунок громкости — только для мыши/десктопа. На телефонах и
-            // планшетах системная громкость управляется аппаратными кнопками,
-            // а HTMLMediaElement.volume на iOS/Android вообще игнорируется,
-            // поэтому слайдер там только занимает место в панели контролов.
             const isTouchDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
                 || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches)
                 || ('ontouchstart' in window && window.innerWidth <= 900);
 
             if (!isTouchDevice) {
-                // В полноэкранном режиме делаем аккуратный тонкий слайдер для громкости
                 this.volumeSlider = document.createElement('input');
                 this.volumeSlider.type = 'range';
                 this.volumeSlider.className = 'video-bottom-volume';
@@ -174,9 +167,7 @@ export class VideoPlayer {
                 this.volumeSlider.oninput = () => {
                     const volNum = Number(this.volumeSlider.value);
                     this.video.volume = volNum;
-                    if (volNum > 0 && this.video.muted) {
-                        this.video.muted = false;
-                    }
+                    if (volNum > 0) this._setMuted(false);
                     const volPct = Math.round(volNum * 100);
                     StorageManager.setItem('r34_default_volume', volPct.toString());
                     const settingsInput = document.getElementById('settingsDefaultVolumeInput');
@@ -184,7 +175,7 @@ export class VideoPlayer {
                     const settingsVal = document.getElementById('settingsDefaultVolumeValue');
                     if (settingsInput) {
                         settingsInput.value = volPct;
-                        if (typeof setRangeGradient === 'function') setRangeGradient(settingsInput);
+                        setRangeGradient(settingsInput);
                     }
                     if (settingsManual) settingsManual.value = volPct;
                     if (settingsVal) settingsVal.textContent = volPct + '%';
@@ -195,7 +186,6 @@ export class VideoPlayer {
             this._updateSoundState();
         }
 
-
         this.video.addEventListener('play', () => {
             this._startProgressLoop();
             if (this._unloadTimeout) {
@@ -203,6 +193,7 @@ export class VideoPlayer {
                 this._unloadTimeout = null;
             }
             this._updatePlayState();
+            this._updateSoundState();
             this._showControls(true, 3000);
         });
         this.video.addEventListener('playing', () => {
@@ -210,16 +201,21 @@ export class VideoPlayer {
             this._startProgressLoop();
             this._hideFreezeFrame();
             this._isRestoring = false;
+            this._updateSoundState();
         });
         this.video.addEventListener('waiting', () => this._showLoading());
         this.video.addEventListener('stalled', () => {
-            if (!this.video.paused && this.video.readyState < 3) {
-                this._showLoading();
-            }
+            if (!this.video.paused && this.video.readyState < 3) this._showLoading();
         });
         this.video.addEventListener('canplay', () => {
             this._hideLoading();
             this._updateProgress();
+        });
+        this.video.addEventListener('volumechange', () => {
+            // Pick up mute changes made by browser controls or other app code.
+            this._userMuted = this.video.muted;
+            this.video.dataset.r34UserMuted = String(this._userMuted);
+            this._updateSoundState();
         });
         this.video.addEventListener('pause', () => {
             this._hideLoading();
@@ -229,7 +225,6 @@ export class VideoPlayer {
 
             if (this._isRestoring) return;
 
-            // Stop download/buffering completely on pause
             const currentSrc = this.video.src || this.video.currentSrc;
             if (currentSrc && !currentSrc.startsWith('data:') && currentSrc !== window.location.href) {
                 if (this._unloadTimeout) clearTimeout(this._unloadTimeout);
@@ -242,7 +237,7 @@ export class VideoPlayer {
                             this.video.load();
                         }
                     }
-                }, 1500); // 1500ms delay to keep interactive seeking/play-pause snappy
+                }, 1500);
             }
         });
         this.video.addEventListener('ended', () => {
@@ -250,10 +245,7 @@ export class VideoPlayer {
             this._updatePlayState();
         });
         this.video.addEventListener('timeupdate', () => {
-            // Only update via event if not currently in high-precision animation loop
-            if (!this._animationFrameId) {
-                this._updateProgress();
-            }
+            if (!this._animationFrameId) this._updateProgress();
         });
         this.video.addEventListener('progress', () => this._updateProgress());
         this.video.addEventListener('loadedmetadata', () => {
@@ -271,41 +263,25 @@ export class VideoPlayer {
             this._updateProgress();
         });
         this.video.addEventListener('loadeddata', () => this._updateProgress());
-        this.video.addEventListener('canplay', () => this._updateProgress());
 
-        // Unified Click & Double-Click Handler
         const handleInteraction = (e) => {
-            // If clicking controls bar (except play button), ignore
-            if (e.target.closest('.custom-video-controls') && !e.target.closest('.video-bottom-play-btn')) {
-                return;
-            }
+            if (e.target.closest('.custom-video-controls') && !e.target.closest('.video-bottom-play-btn')) return;
             e.stopPropagation();
             e.preventDefault();
 
             const rect = this.video.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
-            // Center click area for play/pause (compact central zone, e.g. 50-70px radius or 18% of screen)
-            // This ensures user can tap the center to toggle play/pause even when controls are hidden,
-            // while edges and larger surroundings toggle controls visibility or double-tap seek.
             const centerX = rect.width / 2;
             const centerY = rect.height / 2;
             const centerRadius = Math.min(60, Math.min(rect.width, rect.height) * 0.18);
-            const distFromCenter = Math.hypot(clickX - centerX, clickY - centerY);
-            const isCenterArea = distFromCenter <= centerRadius;
+            const isCenterArea = Math.hypot(clickX - centerX, clickY - centerY) <= centerRadius;
 
-            // Check if clicking directly on play button or in the compact center play zone
             let isPlayClick = Boolean(e.target.closest('.center-play-btn') || e.target.closest('.video-bottom-play-btn'));
             if (!isPlayClick && this.centerPlayBtn && !this.centerPlayBtn.classList.contains('hide-controls')) {
                 const btnRect = this.centerPlayBtn.getBoundingClientRect();
-                if (
-                    e.clientX >= btnRect.left &&
-                    e.clientX <= btnRect.right &&
-                    e.clientY >= btnRect.top &&
-                    e.clientY <= btnRect.bottom
-                ) {
-                    isPlayClick = true;
-                }
+                isPlayClick = e.clientX >= btnRect.left && e.clientX <= btnRect.right
+                    && e.clientY >= btnRect.top && e.clientY <= btnRect.bottom;
             }
             const isTogglePlayClick = isPlayClick || isCenterArea;
 
@@ -322,42 +298,30 @@ export class VideoPlayer {
                         this._userExplicitlyHidden = false;
                         this._showControls(false);
                     }
-                    if (this.options.onToggleInfo) {
-                        this.options.onToggleInfo();
-                    }
+                    if (this.options.onToggleInfo) this.options.onToggleInfo();
                 }
             };
 
             if (this._clickTimeout) {
                 clearTimeout(this._clickTimeout);
                 this._clickTimeout = null;
-
                 const isRightSide = clickX > rect.width / 2;
                 const seekAmount = 10;
-
                 if (this._unloadTimeout) {
                     clearTimeout(this._unloadTimeout);
                     this._unloadTimeout = null;
                 }
-
                 if (this._pausedSrc) {
                     const savedTime = this._pausedTime || 0;
-                    if (isRightSide) {
-                        this._pausedTime = savedTime + seekAmount;
-                    } else {
-                        this._pausedTime = Math.max(0, savedTime - seekAmount);
-                    }
+                    this._pausedTime = isRightSide ? savedTime + seekAmount : Math.max(0, savedTime - seekAmount);
                     this._showSeekIndicator(isRightSide ? 'forward' : 'backward');
                     this._restoreVideoSourceIfNeeded();
                 } else {
                     const duration = this._duration || this.video.duration || 0;
-                    if (isRightSide) {
-                        this.video.currentTime = Math.min(duration, this.video.currentTime + seekAmount);
-                        this._showSeekIndicator('forward');
-                    } else {
-                        this.video.currentTime = Math.max(0, this.video.currentTime - seekAmount);
-                        this._showSeekIndicator('backward');
-                    }
+                    this.video.currentTime = isRightSide
+                        ? Math.min(duration, this.video.currentTime + seekAmount)
+                        : Math.max(0, this.video.currentTime - seekAmount);
+                    this._showSeekIndicator(isRightSide ? 'forward' : 'backward');
                 }
                 this._userExplicitlyHidden = false;
                 this._showControls();
@@ -372,7 +336,6 @@ export class VideoPlayer {
         this.video.addEventListener('click', handleInteraction);
         this.centerPlayBtn.addEventListener('click', handleInteraction);
 
-        // Keep controls visible when hovering over the control bar
         this.controlsBar.addEventListener('mouseenter', () => {
             if (this.hideTimeout) {
                 clearTimeout(this.hideTimeout);
@@ -391,11 +354,6 @@ export class VideoPlayer {
         this._userExplicitlyHidden = false;
 
         if (this.fullscreenMode) {
-            // Показываем пульт при движении мыши и снова прячем его, если
-            // мышь замерла на месте — как и в карточках, autoHide=true
-            // перезапускает 3-секундный таймер при каждом mousemove, а не
-            // просто один раз показывает панель и оставляет её висеть
-            // навсегда до следующего клика.
             const handleMouseMove = () => {
                 if (this._userExplicitlyHidden) return;
                 this._showControls(true, 3000);
@@ -403,15 +361,6 @@ export class VideoPlayer {
             this.container.addEventListener('mousemove', handleMouseMove);
             this.video.addEventListener('mousemove', handleMouseMove);
         } else {
-            // На ПК (устройства с реальным hover) панель управления должна
-            // появляться при наведении курсора на карточку, а не только по
-            // тапу/клику — тап нужен только там, где нет курсора (телефон).
-            // Свойство onmouseenter/onmouseleave вместо addEventListener,
-            // т.к. container переиспользуется галереей между разными видео
-            // (loadMedia пересоздаёт VideoPlayer на том же контейнере) —
-            // присвоение перезаписывает старый обработчик вместо накопления.
-            // autoHide=true — если мышь замерла над карточкой и не покидает
-            // её, пульт всё равно скрывается через 3с, а не висит вечно.
             const handleCardHover = () => {
                 if (!document.body.classList.contains('can-hover')) return;
                 this._userExplicitlyHidden = false;
@@ -425,18 +374,12 @@ export class VideoPlayer {
                     clearTimeout(this.hideTimeout);
                     this.hideTimeout = null;
                 }
-                if (!this.video.paused && !this.video.ended) {
-                    this._hideControls(true);
-                }
+                if (!this.video.paused && !this.video.ended) this._hideControls(true);
             };
         }
 
-        // Global single scroll-bind check (automatic and clean)
         if (typeof window !== 'undefined' && !window._videoScrollHandlerBound) {
             window._videoScrollHandlerBound = true;
-            // rAF-gate: raw scroll events can fire many times per frame during a fast
-            // scroll gesture, but this work (array filter + N _hideControls calls)
-            // only ever needs to happen once per rendered frame.
             let scrollRafPending = false;
             document.addEventListener('scroll', () => {
                 if (scrollRafPending) return;
@@ -445,42 +388,40 @@ export class VideoPlayer {
                     scrollRafPending = false;
                     window.activeVideoPlayers = (window.activeVideoPlayers || []).filter(p => document.body.contains(p.video));
                     window.activeVideoPlayers.forEach(p => {
-                        // Don't hide controls on scroll if in fullscreen mode
-                        if (!p.fullscreenMode) {
-                            p._hideControls();
-                        }
+                        if (!p.fullscreenMode) p._hideControls();
                     });
                 });
             }, { passive: true, capture: true });
         }
 
-        if (this.video.parentNode !== this.container) {
-            this.container.appendChild(this.video);
-        }
+        if (this.video.parentNode !== this.container) this.container.appendChild(this.video);
         this.container.appendChild(this.controlsBar);
         this.container.appendChild(this.centerPlayBtn);
 
         this._updatePlayState();
         this._updateProgress();
+        this._updateSoundState();
 
-        // Показываем контролы при инициализации в fullscreen
-        if (this.fullscreenMode) {
-            this._showControls();
-        }
+        if (this.fullscreenMode) this._showControls();
+    }
+
+    _setMuted(muted) {
+        this._userMuted = Boolean(muted);
+        this.video.dataset.r34UserMuted = String(this._userMuted);
+        this.video.muted = this._userMuted;
     }
 
     _togglePlay() {
         if (this.video.paused) {
-            this.video.muted = false;
-            this.video.dataset.manuallyPaused = "false";
+            // Do not unmute here. Playback must preserve the user's explicit
+            // sound-button choice, including the first start on mobile.
+            this.video.dataset.manuallyPaused = 'false';
             const playPromise = this.video.play();
             if (playPromise !== undefined) {
-                playPromise.catch(err => {
-                    console.log('Playback starting was interrupted or prevented:', err);
-                });
+                playPromise.catch(err => console.log('Playback starting was interrupted or prevented:', err));
             }
         } else {
-            this.video.dataset.manuallyPaused = "true";
+            this.video.dataset.manuallyPaused = 'true';
             this.video.pause();
         }
     }
@@ -491,17 +432,12 @@ export class VideoPlayer {
         } else {
             this.centerPlayBtn.classList.add('hide-controls');
         }
-        // Меняем иконку play/pause
         if (this.video.paused || this.video.ended) {
             this.centerPlayBtn.innerHTML = `<svg viewBox="0 0 24 24" style="margin-left: 3px;"><path d="M8 5v14l11-7z" fill="#fff"/></svg>`;
-            if (this.bottomPlayBtn) {
-                this.bottomPlayBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>`;
-            }
+            if (this.bottomPlayBtn) this.bottomPlayBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>`;
         } else {
             this.centerPlayBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="#fff"/></svg>`;
-            if (this.bottomPlayBtn) {
-                this.bottomPlayBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="currentColor"/></svg>`;
-            }
+            if (this.bottomPlayBtn) this.bottomPlayBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="currentColor"/></svg>`;
         }
     }
 
@@ -529,77 +465,53 @@ export class VideoPlayer {
             const current = this._pausedSrc ? (this._pausedTime || 0) : (this.video.currentTime || 0);
             this.progressBar.max = 10000;
             this.progressBar.value = Math.round((current / duration) * 10000);
-
             const playbackPercent = (current / duration) * 100;
             let bufferedPercent = playbackPercent;
 
             if (this.video.buffered && this.video.buffered.length > 0) {
-                // Find the maximum end time of any buffer segment that covers or is immediately ahead of current time
                 let maxEnd = current;
-                
-                // First pass: find segments that contain current time
                 for (let i = 0; i < this.video.buffered.length; i++) {
                     const start = this.video.buffered.start(i);
                     const end = this.video.buffered.end(i);
-                    if (current >= start - 0.5 && current <= end + 0.1) {
-                        if (end > maxEnd) maxEnd = end;
-                    }
+                    if (current >= start - 0.5 && current <= end + 0.1 && end > maxEnd) maxEnd = end;
                 }
-                
-                // Second pass: bridge small gaps (up to 2 seconds) to find the contiguous buffered block ahead
                 let changed = true;
                 while (changed) {
                     changed = false;
                     for (let i = 0; i < this.video.buffered.length; i++) {
                         const start = this.video.buffered.start(i);
                         const end = this.video.buffered.end(i);
-                        // If segment starts within 2 seconds of our current maxEnd
                         if (start <= maxEnd + 2.0 && end > maxEnd) {
                             maxEnd = end;
                             changed = true;
                         }
                     }
                 }
-                
                 bufferedPercent = (maxEnd / duration) * 100;
-                
-                // If it's almost fully buffered (within 1s of end), snap to 100%
-                if (duration - maxEnd < 1.0) {
-                    bufferedPercent = 100;
-                }
+                if (duration - maxEnd < 1.0) bufferedPercent = 100;
             } else if (this.video.readyState >= 3) {
-                // HAVE_FUTURE_DATA or better usually means some buffer is available
-                // If buffered length is 0 but we have readyState >= 3, assume at least a tiny bit is buffered
                 bufferedPercent = Math.max(playbackPercent, playbackPercent + 1.5);
             } else if (this._pausedSrc) {
                 bufferedPercent = Math.max(playbackPercent, this._lastBufferedPercent || playbackPercent);
             }
-            
-            // Safety clamp
+
             bufferedPercent = Math.min(100, Math.max(playbackPercent, bufferedPercent));
             this._lastBufferedPercent = bufferedPercent;
-
-            // Refined multi-stop linear gradient for progress (played, buffered, background)
-            // Increased buffered region opacity to 0.45 for better visibility on all videos
-            this.progressBar.style.background = `linear-gradient(90deg, 
-                var(--accent, #ff3b6b) 0%, 
-                var(--accent, #ff3b6b) ${playbackPercent}%, 
-                rgba(255, 255, 255, 0.45) ${playbackPercent}%, 
-                rgba(255, 255, 255, 0.45) ${bufferedPercent}%, 
-                rgba(255, 255, 255, 0.1) ${bufferedPercent}%, 
+            this.progressBar.style.background = `linear-gradient(90deg,
+                var(--accent, #ff3b6b) 0%,
+                var(--accent, #ff3b6b) ${playbackPercent}%,
+                rgba(255, 255, 255, 0.45) ${playbackPercent}%,
+                rgba(255, 255, 255, 0.45) ${bufferedPercent}%,
+                rgba(255, 255, 255, 0.1) ${bufferedPercent}%,
                 rgba(255, 255, 255, 0.1) 100%)`;
 
             if (this.timeLabel) {
-                const cur = this._formatTime(current);
-                const dur = this._formatTime(duration);
-                this.timeLabel.textContent = `${cur} / ${dur}`;
+                this.timeLabel.textContent = `${this._formatTime(current)} / ${this._formatTime(duration)}`;
             }
         } else {
             this.progressBar.value = 0;
-            this.progressBar.style.background = `rgba(255, 255, 255, 0.15)`;
-            if (this.timeLabel) {
-                this.timeLabel.textContent = '0:00 / 0:00';
-            }
+            this.progressBar.style.background = 'rgba(255, 255, 255, 0.15)';
+            if (this.timeLabel) this.timeLabel.textContent = '0:00 / 0:00';
         }
     }
 
@@ -620,15 +532,11 @@ export class VideoPlayer {
     }
 
     _showLoading() {
-        if (this.loadingSpinner) {
-            this.loadingSpinner.classList.add('visible');
-        }
+        if (this.loadingSpinner) this.loadingSpinner.classList.add('visible');
     }
 
     _hideLoading() {
-        if (this.loadingSpinner) {
-            this.loadingSpinner.classList.remove('visible');
-        }
+        if (this.loadingSpinner) this.loadingSpinner.classList.remove('visible');
     }
 
     _formatTime(seconds) {
@@ -636,40 +544,33 @@ export class VideoPlayer {
         const h = Math.floor(seconds / 3600);
         const m = Math.floor((seconds % 3600) / 60);
         const s = seconds % 60;
-        if (h > 0) {
-            return `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
-        }
+        if (h > 0) return `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
         return `${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
     _updateSoundState() {
         if (!this.soundBtn) return;
         if (this.video.muted) {
-            this.soundBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>`;
-            if (this.volumeSlider) {
-                this.volumeSlider.value = 0;
-            }
+            this.soundBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>`;
+            if (this.volumeSlider) this.volumeSlider.value = 0;
         } else {
-            this.soundBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
-            if (this.volumeSlider) {
-                this.volumeSlider.value = this.video.volume;
-            }
+            this.soundBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>`;
+            if (this.volumeSlider) this.volumeSlider.value = this.video.volume;
         }
     }
 
-    // --- Автоскрытие ---
     _showControls(autoHide = false, delay = 3000) {
         this.controlsBar.classList.remove('hide-controls');
         this.centerPlayBtn.classList.remove('hide-controls');
         this._controlsVisible = true;
         this._lastShownTime = Date.now();
         if (this.hideTimeout) clearTimeout(this.hideTimeout);
-        
         if (autoHide && !this.video.paused && !this.video.ended) {
             this.hideTimeout = setTimeout(() => this._hideControls(true), delay);
         }
     }
-    _hideControls(isAutomatic = false) {
+
+    _hideControls() {
         if (this.video.paused || this.video.ended) {
             this.controlsBar.classList.remove('hide-controls');
             this.centerPlayBtn.classList.remove('hide-controls');
@@ -684,69 +585,37 @@ export class VideoPlayer {
     _showSeekIndicator(direction) {
         const indicator = document.createElement('div');
         indicator.className = `seek-indicator ${direction === 'forward' ? 'forward' : 'backward'}`;
-        
-        if (direction === 'forward') {
-            indicator.innerHTML = `
-                <div style="font-size: 3rem; margin-bottom: 8px;">${icon('fastForward', { size: 48 })}</div>
-                <div style="font-size: 1.2rem; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">+10 сек</div>
-            `;
-        } else {
-            indicator.innerHTML = `
-                <div style="font-size: 3rem; margin-bottom: 8px;">${icon('rewind', { size: 48 })}</div>
-                <div style="font-size: 1.2rem; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">-10 сек</div>
-            `;
-        }
-        
+        indicator.innerHTML = `<div style="font-size: 3rem; margin-bottom: 8px;">${icon(direction === 'forward' ? 'fastForward' : 'rewind', { size: 48 })}</div><div style="font-size: 1.2rem; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">${direction === 'forward' ? '+10' : '-10'} sec</div>`;
         this.container.appendChild(indicator);
-        // Force reflow
         indicator.offsetHeight;
         indicator.classList.add('visible');
-        
         setTimeout(() => {
             indicator.classList.remove('visible');
-            setTimeout(() => {
-                indicator.remove();
-            }, 250);
+            setTimeout(() => indicator.remove(), 250);
         }, 500);
     }
 
     _showFreezeFrame() {
         if (!this.video.videoWidth || !this.video.videoHeight) return false;
-        
-        if (this._freezeCanvas) {
-            this._freezeCanvas.remove();
-        }
-        
+        if (this._freezeCanvas) this._freezeCanvas.remove();
         const canvas = document.createElement('canvas');
         canvas.className = 'video-freeze-frame';
         canvas.width = this.video.videoWidth;
         canvas.height = this.video.videoHeight;
-        
         const ctx = canvas.getContext('2d');
         try {
             ctx.drawImage(this.video, 0, 0, canvas.width, canvas.height);
         } catch (e) {
-            console.warn("Failed to draw freeze frame:", e);
+            console.warn('Failed to draw freeze frame:', e);
             canvas.remove();
             return false;
         }
-        
-        canvas.style.position = 'absolute';
-        canvas.style.top = '0';
-        canvas.style.left = '0';
-        canvas.style.width = '100%';
-        canvas.style.height = '100%';
-        canvas.style.objectFit = 'contain';
-        canvas.style.pointerEvents = 'none';
-        canvas.style.zIndex = '1';
-        
-        if (this.video.style.objectFit) {
-            canvas.style.objectFit = this.video.style.objectFit;
-        }
-        
+        Object.assign(canvas.style, {
+            position: 'absolute', top: '0', left: '0', width: '100%', height: '100%',
+            objectFit: this.video.style.objectFit || 'contain', pointerEvents: 'none', zIndex: '1'
+        });
         this.container.insertBefore(canvas, this.controlsBar);
         this._freezeCanvas = canvas;
-        
         this.video.style.visibility = 'hidden';
         return true;
     }
@@ -756,10 +625,7 @@ export class VideoPlayer {
             this._freezeCanvas.remove();
             this._freezeCanvas = null;
         }
-        // Убираем любые залипшие превью, если они остались из-за багов с таймингами
-        const lingering = this.container.querySelectorAll('.video-freeze-frame');
-        lingering.forEach(c => c.remove());
-        
+        this.container.querySelectorAll('.video-freeze-frame').forEach(canvas => canvas.remove());
         this.video.style.visibility = 'visible';
     }
 
@@ -769,13 +635,11 @@ export class VideoPlayer {
             const savedTime = this._pausedTime || 0;
             const savedSrc = this._pausedSrc;
             this._pausedSrc = null;
-            
             this.video.src = savedSrc;
             this.video.load();
-            
+
             const seekPercent = this._pendingSeekPercent;
             this._pendingSeekPercent = null;
-            
             const restoreHandler = () => {
                 const duration = this._duration || this.video.duration;
                 if (seekPercent !== null && seekPercent !== undefined && duration) {
@@ -783,7 +647,7 @@ export class VideoPlayer {
                 } else {
                     this.video.currentTime = savedTime;
                 }
-                
+
                 let restored = false;
                 const onReady = () => {
                     if (restored) return;
@@ -793,15 +657,13 @@ export class VideoPlayer {
                     if (this._shouldPlayOnRestore) {
                         this._shouldPlayOnRestore = false;
                         this.video.play().catch(e => {
-                            console.log("Play failed on restore:", e);
+                            console.log('Play failed on restore:', e);
                             this._hideFreezeFrame();
                         });
-                        // НЕ скрываем freezeFrame здесь, ждем события 'playing', чтобы не было моргания
                     } else {
                         this._hideFreezeFrame();
                     }
                 };
-                
                 this.video.addEventListener('seeked', onReady, { once: true });
                 this.video.addEventListener('canplay', onReady, { once: true });
                 this.video.addEventListener('playing', onReady, { once: true });
@@ -810,23 +672,17 @@ export class VideoPlayer {
 
             this.video.addEventListener('loadeddata', restoreHandler, { once: true });
             setTimeout(() => {
-                if (this._isRestoring) {
-                    restoreHandler();
-                }
+                if (this._isRestoring) restoreHandler();
             }, 300);
         }
     }
 
     _destroy() {
         this._stopProgressLoop();
-        if (this._unloadTimeout) {
-            clearTimeout(this._unloadTimeout);
-        }
-        if (this._freezeCanvas) {
-            this._freezeCanvas.remove();
-        }
+        if (this._unloadTimeout) clearTimeout(this._unloadTimeout);
+        if (this._freezeCanvas) this._freezeCanvas.remove();
         if (window.activeVideoPlayers) {
-            window.activeVideoPlayers = window.activeVideoPlayers.filter(p => p !== this);
+            window.activeVideoPlayers = window.activeVideoPlayers.filter(player => player !== this);
         }
     }
 }
