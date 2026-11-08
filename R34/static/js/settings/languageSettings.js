@@ -1,11 +1,11 @@
 /**
- * Interface language switch and small cross-cutting UI fixes.
+ * Interface language switch and cross-cutting UI fixes.
  *
  * The English dictionary is extended here for strings emitted by settings and
  * controls; the main i18n observer continues to translate dynamically added UI.
  */
 
-import { getLanguage, setLanguage, applyLanguage, } from '../i18n/i18n.js';
+import { getLanguage, setLanguage, applyLanguage } from '../i18n/i18n.js';
 import { EN } from '../i18n/locales/en.js';
 import { saveSettingsToServer } from '../init/initServerSync.js';
 
@@ -40,12 +40,9 @@ const EXTRA_EN = [
     ['Игнорировать', 'Ignore'],
     ['Включенные теги', 'Included tags'],
     ['Исключенные теги', 'Excluded tags'],
-    ['Скрывать теги до наведения', 'Hide tags until hover'],
-    ['Скрыть теги до наведения', 'Hide tags until hover'],
     ['Продвинутые настройки:', 'Advanced settings:'],
     ['Показать панель поиска', 'Show search panel'],
     ['Показать поиск', 'Show search'],
-    ['Поиск', 'Search'],
     ['Галерея', 'Gallery'],
     ['Избранное', 'Favorites'],
     ['Настройки', 'Settings'],
@@ -72,20 +69,39 @@ const EXTRA_EN = [
     ['Упростить пазлы', 'Simplify puzzles'],
     ['Не удалось загрузить', 'Failed to load'],
     ['Проверьте соединение.', 'Check your connection.'],
+    ['Размер карточек', 'Card size'],
+    ['Толщина рамки карточки', 'Card border width'],
+    ['Цвет рамки карточки', 'Card border color'],
+    ['Скорость анимации карточек', 'Card animation speed'],
+    ['Интенсивность свечения карточки', 'Card glow intensity'],
+    ['Показывать теги в описании', 'Show tags in the description'],
+    ['Шрифт для всего сайта', 'Site-wide font'],
+    ['Стиль шапки поиска', 'Search header style'],
+    ['Свои настройки', 'Custom settings'],
+    ['Сохранение...', 'Saving...'],
+    ['Авто-скролл', 'Auto-scroll'],
+    ['Стоп скролл', 'Stop scrolling'],
+    ['Очистить', 'Clear'],
+    ['Сбросить настройки', 'Reset settings'],
+    ['Сбросить все настройки?', 'Reset all settings?'],
+    ['Ваш экран слишком мал для', 'Your screen is too small for'],
+    ['колонок — сейчас доступно максимум', 'columns — the current maximum is'],
 ];
 
 Object.assign(EN, Object.fromEntries(EXTRA_EN));
 
 function installMobileSettingsFixes() {
-    // These mobile rules must come after the page stylesheets: several older
-    // responsive declarations hard-code values and otherwise mask advanced
-    // settings such as card radius, spacing, tag size, border, and transition.
+    // Keep responsive CSS variables from losing to fixed values in legacy
+    // mobile media queries. Include both the normal and multi-column gallery.
     if (!document.getElementById('r34-mobile-advanced-settings-fix')) {
         const style = document.createElement('style');
         style.id = 'r34-mobile-advanced-settings-fix';
         style.textContent = `
             @media (max-width: 900px) {
-                #results { gap: var(--media-gap, 16px) !important; }
+                #results,
+                #results.multi-cols-mode {
+                    gap: var(--media-gap, 16px) !important;
+                }
                 .media-container {
                     border-radius: var(--media-radius, 16px) !important;
                     border-width: var(--card-border-width, 1px) !important;
@@ -93,7 +109,8 @@ function installMobileSettingsFixes() {
                     transition-duration: var(--card-transition-speed, 300ms) !important;
                 }
                 .media-container > img,
-                .media-container video.media-content {
+                .media-container video.media-content,
+                .media-container .media-content {
                     border-radius: inherit !important;
                 }
                 .media-extra-info {
@@ -102,30 +119,46 @@ function installMobileSettingsFixes() {
                 .media-tag {
                     font-size: var(--tag-font-size, 0.88rem) !important;
                 }
+                .media-extra-info .media-tags-list {
+                    display: var(--card-tags-display, flex) !important;
+                }
             }
             .r34-search-mini-tags { display: none !important; }
         `;
         document.head.appendChild(style);
     }
 
-    // The feature was removed. Clear its persisted value as well, so legacy
-    // preferences cannot keep hiding card tags after an update.
+    // The hover-only tag option was removed: hide its old markup and discard
+    // its stored preference so it cannot affect users upgrading from older builds.
     document.getElementById('pcOnlyTagsHoverOption')?.remove();
     localStorage.removeItem('r34_tags_only_on_hover');
     document.body.classList.remove('r34-tags-hover-only');
 
-    // Preserve the user's explicit mute choice when the player starts. The
-    // player used to force `muted = false` in its play toggle.
+    // The compact floating search bar should not show a copy of the active tags.
+    const miniTags = document.getElementById('searchMiniTags');
+    if (miniTags) {
+        miniTags.replaceChildren();
+        miniTags.hidden = true;
+        miniTags.setAttribute('aria-hidden', 'true');
+    }
+
+    // Remember the actual mute state after the sound button's click handler has
+    // toggled it. A capture-phase click reads the old state and can desync.
     if (!document.documentElement.dataset.r34MuteFixInstalled) {
         document.documentElement.dataset.r34MuteFixInstalled = 'true';
         document.addEventListener('click', (event) => {
+            if (!(event.target instanceof Element)) return;
             const soundButton = event.target.closest('.video-bottom-sound-btn');
             if (!soundButton) return;
-            const player = soundButton.closest('.custom-video-controls')?.parentElement;
-            const video = player?.querySelector('video');
-            if (video) video.dataset.r34UserMuted = String(!video.muted);
-        }, true);
+            const video = soundButton.closest('.custom-video-controls')?.parentElement?.querySelector('video');
+            if (!video) return;
+            queueMicrotask(() => {
+                video.dataset.r34UserMuted = String(video.muted);
+            });
+        });
 
+        // VideoPlayer's play toggle historically clears `muted`; restore the
+        // explicit user choice before playback begins.
         document.addEventListener('play', (event) => {
             const video = event.target;
             if (!(video instanceof HTMLVideoElement) || !('r34UserMuted' in video.dataset)) return;
@@ -133,13 +166,15 @@ function installMobileSettingsFixes() {
         }, true);
     }
 
-    // The modal body is the actual scroll container. Reset it on open and on
-    // either tab switch, including on mobile where the full-screen modal made
-    // the previous tab's scroll position particularly confusing.
+    // The settings body is the actual scroll container. Reset it on open and
+    // whenever a tab changes, including any independently scrollable pane.
     const settingsModal = document.getElementById('settings-modal');
     const settingsBody = settingsModal?.querySelector('.settings-modal-body');
     const resetSettingsScroll = () => {
         if (settingsBody) settingsBody.scrollTop = 0;
+        settingsModal?.querySelectorAll('.settings-tab-pane').forEach(pane => {
+            pane.scrollTop = 0;
+        });
         const preview = document.getElementById('settingsPreviewArea');
         if (preview) preview.scrollTop = 0;
     };
@@ -148,7 +183,10 @@ function installMobileSettingsFixes() {
         requestAnimationFrame(() => requestAnimationFrame(resetSettingsScroll));
     });
     settingsModal?.querySelectorAll('.settings-tab-btn').forEach((button) => {
-        button.addEventListener('click', () => requestAnimationFrame(resetSettingsScroll));
+        button.addEventListener('click', () => {
+            resetSettingsScroll();
+            requestAnimationFrame(resetSettingsScroll);
+        });
     });
 
     if (getLanguage() === 'en') applyLanguage(document.body);
@@ -160,7 +198,6 @@ export function initLanguageSettings() {
     if (!container) return;
 
     const buttons = Array.from(container.querySelectorAll('.settings-lang-btn'));
-
     const paint = (lang) => {
         buttons.forEach((btn) => {
             const isActive = btn.dataset.lang === lang;
