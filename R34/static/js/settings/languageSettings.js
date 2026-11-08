@@ -90,48 +90,63 @@ Object.assign(EN, Object.fromEntries(EXTRA_EN));
 function rememberVideoMutePreference(video) {
     if (!(video instanceof HTMLVideoElement)) return;
 
-    // Called after the mute button's handler has changed `video.muted`.
-    video.dataset.r34UserMuted = String(video.muted);
+    const muted = Boolean(video.muted);
+    // Keep an independent preference: VideoPlayer's volumechange listener and
+    // mobile media reloads may alter `muted`, but must not overwrite this value.
+    video.dataset.r34MutePreference = String(muted);
+    video.dataset.r34UserMuted = String(muted);
+    video.defaultMuted = muted;
+    if (muted) video.setAttribute('muted', '');
+    else video.removeAttribute('muted');
 
-    // VideoPlayer._togglePlay() used to unconditionally clear `muted` before
-    // calling play(). Wrap its existing play method (which may itself restore
-    // an unloaded source) so the saved user choice wins immediately before the
-    // native play call. This is reliable on touch browsers where the play event
-    // can arrive after the browser has already updated the controls.
+    const player = video._videoPlayerInstance;
+    if (player) player._userMuted = muted;
+
     if (!video.dataset.r34MutePreferenceWrapped) {
         video.dataset.r34MutePreferenceWrapped = 'true';
-        const existingPlay = video.play;
+        const playerPlay = video.play;
         video.play = function (...args) {
-            this.muted = this.dataset.r34UserMuted === 'true';
-            return existingPlay.apply(this, args);
+            const preference = this.dataset.r34MutePreference;
+            if (preference !== undefined) {
+                const shouldMute = preference === 'true';
+                // VideoPlayer's wrapper sets its internal state before calling
+                // native play, so update that state before delegating to it.
+                if (this._videoPlayerInstance) this._videoPlayerInstance._userMuted = shouldMute;
+                this.defaultMuted = shouldMute;
+                if (shouldMute) this.setAttribute('muted', '');
+                else this.removeAttribute('muted');
+                this.muted = shouldMute;
+            }
+            return playerPlay.apply(this, args);
         };
     }
 
-    const enforcePreference = () => {
-        video.muted = video.dataset.r34UserMuted === 'true';
-        video._videoPlayerInstance?._updateSoundState?.();
-    };
     if (!video.dataset.r34MutePreferenceEventsInstalled) {
         video.dataset.r34MutePreferenceEventsInstalled = 'true';
-        // Re-apply once playback starts as a guard for browsers that adjust the
-        // muted flag while beginning a media session.
-        video.addEventListener('play', enforcePreference);
-        video.addEventListener('playing', enforcePreference);
+        const enforcePreference = () => {
+            const preference = video.dataset.r34MutePreference;
+            if (preference === undefined) return;
+            const shouldMute = preference === 'true';
+            if (video._videoPlayerInstance) video._videoPlayerInstance._userMuted = shouldMute;
+            video.defaultMuted = shouldMute;
+            if (shouldMute) video.setAttribute('muted', '');
+            else video.removeAttribute('muted');
+            if (video.muted !== shouldMute) video.muted = shouldMute;
+            video._videoPlayerInstance?._updateSoundState?.();
+        };
+        video.addEventListener('play', enforcePreference, true);
+        video.addEventListener('playing', enforcePreference, true);
     }
 }
 
 function installMobileSettingsFixes() {
-    // Keep responsive CSS variables from losing to fixed values in legacy
-    // mobile media queries. Include both the normal and multi-column gallery.
     if (!document.getElementById('r34-mobile-advanced-settings-fix')) {
         const style = document.createElement('style');
         style.id = 'r34-mobile-advanced-settings-fix';
         style.textContent = `
             @media (max-width: 900px) {
                 #results,
-                #results.multi-cols-mode {
-                    gap: var(--media-gap, 16px) !important;
-                }
+                #results.multi-cols-mode { gap: var(--media-gap, 16px) !important; }
                 .media-container {
                     border-radius: var(--media-radius, 16px) !important;
                     border-width: var(--card-border-width, 1px) !important;
@@ -140,31 +155,20 @@ function installMobileSettingsFixes() {
                 }
                 .media-container > img,
                 .media-container video.media-content,
-                .media-container .media-content {
-                    border-radius: inherit !important;
-                }
-                .media-extra-info {
-                    border-radius: var(--media-radius, 16px) !important;
-                }
-                .media-tag {
-                    font-size: var(--tag-font-size, 0.88rem) !important;
-                }
-                .media-extra-info .media-tags-list {
-                    display: var(--card-tags-display, flex) !important;
-                }
+                .media-container .media-content { border-radius: inherit !important; }
+                .media-extra-info { border-radius: var(--media-radius, 16px) !important; }
+                .media-tag { font-size: var(--tag-font-size, 0.88rem) !important; }
+                .media-extra-info .media-tags-list { display: var(--card-tags-display, flex) !important; }
             }
             .r34-search-mini-tags { display: none !important; }
         `;
         document.head.appendChild(style);
     }
 
-    // The hover-only tag option was removed: hide its old markup and discard
-    // its stored preference so it cannot affect users upgrading from older builds.
     document.getElementById('pcOnlyTagsHoverOption')?.remove();
     localStorage.removeItem('r34_tags_only_on_hover');
     document.body.classList.remove('r34-tags-hover-only');
 
-    // The compact floating search bar should not show a copy of the active tags.
     const miniTags = document.getElementById('searchMiniTags');
     if (miniTags) {
         miniTags.replaceChildren();
@@ -172,28 +176,25 @@ function installMobileSettingsFixes() {
         miniTags.setAttribute('aria-hidden', 'true');
     }
 
-    // Observe the sound button after its own handler runs, so the preference
-    // matches the new muted state rather than the previous one.
     if (!document.documentElement.dataset.r34MuteFixInstalled) {
         document.documentElement.dataset.r34MuteFixInstalled = 'true';
+        // Both mute controls are supported. Defer until their click handlers
+        // have toggled the element; capturing the event reads the old value.
         document.addEventListener('click', (event) => {
             if (!(event.target instanceof Element)) return;
-            const soundButton = event.target.closest('.video-bottom-sound-btn');
-            if (!soundButton) return;
-            const video = soundButton.closest('.custom-video-controls')?.parentElement?.querySelector('video');
-            if (video) rememberVideoMutePreference(video);
-        });
+            const button = event.target.closest('.video-bottom-sound-btn, .sound-toggle-btn');
+            if (!button) return;
+            const video = button.closest('.custom-video-controls')?.parentElement?.querySelector('video')
+                || button.closest('.sound-control-wrapper')?.parentElement?.querySelector('video');
+            if (video) queueMicrotask(() => rememberVideoMutePreference(video));
+        }, true);
     }
 
-    // The settings body is the actual scroll container. Reset it on open and
-    // whenever a tab changes, including any independently scrollable pane.
     const settingsModal = document.getElementById('settings-modal');
     const settingsBody = settingsModal?.querySelector('.settings-modal-body');
     const resetSettingsScroll = () => {
         if (settingsBody) settingsBody.scrollTop = 0;
-        settingsModal?.querySelectorAll('.settings-tab-pane').forEach(pane => {
-            pane.scrollTop = 0;
-        });
+        settingsModal?.querySelectorAll('.settings-tab-pane').forEach(pane => { pane.scrollTop = 0; });
         const preview = document.getElementById('settingsPreviewArea');
         if (preview) preview.scrollTop = 0;
     };
@@ -201,7 +202,7 @@ function installMobileSettingsFixes() {
         resetSettingsScroll();
         requestAnimationFrame(() => requestAnimationFrame(resetSettingsScroll));
     });
-    settingsModal?.querySelectorAll('.settings-tab-btn').forEach((button) => {
+    settingsModal?.querySelectorAll('.settings-tab-btn').forEach(button => {
         button.addEventListener('click', () => {
             resetSettingsScroll();
             requestAnimationFrame(resetSettingsScroll);
@@ -218,7 +219,7 @@ export function initLanguageSettings() {
 
     const buttons = Array.from(container.querySelectorAll('.settings-lang-btn'));
     const paint = (lang) => {
-        buttons.forEach((btn) => {
+        buttons.forEach(btn => {
             const isActive = btn.dataset.lang === lang;
             btn.classList.toggle('active', isActive);
             btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
@@ -226,20 +227,15 @@ export function initLanguageSettings() {
     };
 
     paint(getLanguage());
-
-    buttons.forEach((btn) => {
+    buttons.forEach(btn => {
         const lang = btn.dataset.lang;
         if (!lang) return;
         btn.addEventListener('click', async () => {
             if (btn.classList.contains('active')) return;
             paint(lang);
             await setLanguage(lang);
-            // Keep the selected language in shared settings for other devices.
             saveSettingsToServer();
         });
     });
-
-    document.addEventListener('r34:language-changed', (event) => {
-        paint(event.detail.lang);
-    });
+    document.addEventListener('r34:language-changed', event => paint(event.detail.lang));
 }
