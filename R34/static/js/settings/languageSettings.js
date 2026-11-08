@@ -76,19 +76,49 @@ const EXTRA_EN = [
     ['Интенсивность свечения карточки', 'Card glow intensity'],
     ['Показывать теги в описании', 'Show tags in the description'],
     ['Шрифт для всего сайта', 'Site-wide font'],
-    ['Стиль шапки поиска', 'Search header style'],
     ['Свои настройки', 'Custom settings'],
     ['Сохранение...', 'Saving...'],
     ['Авто-скролл', 'Auto-scroll'],
     ['Стоп скролл', 'Stop scrolling'],
     ['Очистить', 'Clear'],
-    ['Сбросить настройки', 'Reset settings'],
-    ['Сбросить все настройки?', 'Reset all settings?'],
     ['Ваш экран слишком мал для', 'Your screen is too small for'],
     ['колонок — сейчас доступно максимум', 'columns — the current maximum is'],
 ];
 
 Object.assign(EN, Object.fromEntries(EXTRA_EN));
+
+function rememberVideoMutePreference(video) {
+    if (!(video instanceof HTMLVideoElement)) return;
+
+    // Called after the mute button's handler has changed `video.muted`.
+    video.dataset.r34UserMuted = String(video.muted);
+
+    // VideoPlayer._togglePlay() used to unconditionally clear `muted` before
+    // calling play(). Wrap its existing play method (which may itself restore
+    // an unloaded source) so the saved user choice wins immediately before the
+    // native play call. This is reliable on touch browsers where the play event
+    // can arrive after the browser has already updated the controls.
+    if (!video.dataset.r34MutePreferenceWrapped) {
+        video.dataset.r34MutePreferenceWrapped = 'true';
+        const existingPlay = video.play;
+        video.play = function (...args) {
+            this.muted = this.dataset.r34UserMuted === 'true';
+            return existingPlay.apply(this, args);
+        };
+    }
+
+    const enforcePreference = () => {
+        video.muted = video.dataset.r34UserMuted === 'true';
+        video._videoPlayerInstance?._updateSoundState?.();
+    };
+    if (!video.dataset.r34MutePreferenceEventsInstalled) {
+        video.dataset.r34MutePreferenceEventsInstalled = 'true';
+        // Re-apply once playback starts as a guard for browsers that adjust the
+        // muted flag while beginning a media session.
+        video.addEventListener('play', enforcePreference);
+        video.addEventListener('playing', enforcePreference);
+    }
+}
 
 function installMobileSettingsFixes() {
     // Keep responsive CSS variables from losing to fixed values in legacy
@@ -142,8 +172,8 @@ function installMobileSettingsFixes() {
         miniTags.setAttribute('aria-hidden', 'true');
     }
 
-    // Remember the actual mute state after the sound button's click handler has
-    // toggled it. A capture-phase click reads the old state and can desync.
+    // Observe the sound button after its own handler runs, so the preference
+    // matches the new muted state rather than the previous one.
     if (!document.documentElement.dataset.r34MuteFixInstalled) {
         document.documentElement.dataset.r34MuteFixInstalled = 'true';
         document.addEventListener('click', (event) => {
@@ -151,19 +181,8 @@ function installMobileSettingsFixes() {
             const soundButton = event.target.closest('.video-bottom-sound-btn');
             if (!soundButton) return;
             const video = soundButton.closest('.custom-video-controls')?.parentElement?.querySelector('video');
-            if (!video) return;
-            queueMicrotask(() => {
-                video.dataset.r34UserMuted = String(video.muted);
-            });
+            if (video) rememberVideoMutePreference(video);
         });
-
-        // VideoPlayer's play toggle historically clears `muted`; restore the
-        // explicit user choice before playback begins.
-        document.addEventListener('play', (event) => {
-            const video = event.target;
-            if (!(video instanceof HTMLVideoElement) || !('r34UserMuted' in video.dataset)) return;
-            video.muted = video.dataset.r34UserMuted === 'true';
-        }, true);
     }
 
     // The settings body is the actual scroll container. Reset it on open and
