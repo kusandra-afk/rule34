@@ -1,7 +1,6 @@
 import { escapeHtml } from '../utils.js';
 import { PhotoViewer } from './photoViewer.js';
 import { VideoPlayer } from './videoPlayer.js';
-import { markViewed } from '../viewedPosts.js';
 import { downloadMedia } from '../mediaDownload.js';
 
 export class FullscreenViewer {
@@ -157,14 +156,6 @@ export class FullscreenViewer {
         const postsList = g._activeFullscreenPosts || (g.isFavoritesActive ? g.favoritesPosts : g.currentPosts);
         const post = postsList ? postsList[idx] : null;
         if (!post) return;
-
-        // Листание — тоже просмотр: помечаем пост, который реально показан,
-        // а не только тот, по карточке которого кликнули.
-        if (post.id !== undefined) {
-            markViewed(post.id);
-            const viewedCard = document.querySelector(`.media-container[data-idx="${idx}"]`);
-            if (viewedCard) viewedCard.classList.add('is-viewed');
-        }
 
         g._preloadAdjacent(idx);
 

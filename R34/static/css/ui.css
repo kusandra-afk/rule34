@@ -2571,7 +2571,7 @@ body:not(.can-hover) #favColumnsGroup .fav-col-btn:active {
 /* Puzzle Library Grid & Card */
 /* Список — единственная прокручиваемая область модалки. */
 .puzzle-lib-grid {
-    display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap: 16px;
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(min(200px, calc((100% - 16px) / 2)),1fr)); gap: 16px;
     overflow-y: auto; overscroll-behavior: contain;
     flex: 1 1 auto; min-height: 0;
     padding-right: 4px;
@@ -2753,7 +2753,11 @@ body:not(.can-hover) #favColumnsGroup .fav-col-btn:active {
     .puzzle-lib-summary-value { font-size: 1rem; }
     .puzzle-lib-summary-label { font-size: 0.6rem; letter-spacing: 0.2px; }
 
-    .puzzle-lib-grid { gap: 12px; padding-right: 0; }
+    .puzzle-lib-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        padding-right: 0;
+    }
     .puzzle-lib-card { padding: 12px; gap: 10px; }
     .puzzle-lib-thumb { height: 140px; }
     .puzzle-lib-empty-container { padding: 40px 16px; }

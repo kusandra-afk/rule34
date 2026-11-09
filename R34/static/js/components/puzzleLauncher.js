@@ -3,7 +3,7 @@ import { lockPageScroll, releasePageScroll } from '../backgroundPause.js';
  * Puzzle Game Launcher & Menu Component
  */
 
-import { PuzzleGame } from './puzzleGame.js';
+import { PuzzleGame } from './puzzleGame.js?v=2.5.4';
 import { PuzzleOnlineManager } from './puzzleOnline.js';
 import { loadResume, clearResume } from '../puzzle/resume.js';
 import { icon } from '../icons.js';

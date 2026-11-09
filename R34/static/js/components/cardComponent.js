@@ -1,6 +1,5 @@
 import { escapeHtml } from '../utils.js';
 import { localeTag } from '../i18n/i18n.js';
-import { isViewed } from '../viewedPosts.js';
 import { downloadMedia } from '../mediaDownload.js';
 
 export class CardComponent {
@@ -64,9 +63,6 @@ export class CardComponent {
             container.classList.add('custom-cols');
         }
         container.dataset.idx = index;
-        if (isViewed(post.id)) {
-            container.classList.add('is-viewed');
-        }
 
         if (isVideo) {
             const cachedDuration = parseFloat(localStorage.getItem(`r34_duration_${post.id}`));
@@ -176,7 +172,13 @@ export class CardComponent {
             soundBtn.onclick = (e) => {
                 e.stopPropagation();
                 if (container._videoEl) {
-                    container._videoEl.muted = !container._videoEl.muted;
+                    const video = container._videoEl;
+                    const muted = !video.muted;
+                    if (video._videoPlayerInstance) {
+                        video._videoPlayerInstance._setMuted(muted);
+                    } else {
+                        video.muted = muted;
+                    }
                     if (!container._videoEl.muted && container._videoEl.volume === 0) {
                         container._videoEl.volume = 0.5;
                         slider.value = 0.5;
@@ -187,13 +189,14 @@ export class CardComponent {
             slider.oninput = (e) => {
                 e.stopPropagation();
                 if (container._videoEl) {
+                    const video = container._videoEl;
                     const volNum = parseFloat(slider.value);
-                    container._videoEl.volume = volNum;
-                    if (volNum > 0 && container._videoEl.muted) {
-                        container._videoEl.muted = false;
-                    }
-                    if (volNum === 0) {
-                        container._videoEl.muted = true;
+                    video.volume = volNum;
+                    const muted = volNum === 0;
+                    if (video._videoPlayerInstance) {
+                        video._videoPlayerInstance._setMuted(muted);
+                    } else {
+                        video.muted = muted;
                     }
                     const volPct = Math.round(volNum * 100);
                     localStorage.setItem('r34_default_volume', volPct.toString());

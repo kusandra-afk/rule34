@@ -5,6 +5,10 @@
  * i18n layer translates text nodes and selected attributes at runtime.
  */
 
+import { EXTRA } from './en-recovered.js';
+import { UI } from './en-ui.js';
+import { DYNAMIC } from './en-dynamic.js';
+
 const PART1 = [
     ["${c * r} деталей (${c}x${r})", "${c * r} pieces (${c}x${r})"],
     ["${cols} столб.", "${cols} cols"],
@@ -225,7 +229,6 @@ const PART13 = [
     ["Язык интерфейса", "Interface language"],
     ["Переключает язык всего интерфейса без перезагрузки страницы. Выбор сохраняется в браузере и на сервере.", "Changes the interface language without reloading. Your choice is saved in this browser and on the server."],
     ["Поиск по тегам...", "Search by tags..."],
-    ["Недавние запросы", "Recent searches"],
     ["Убрать из истории", "Remove from history"],
     ["Скрыть настройки", "Hide settings"],
     ["Показывать теги в описании", "Show tags in the description"],
@@ -264,9 +267,6 @@ const PART13 = [
     ["Обновить список", "Refresh list"],
     ["Войти", "Sign in"],
     ["Войти в комнату", "Join room"],
-    ["Пока никто не хостит — создайте комнату.", "Nobody is hosting yet — create a room."],
-    ["Не удалось загрузить список комнат.", "Could not load the room list."],
-    ["Открытые комнаты", "Open rooms"],
     ["Игрок", "Player"],
     ["Игрок_", "Player_"],
     ["Твоё имя:", "Your name:"],
@@ -374,5 +374,5 @@ const PART13 = [
 ];
 
 export const EN = Object.fromEntries(
-    [].concat(PART1, PART2, PART3, PART4, PART5, PART6, PART7, PART8, PART9, PART10, PART11, PART12, PART13)
+    [].concat(PART1, PART13, EXTRA, UI, DYNAMIC)
 );

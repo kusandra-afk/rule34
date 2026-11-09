@@ -407,7 +407,13 @@ export class VideoPlayer {
 
     _setMuted(muted) {
         this._userMuted = Boolean(muted);
-        this.video.dataset.r34UserMuted = String(this._userMuted);
+        const value = String(this._userMuted);
+        this.video.dataset.r34UserMuted = value;
+        this.video.dataset.r34ExplicitMuted = value;
+        this.video.dataset.r34MutePreference = value;
+        this.video.defaultMuted = this._userMuted;
+        if (this._userMuted) this.video.setAttribute('muted', '');
+        else this.video.removeAttribute('muted');
         this.video.muted = this._userMuted;
     }
 

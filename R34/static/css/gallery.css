@@ -28,6 +28,13 @@ body[data-gallery-cols="5"] #results {
 }
 
 /* Режим низкой мощности (включает снижение анимаций и быстрое открытие) */
+body.r34-low-power-mode {
+  --glass-bg: var(--dark-2, #0e1016);
+  --glass-bg-strong: var(--dark-3, #151821);
+  --header-bg: var(--dark-2, #0e1016);
+  --tag-bg: var(--dark-3, #151821);
+}
+
 body.r34-low-power-mode .media-container,
 body.r34-low-power-mode .media-source-block,
 body.r34-low-power-mode .media-extra-info {
@@ -74,9 +81,36 @@ body.r34-low-power-mode .spinner,
 body.r34-low-power-mode .loading-spinner,
 body.r34-low-power-mode .pagination-loader,
 body.r34-low-power-mode .puzzle-loader-spinner,
+body.r34-low-power-mode .puzzle-loading-spinner,
 body.r34-low-power-mode .searching {
   animation-duration: 0.9s !important;
   animation-iteration-count: infinite !important;
+}
+
+/* Контролы медиа сохраняют своё стекло: им нужен контраст поверх кадра. */
+body.r34-low-power-mode .media-container,
+body.r34-low-power-mode .media-slide {
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-bg-strong: rgba(255, 255, 255, 0.08);
+  --header-bg: rgba(10, 12, 18, 0.45);
+}
+
+body.r34-low-power-mode .media-slide .gallery-video-controls-wrapper,
+body.r34-low-power-mode .media-slide .photo-controls-bar.fullscreen {
+  backdrop-filter: var(--header-backdrop-filter, blur(24px) saturate(1.4)) !important;
+  -webkit-backdrop-filter: var(--header-backdrop-filter, blur(24px) saturate(1.4)) !important;
+}
+
+body.r34-low-power-mode .media-container :is(.video-btn, .sound-btn, .hd-btn, .video-bottom-hd-btn),
+body.r34-low-power-mode .media-slide :is(.video-btn, .sound-btn, .hd-btn, .video-bottom-hd-btn) {
+  backdrop-filter: blur(var(--glass-blur, 28px)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur, 28px)) !important;
+}
+
+body.r34-low-power-mode .media-container .center-play-btn,
+body.r34-low-power-mode .media-slide .center-play-btn {
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
 }
 
 /* Футуристичный слой — живой фон, скан-линия по карточке, блик по
@@ -1368,58 +1402,6 @@ body.can-hover .r34-source-link-btn:hover .r34-link-arrow, body:not(.can-hover) 
   border-radius: var(--media-radius);
 }
 
-/* ============================================================
-   ENHANCED CARD SCANLINE — Улучшенный сканирующий блик
-   ============================================================ */
-.media-container::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  z-index: 3;
-  border-radius: inherit;
-  opacity: 0;
-  pointer-events: none;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(var(--accent-rgb), 0.15) 0%,
-    transparent 70%
-  );
-  transition: opacity var(--dur-slow) var(--ease);
-}
-
-body.can-hover .media-container:hover::before {
-  animation: borderGlowPulse 2s var(--ease-in-out) infinite;
-}
-
-@keyframes borderGlowPulse {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
-}
-
-/* ============================================================
-   ПРОСМОТРЕННЫЕ ПОСТЫ
-   ============================================================ */
-.media-container.is-viewed {
-    opacity: 0.72;
-}
-
-.media-container.is-viewed img,
-.media-container.is-viewed video {
-    filter: saturate(0.55) brightness(0.82);
-}
-
-.media-container.is-viewed:hover {
-    opacity: 1;
-}
-
-.media-container.is-viewed:hover img,
-.media-container.is-viewed:hover video {
-    filter: none;
-}
-
-.media-container {
-    transition: opacity 0.18s ease;
-}
 /* ============================================================
    СКАЧИВАНИЕ В БЛОКЕ ИСТОЧНИКА
    Кнопка живёт в одной строке со ссылкой на источник: та же высота,

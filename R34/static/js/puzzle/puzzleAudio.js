@@ -3,6 +3,23 @@
 // ============================================================
 let audioCtx = null;
 let _cachedPerfMode = null;
+const activeOscillators = new Set();
+
+function trackOscillator(osc) {
+    activeOscillators.add(osc);
+    osc.addEventListener('ended', () => activeOscillators.delete(osc), { once: true });
+}
+
+export function stopPuzzleSounds() {
+    activeOscillators.forEach(osc => {
+        try {
+            osc.stop();
+        } catch (e) {
+            if (e.name !== 'InvalidStateError') throw e;
+        }
+    });
+    activeOscillators.clear();
+}
 
 export function playSound(type) {
     if (window.safeScreen && window.safeScreen.isActive) return;
@@ -19,6 +36,7 @@ export function playSound(type) {
         }
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
+        trackOscillator(osc);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         const now = audioCtx.currentTime;
@@ -69,6 +87,7 @@ export function playSound(type) {
                 const t = now + index * 0.08;
                 const o = audioCtx.createOscillator();
                 const g = audioCtx.createGain();
+                trackOscillator(o);
                 o.connect(g);
                 g.connect(audioCtx.destination);
                 o.type = 'sine';

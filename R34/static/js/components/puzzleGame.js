@@ -1,10 +1,10 @@
 // CHECKPOINT: PuzzleGame component fixed and verified
 import { fetchPostById } from '../api.js';
 import { icon } from '../icons.js';
-import { PuzzleOnlineManager } from './puzzleOnline.js';
+import { PuzzleOnlineManager } from './puzzleOnline.js?v=2.5.4';
 import { PuzzleUI } from '../puzzle/puzzleUI.js';
 import { PuzzleStorage } from '../puzzle/puzzleStorage.js';
-import { playSound } from '../puzzle/puzzleAudio.js';
+import { playSound, stopPuzzleSounds } from '../puzzle/puzzleAudio.js?v=2.5.3';
 import { spawnConfetti } from '../puzzle/puzzleConfetti.js';
 import { drawJigsawEdge } from '../puzzle/puzzleGeometry.js';
 import { rememberScroll, restoreScroll } from '../scrollState.js';
@@ -108,51 +108,39 @@ export class PuzzleGame {
         this.injectStyles();
     }
 
-    // Пропорции поля всегда повторяют пропорции картинки — никакой обрезки
-    // и никакого растяжения. Единственное ограничение осталось прежним:
-    // фильтр «длинных» постов (тумблер «Разрешить длинные изображения»),
-    // который был здесь изначально.
+    // Пропорции поля всегда повторяют пропорции картинки. Ограничение
+    // соотношения сторон действует только пока длинные изображения запрещены.
     _clampAspect(ratio) {
         if (!(ratio > 0)) return 1.0;
         const allowLong = localStorage.getItem('r34_puzzle_allow_long_images') === 'true';
         return allowLong
-            ? Math.max(0.05, Math.min(20.0, ratio))
+            ? ratio
             : Math.max(0.35, Math.min(1.8, ratio));
     }
 
     calculateGrid(target, ratio) {
         const allowLong = localStorage.getItem('r34_puzzle_allow_long_images') === 'true';
         
-        // Ограничения на максимальный размер стороны
-        const maxDim = allowLong ? 50 : 25;
-        
         // Если изображение экстремально длинное или широкое и разрешены длинные картинки
         if (allowLong && (ratio < 0.5 || ratio > 2.0)) {
             let cols, rows;
             if (ratio < 1.0) {
                 // Вертикальная картинка (ширина - короткая сторона)
-                // Ограничиваем короткую сторону от 5 до maxDim
+                // Длинная сторона не ограничивается: сетка сохраняет пропорции.
                 cols = Math.max(5, Math.round(Math.sqrt(target * ratio)));
-                cols = Math.min(maxDim, cols);
                 // Высота подбирается так, чтобы элементы были идеально квадратными
-                rows = Math.round(cols / ratio);
-                rows = Math.max(5, Math.min(maxDim, rows));
-                // Корректируем cols, если rows уперся в maxDim
-                cols = Math.max(5, Math.min(maxDim, Math.round(rows * ratio)));
+                rows = Math.max(5, Math.round(cols / ratio));
             } else {
                 // Горизонтальная картинка (высота - короткая сторона)
-                // Ограничиваем короткую сторону от 5 до maxDim
+                // Длинная сторона не ограничивается: сетка сохраняет пропорции.
                 rows = Math.max(5, Math.round(Math.sqrt(target / ratio)));
-                rows = Math.min(maxDim, rows);
                 // Ширина подбирается так, чтобы элементы были идеально квадратными
-                cols = Math.round(rows * ratio);
-                cols = Math.max(5, Math.min(maxDim, cols));
-                // Корректируем rows, если cols уперся в maxDim
-                rows = Math.max(5, Math.min(maxDim, Math.round(cols / ratio)));
+                cols = Math.max(5, Math.round(rows * ratio));
             }
             return { cols, rows };
         }
 
+        const maxDim = 25;
         // Рассчитываем комфортный минимум для сторон в зависимости от желаемого числа деталей.
         // Для маленьких пазлов (16) допускаем минимум 3 детали по стороне.
         // Для средних и больших (36+) поднимаем планку, чтобы избежать длинных тонких полосок.
@@ -4518,6 +4506,9 @@ export class PuzzleGame {
         if (this.isPlaying && !this.hasWon && !this.isSolving) {
             try { this.saveResumeSnapshot(); } catch (e) {}
         }
+        this.isPlaying = false;
+        this.gameId = null;
+        stopPuzzleSounds();
         this._stopResumeAutosave();
         if (this._remoteDrags) {
             this._remoteDrags.forEach((_, playerId) => this.clearRemoteDrag(playerId));

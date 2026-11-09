@@ -22,8 +22,25 @@ function toMinimalPost(post) {
 }
 
 const TOAST_DEFAULT_ICONS = { success: 'check', danger: 'ban', info: 'info', warning: 'warning' };
+const QUICK_EMOTES = ['👍', '👎', '👏', '😂', '🔥'];
 
 export class OnlineUI {
+    static createEmoteBar(onlineMgr, className = '') {
+        const bar = document.createElement('div');
+        bar.className = `pz-emotes ${className}`.trim();
+        bar.innerHTML = QUICK_EMOTES
+            .map(emoji => `<button type="button" class="pz-emote-btn" data-emoji="${emoji}" title="Отправить эмоцию игрокам" aria-label="Отправить эмоцию ${emoji}">${emoji}</button>`)
+            .join('');
+        bar.querySelectorAll('.pz-emote-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (typeof onlineMgr.sendEmote === 'function') {
+                    onlineMgr.sendEmote(btn.dataset.emoji);
+                }
+            });
+        });
+        return bar;
+    }
+
     // iconName выбирает SVG из icons.js (см. TOAST_DEFAULT_ICONS для дефолта
     // по типу) — вызывающий код должен передавать конкретную иконку под
     // смысл события (user/logOut/trophy/flag/...), а не полагаться только
@@ -528,21 +545,6 @@ export class OnlineUI {
                 </section>
             </div>
 
-            <section class="pz-panel pz-panel--rooms">
-                <div class="pz-panel-head pz-rooms-head">
-                    <div>
-                        <h3 class="pz-panel-title">Открытые комнаты</h3>
-                        <p class="pz-panel-desc">Можно войти без кода, если не нужен пароль.</p>
-                    </div>
-                    <button type="button" class="pz-rooms-refresh" id="pzRoomsRefresh" title="Обновить список">
-                        ${icon('refresh', { size: 14 })}
-                    </button>
-                </div>
-                <div class="pz-rooms-list" id="pzRoomsList">
-                    <div class="pz-rooms-empty">Загружаем...</div>
-                </div>
-            </section>
-
             <div class="pz-setup-foot">
                 <button class="game-btn-secondary game-back-btn" id="pzBackMenuBtn">
                     ${icon('arrowLeft', { size: 14 })} Назад в меню
@@ -612,20 +614,6 @@ export class OnlineUI {
 
         document.getElementById('pzBackMenuBtn').onclick = goBackToMenu;
 
-        // Список комнат обновляем, пока открыт этот экран: таймер сам
-        // останавливается, когда модалка убрана из DOM.
-        OnlineUI.loadOpenRooms(onlineMgr);
-        const roomsTimer = setInterval(() => {
-            if (!modal.isConnected) {
-                clearInterval(roomsTimer);
-                return;
-            }
-            OnlineUI.loadOpenRooms(onlineMgr);
-        }, 12000);
-        const roomsRefreshBtn = document.getElementById('pzRoomsRefresh');
-        if (roomsRefreshBtn) {
-            roomsRefreshBtn.onclick = () => OnlineUI.loadOpenRooms(onlineMgr);
-        }
         document.getElementById('pzSetupCloseBtn').onclick = closeSetup;
 
         document.getElementById('pzCreateRoomBtn').onclick = () => {
@@ -649,52 +637,6 @@ export class OnlineUI {
         joinCodeInput.onkeydown = (e) => {
             if (e.key === 'Enter') document.getElementById('pzJoinRoomBtn').click();
         };
-    }
-
-    static async loadOpenRooms(onlineMgr) {
-        const list = document.getElementById('pzRoomsList');
-        if (!list) return;
-        try {
-            const res = await fetch('/api/rooms/list?gameType=puzzle', { credentials: 'same-origin' });
-            const data = await res.json();
-            if (!list.isConnected) return;
-            const rooms = (data && data.rooms) || [];
-            if (rooms.length === 0) {
-                list.innerHTML = '<div class="pz-rooms-empty">Пока никто не хостит — создайте комнату.</div>';
-                return;
-            }
-            list.innerHTML = rooms.map(room => `
-                <div class="pz-room-row">
-                    <div class="pz-room-info">
-                        <b>${room.id}</b>
-                        <small>${room.hostName} · ${room.mode === 'coop' ? 'Вместе' : 'Гонка'} · ${room.players}/${room.maxPlayers}${room.hasPassword ? ' · 🔒' : ''}</small>
-                    </div>
-                    <button type="button" class="pz-room-join" data-code="${room.id}" data-locked="${room.hasPassword ? '1' : ''}">
-                        Войти
-                    </button>
-                </div>
-            `).join('');
-            list.querySelectorAll('.pz-room-join').forEach(btn => {
-                btn.onclick = () => {
-                    const code = btn.dataset.code;
-                    if (btn.dataset.locked === '1') {
-                        // Пароль нельзя угадать — подставляем код и переводим
-                        // фокус в поле пароля, чтобы игрок его ввёл.
-                        const codeInput = document.getElementById('pzJoinCodeInput');
-                        const passInput = document.getElementById('pzJoinPasswordInput');
-                        if (codeInput) codeInput.value = code;
-                        if (passInput) passInput.focus();
-                        OnlineUI.showToast('Комната под паролем — введите пароль.', 'info', 'lock');
-                        return;
-                    }
-                    onlineMgr.joinRoom(code);
-                };
-            });
-        } catch (e) {
-            if (list.isConnected) {
-                list.innerHTML = '<div class="pz-rooms-empty">Не удалось загрузить список комнат.</div>';
-            }
-        }
     }
 
     static updateHostPiecesDropdown(onlineMgr) {
@@ -753,18 +695,13 @@ export class OnlineUI {
         // Панель быстрых эмоций. Создаётся один раз и переиспользуется:
         // updateLobbyPlayerList вызывается на каждое обновление комнаты.
         if (!document.getElementById('pzEmoteBar') && playerList.parentNode) {
-            const bar = document.createElement('div');
+            const bar = OnlineUI.createEmoteBar(onlineMgr);
             bar.id = 'pzEmoteBar';
-            bar.className = 'pz-emotes';
-            bar.innerHTML = ['👍', '👏', '😂', '🔥']
-                .map(e => `<button type="button" class="pz-emote-btn" data-emoji="${e}" title="Отправить эмоцию">${e}</button>`)
-                .join('') + '<span class="pz-conn-badge" id="pzConnBadge"></span>';
+            const connBadge = document.createElement('span');
+            connBadge.className = 'pz-conn-badge';
+            connBadge.id = 'pzConnBadge';
+            bar.appendChild(connBadge);
             playerList.parentNode.insertBefore(bar, playerList.nextSibling);
-            bar.querySelectorAll('.pz-emote-btn').forEach(btn => {
-                btn.onclick = () => {
-                    if (typeof onlineMgr.sendEmote === 'function') onlineMgr.sendEmote(btn.dataset.emoji);
-                };
-            });
         }
         const connBadge = document.getElementById('pzConnBadge');
         if (connBadge) {
@@ -846,8 +783,8 @@ export class OnlineUI {
         const hud = document.createElement('div');
         hud.id = 'puzzle-online-hud';
         hud.className = `pz-hud ${isRace ? 'pz-hud--race' : 'pz-hud--coop'}`;
-        hud.setAttribute('role', 'status');
-        hud.setAttribute('aria-live', 'polite');
+        hud.setAttribute('role', 'region');
+        hud.setAttribute('aria-label', 'Информация об онлайн-игре');
 
         // Шапка панели: режим + код комнаты + счётчик участников. Раньше всё
         // висело одной инлайновой строкой, и на телефоне заголовок с кодом и
@@ -876,6 +813,9 @@ export class OnlineUI {
             </div>`}
             <div class="pz-hud-players" id="pzRaceLeaderboardBars"></div>
         `;
+        const emoteBar = OnlineUI.createEmoteBar(onlineMgr, 'pz-emotes--game');
+        emoteBar.setAttribute('aria-label', 'Эмоции во время игры');
+        hud.appendChild(emoteBar);
 
         const leftPanel = card.querySelector('.puzzle-left-panel');
         if (leftPanel) {

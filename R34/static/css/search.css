@@ -35,6 +35,23 @@
   }
 }
 
+/* Плавающий контейнер сохраняет исходную высоту панели, чтобы лента не
+   подпрыгивала при ограничении списка тегов. Пустая область под фактической
+   панелью не должна перехватывать клики по галерее. */
+.search-container.is-floating {
+  pointer-events: none;
+}
+
+.search-container.is-floating > .r34-search-block {
+  pointer-events: none;
+}
+
+.search-container.is-floating #activeTags,
+.search-container.is-floating .r34-search-row,
+.search-container.is-floating .r34-search-row > * {
+  pointer-events: auto;
+}
+
 /* Панель при скрытии уезжает вверх, но остаётся в потоке: контейнер держит
    свою высоту, поэтому сворачивание и раскрытие шапки больше не меняют
    высоту документа и лента под ней не сдвигается. Раньше здесь был
@@ -323,6 +340,9 @@ body.can-hover .r34-mini-action:hover {
     transition-duration: 0.01ms !important;
   }
   .r34-mini-bar.is-visible .r34-mini-action {
+    animation: none !important;
+  }
+  .r34-search-arrow-btn.is-searching::after {
     animation: none !important;
   }
 }
@@ -731,6 +751,7 @@ body.can-hover .tag:hover .tag-count, body:not(.can-hover) .tag:active .tag-coun
 
 .r34-search-arrow-btn {
   flex-shrink: 0;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -755,6 +776,25 @@ body.can-hover .tag:hover .tag-count, body:not(.can-hover) .tag:active .tag-coun
   stroke: currentColor;
   stroke-width: 2;
   fill: none;
+}
+
+.r34-search-arrow-btn.is-searching svg {
+  opacity: 0.3;
+}
+
+.r34-search-arrow-btn.is-searching::after {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  content: "";
+  animation: r34-search-spin 0.7s linear infinite;
+}
+
+@keyframes r34-search-spin {
+  to { transform: rotate(360deg); }
 }
 
 body.can-hover .r34-search-arrow-btn:hover, body:not(.can-hover) .r34-search-arrow-btn:active {
@@ -1730,42 +1770,4 @@ body:not(.can-hover) .tag:active::after {
 @keyframes tagCharge {
   0%   { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.5), 0 0 0 rgba(var(--accent-rgb), 0.35); }
   100% { box-shadow: 0 0 0 9px rgba(var(--accent-rgb), 0), 0 0 20px rgba(var(--accent-rgb), 0.25); }
-}
-
-/* ============================================================
-   ИСТОРИЯ ПОИСКА В ПОДСКАЗКАХ
-   ============================================================ */
-.suggestion-item.suggestion-history-label {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: rgba(255, 255, 255, 0.45);
-    cursor: default;
-    pointer-events: none;
-}
-
-.suggestion-item.suggestion-history {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    color: rgba(255, 255, 255, 0.82);
-}
-
-.suggestion-history-remove {
-    flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    font-size: 0.9rem;
-    line-height: 1;
-    color: rgba(255, 255, 255, 0.45);
-}
-
-.suggestion-history-remove:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.14);
 }

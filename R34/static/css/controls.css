@@ -240,7 +240,7 @@ input.r34-range-gradient::-moz-range-thumb {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.2);
 }
 
-body.can-hover .center-play-btn:hover, body:not(.can-hover) .center-play-btn:active {
+body.can-hover .center-play-btn:hover {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(var(--accent-rgb), 0.6);
   transform: translate(-50%, -50%) scale(1.06);
@@ -252,7 +252,6 @@ body.can-hover .center-play-btn:hover, body:not(.can-hover) .center-play-btn:act
 }
 
 .center-play-btn:focus,
-.center-play-btn:active,
 .center-play-btn:focus-visible {
   outline: none !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;

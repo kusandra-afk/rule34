@@ -30,7 +30,8 @@ const SETTINGS_SYNC_EXCLUDE_PREFIXES = [
 const SETTINGS_SYNC_EXCLUDE_KEYS = new Set([
     'r34_active_tags',
     'r34_turso_url',
-    'r34_turso_token'
+    'r34_turso_token',
+    'r34_viewed_posts'
 ]);
 
 export const getSavedExcludedTags = () => {
@@ -106,6 +107,7 @@ export async function loadSettingsFromServer() {
             const data = await response.json();
             if (data.ok && typeof data.settings === 'object') {
                 serverSettings = data.settings;
+                const hasLegacyViewedPosts = Object.prototype.hasOwnProperty.call(data.settings, 'r34_viewed_posts');
                 Object.keys(data.settings).forEach(key => {
                     if (isSettingsSyncKey(key)) {
                         try {
@@ -115,6 +117,29 @@ export async function loadSettingsFromServer() {
                         }
                     }
                 });
+                if (hasLegacyViewedPosts) {
+                    const cleanedSettings = { ...data.settings };
+                    delete cleanedSettings.r34_viewed_posts;
+                    try {
+                        const cleanupResponse = await fetch(API_ENDPOINTS.SETTINGS, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ settings: cleanedSettings })
+                        });
+                        if (!cleanupResponse.ok) {
+                            console.error('[ServerSync] Failed to remove legacy viewed-post setting:', cleanupResponse.status);
+                        } else {
+                            const cleanupData = await cleanupResponse.json();
+                            if (cleanupData.ok && typeof cleanupData.settings === 'object') {
+                                serverSettings = cleanupData.settings;
+                            } else {
+                                console.error('[ServerSync] Server did not confirm removal of legacy viewed-post setting.');
+                            }
+                        }
+                    } catch (e) {
+                        console.error('[ServerSync] Failed to remove legacy viewed-post setting:', e);
+                    }
+                }
                 return data.settings;
             }
         }

@@ -91,6 +91,10 @@ export class GalleryController {
             if (this.paginationLoader) this.paginationLoader.style.display = 'block';
         } else {
             if (this.loader) this.loader.style.display = 'block';
+            if (this.arrowButton) {
+                this.arrowButton.classList.add('is-searching');
+                this.arrowButton.setAttribute('aria-busy', 'true');
+            }
         }
 
         if (!append) {
@@ -295,6 +299,9 @@ export class GalleryController {
                 const pending = this._pendingQuery;
                 this._pendingQuery = null;
                 this.resetAndLoad(pending);
+            } else if (this.arrowButton) {
+                this.arrowButton.classList.remove('is-searching');
+                this.arrowButton.removeAttribute('aria-busy');
             }
         }
     }

@@ -4,7 +4,7 @@
 
 import { BaseOnlineEngine } from '../multiplayer.js';
 import { OnlineSync } from '../puzzle/onlineSync.js';
-import { OnlineUI } from '../puzzle/onlineUI.js';
+import { OnlineUI } from '../puzzle/onlineUI.js?v=2.5.4';
 import { rememberScroll } from '../scrollState.js';
 import { saveRoomSession, loadRoomSession, clearRoomSession } from '../puzzle/session.js';
 
@@ -504,7 +504,7 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
     }
 
     showEmote(emoji, name) {
-        const allowed = ['👍', '👏', '😂', '🔥', '😮', '🙈'];
+        const allowed = ['👍', '👎', '👏', '😂', '🔥', '😮', '🙈'];
         const safe = allowed.includes(emoji) ? emoji : String(emoji || '').slice(0, 4);
         if (!safe) return;
 

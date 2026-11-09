@@ -6,7 +6,6 @@ import { proxyUrl } from '../api.js';
 import { icon } from '../icons.js';
 import { StorageManager } from '../storage.js';
 import { CardComponent } from './cardComponent.js';
-import { markViewed } from '../viewedPosts.js';
 import { FullscreenViewer } from './fullscreenViewer.js';
 import { FavoritesManager } from './favoritesManager.js';
 
@@ -1866,15 +1865,6 @@ export class Gallery {
     }
 
     openFullscreen(index, customPostsList) {
-        // Отмечаем пост просмотренным до открытия: карточка в ленте должна
-        // потускнеть сразу, а не после того, как полноэкранный режим закроют.
-        const posts = customPostsList || (this.isFavoritesActive ? this.favoritesPosts : this.currentPosts);
-        const post = posts ? posts[index] : null;
-        if (post && post.id !== undefined) {
-            markViewed(post.id);
-            const card = document.querySelector(`.media-container[data-idx="${index}"]`);
-            if (card) card.classList.add('is-viewed');
-        }
         this.fullscreenViewer.openFullscreen(index, customPostsList);
     }
 

@@ -1,22 +1,22 @@
-import { TagSearch } from './components/tagSearch.js';
+import { TagSearch } from './components/tagSearch.js?v=2.4.8';
 import { Gallery } from './components/gallery.js';
 import { SafeScreen } from './components/safeScreen.js';
-import { PuzzleGame } from './components/puzzleGame.js';
+import { PuzzleGame } from './components/puzzleGame.js?v=2.5.4';
 import { ExpertStylesEditor } from './components/expertStylesEditor.js';
 import { ExcludedTagsModal } from './modals/excludedTagsModal.js';
 import { initTutorialModal, checkAndRemoveModalOpenClass } from './modals/tutorialModal.js';
 import { showConfirmModal } from './modals/confirmModal.js';
 import { openGameChoiceModal } from './modals/gameChoiceModal.js';
-import { startPuzzleGame } from './components/puzzleLauncher.js';
+import { startPuzzleGame } from './components/puzzleLauncher.js?v=2.5.4';
 import { GuessUI } from './components/guessUI.js';
 import { initSettingsModal } from './modals/settingsModal.js';
 import { initR34SelectDropdowns } from './components/customDropdown.js';
 import { ApiSettingsManager } from './settings/apiSettings.js';
 import { applyThemeSettings, debouncedApplyThemeSettings, applyAdaptiveText, setAccent, setBackground } from './theme/themeManager.js';
 import { colorPresets, bgPresets, hoverPresets, fontPresets, getContrastYIQ, getBgLuminance, getAccentGlow, getAccentAlt } from './theme/themePresets.js';
-import { GalleryController } from './controllers/galleryController.js';
+import { GalleryController } from './controllers/galleryController.js?v=2.4.8';
 import { ModeController } from './controllers/modeController.js';
-import { initServerSync, getSavedExcludedTags, saveSavedExcludedTags, loadSettingsFromServer, loadTursoConfigFromServer, loadExcludedTagsFromServer } from './init/initServerSync.js';
+import { initServerSync, getSavedExcludedTags, saveSavedExcludedTags, loadSettingsFromServer, loadTursoConfigFromServer, loadExcludedTagsFromServer } from './init/initServerSync.js?v=2.5.0';
 import { initSafeScreen } from './init/initSafeScreen.js';
 import { debounce, setRangeGradient } from './utils.js';
 import { tursoSync } from './tursoSync.js';
@@ -51,6 +51,7 @@ window.saveSavedExcludedTags = saveSavedExcludedTags;
 // Язык интерфейса: берём сохранённый выбор (в браузере или на сервере)
 // и, если это английский, переводим страницу до отрисовки контента.
 initI18n();
+localStorage.removeItem('r34_viewed_posts');
 
 // Галерея под полноэкранными окнами (игра, лобби, настройки, библиотека)
 // перестаёт догружать страницы и крутить видео — см. backgroundPause.js.
@@ -170,6 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let lastScrollY = window.scrollY;
         let ticking = false;
         let hidden = false;
+        let accumulatedScrollDelta = 0;
 
         const readActiveTagsText = () => {
             if (!miniTags) return;
@@ -195,12 +197,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // угодно места: они просто раздвигают ленту, ничего не перекрывая.
         //
         // Порог «прилип» считаем по положению контейнера в документе (offsetTop),
-        // а не по живому getBoundingClientRect(). Ограничение тегов по высоте
-        // меняет высоту панели, а значит и раскладку под ней; если мерить
-        // прилипание по rect.top, класс переключается от собственного эффекта:
-        // панель сжимается → галерея подпрыгивает → scrollY уезжает назад →
-        // класс снимается → панель разворачивается — и так по кругу. На ПК из-за
-        // этого страницу было не прокрутить вниз, её перекидывало наверх.
+        // пока он ещё не прилип: после этого offsetTop следует за прокруткой.
+        // Ограничение тегов уменьшает панель. При включении класса сохраняем
+        // исходную высоту контейнера, чтобы контент галереи не подпрыгивал.
         let floatingThreshold = Infinity;
 
         const docTop = (el) => {
@@ -216,12 +215,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const updateFloatingState = () => {
             // offsetParent === null — контейнер скрыт (режим «Избранное»):
             // оставляем прежний порог, чтобы возврат в галерею не мигал.
-            if (searchContainer.offsetParent) {
+            // После прилипания offsetTop уже меняется вместе с scrollY,
+            // поэтому порог обновляется только до достижения sticky-позиции.
+            if (searchContainer.offsetParent && window.scrollY <= floatingThreshold + 0.5) {
                 const stickyOffset = parseFloat(getComputedStyle(searchContainer).top) || 0;
                 floatingThreshold = Math.max(0, docTop(searchContainer) - stickyOffset);
             }
             const stuck = window.scrollY > floatingThreshold + 0.5;
-            searchContainer.classList.toggle('is-floating', stuck);
+            const isFloating = searchContainer.classList.contains('is-floating');
+            if (stuck && !isFloating) {
+                searchContainer.style.minHeight = `${searchContainer.getBoundingClientRect().height}px`;
+                searchContainer.classList.add('is-floating');
+            } else if (!stuck && isFloating) {
+                searchContainer.classList.remove('is-floating');
+                searchContainer.style.removeProperty('min-height');
+            }
         };
 
         const setHidden = (next) => {
@@ -244,6 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const revealBlock = () => {
             setHidden(false);
             lastScrollY = window.scrollY;
+            accumulatedScrollDelta = 0;
             updateFloatingState();
         };
 
@@ -259,6 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const holdPanelOpen = () => {
             suppressHideUntil = performance.now() + 800;
             lastScrollY = window.scrollY;
+            accumulatedScrollDelta = 0;
         };
 
         const onScroll = () => {
@@ -275,6 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Просто выравниваем отсчёт, чтобы следующий настоящий скролл
                 // считался от нового положения.
                 if (performance.now() < suppressHideUntil) {
+                    accumulatedScrollDelta = 0;
                     lastScrollY = y;
                     updateFloatingState();
                     return;
@@ -283,7 +294,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 // В самом верху страницы панель всегда видна
                 if (y <= HIDE_AFTER) {
                     if (hidden) setHidden(false);
+                    accumulatedScrollDelta = 0;
                     lastScrollY = y;
+                    updateFloatingState();
                     return;
                 }
 
@@ -292,12 +305,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 // уезжает из-под пальца. Обратное раскрытие работает всегда.
                 const inputFocused = tagInput && document.activeElement === tagInput;
 
-                if (delta > SCROLL_DELTA && !hidden && !inputFocused) {
+                if (inputFocused && delta > 0) {
+                    accumulatedScrollDelta = 0;
+                } else if (delta !== 0) {
+                    // Суммируем мелкие шаги одного направления — при медленном скролле
+                    // движение за кадр часто меньше порога переключения.
+                    if (Math.sign(delta) !== Math.sign(accumulatedScrollDelta)) {
+                        accumulatedScrollDelta = delta;
+                    } else {
+                        accumulatedScrollDelta += delta;
+                    }
+                }
+
+                if (accumulatedScrollDelta > SCROLL_DELTA && !hidden && !inputFocused) {
                     // Скролл вниз — прячем
                     setHidden(true);
-                } else if (delta < -SCROLL_DELTA && hidden) {
+                    accumulatedScrollDelta = 0;
+                } else if (accumulatedScrollDelta < -SCROLL_DELTA && hidden) {
                     // Скролл вверх — показываем
                     setHidden(false);
+                    accumulatedScrollDelta = 0;
                 }
 
                 lastScrollY = y;
@@ -469,6 +496,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 9. Связываем события между компонентами
     tagSearch.onTagsChange = (tagsQuery) => {
+        const searchContainer = document.getElementById('searchContainer');
+        if (searchContainer?.classList.contains('is-floating')) {
+            window.scrollTo({ top: 0, behavior: 'instant' });
+        }
         galleryController.resetAndLoad(tagsQuery);
     };
 
@@ -642,10 +673,24 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Fix for sticky hovers on touch devices
-    document.body.classList.add('can-hover');
-    document.addEventListener('touchstart', function removeHover() {
-        document.body.classList.remove('can-hover');
-        document.removeEventListener('touchstart', removeHover, false);
-    }, { passive: true });
+    const setHoverCapability = enabled => {
+        document.body.classList.toggle('can-hover', enabled);
+    };
+    const fineHoverPointer = window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
+    setHoverCapability(Boolean(fineHoverPointer));
+
+    document.addEventListener('pointerdown', event => {
+        setHoverCapability(event.pointerType !== 'touch');
+    }, { passive: true, capture: true });
+    document.addEventListener('pointermove', event => {
+        if (event.pointerType === 'touch') {
+            setHoverCapability(false);
+        } else if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
+            setHoverCapability(true);
+        }
+    }, { passive: true, capture: true });
+    document.addEventListener('touchstart', () => setHoverCapability(false), {
+        passive: true,
+        capture: true
+    });
 });
