@@ -5,7 +5,7 @@
 import { BaseOnlineEngine } from '../multiplayer.js';
 import { OnlineSync } from '../puzzle/onlineSync.js';
 import { OnlineUI } from '../puzzle/onlineUI.js?v=2.5.4';
-import { rememberScroll } from '../scrollState.js';
+import { rememberScroll } from '../scrollState.js?v=2.5.6';
 import { saveRoomSession, loadRoomSession, clearRoomSession } from '../puzzle/session.js';
 
 export class PuzzleOnlineManager extends BaseOnlineEngine {

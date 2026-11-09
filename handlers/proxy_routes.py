@@ -39,18 +39,27 @@ def proxy():
             headers['Range'] = request.headers.get('Range')
         response = session.get(target_url, headers=headers, timeout=30, stream=True)
 
-        if response.status_code in (401, 403):
-            response.close()
-            clear_creds()
-            return 'Ошибка авторизации Rule34 API. Пожалуйста, войдите заново.', 401
-
         content_type = response.headers.get('content-type', '')
+        if response.status_code in (401, 403):
+            try:
+                error_data = response.content
+            finally:
+                response.close()
+            error_preview = error_data[:200].decode('utf-8', errors='ignore')
+            if response.status_code == 401 or "Missing authentication" in error_preview or "Unauthorized" in error_preview:
+                clear_creds()
+                return 'Ошибка авторизации Rule34 API. Пожалуйста, войдите заново.', 401
+            retry_after = response.headers.get('retry-after')
+            retry_headers = {'Retry-After': str(retry_after)} if retry_after else {}
+            return Response(error_data, status=response.status_code, headers=retry_headers, content_type=content_type or None)
+
         allowed_headers = [
             'content-type',
             'content-length',
             'content-range',
             'accept-ranges',
-            'content-disposition'
+            'content-disposition',
+            'retry-after'
         ]
 
         pass_headers = {}
@@ -58,7 +67,7 @@ def proxy():
             if name.lower() in allowed_headers and value:
                 pass_headers[name] = str(value)
 
-        status_code = response.status_code if response.status_code in (200, 206) else 200
+        status_code = response.status_code if response.status_code in (200, 206, 429) or response.status_code >= 500 else 200
 
         if 'json' in content_type.lower() or 'xml' in content_type.lower():
             try:

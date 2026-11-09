@@ -2,7 +2,7 @@
  * Gallery / Profile (Favorites) Mode Controller
  */
 
-import { rememberScroll, restoreScroll } from '../scrollState.js';
+import { rememberScroll, restoreScroll } from '../scrollState.js?v=2.5.6';
 
 export class ModeController {
     constructor(options = {}) {

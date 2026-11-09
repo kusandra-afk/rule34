@@ -69,6 +69,18 @@ function isRateLimitResponse(textOrStatus, text) {
         || lowerText.includes('<script');
 }
 
+function getRetryAfterMs(value) {
+    if (!value) return null;
+
+    const seconds = Number(value);
+    if (Number.isFinite(seconds) && seconds >= 0) {
+        return seconds * 1000;
+    }
+
+    const retryAt = Date.parse(value);
+    return Number.isNaN(retryAt) ? null : Math.max(0, retryAt - Date.now());
+}
+
 export async function fetchAutocomplete(query, prefix = '') {
     if (!query) return [];
     const trimmed = query.trim();
@@ -295,8 +307,10 @@ export async function fetchPosts(tagsQuery, popularOnly, page = 0) {
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), apiTimeout);
+            const attemptUrl = new URL(url);
+            attemptUrl.searchParams.set('cb', `${Date.now()}-${attempt}`);
             
-            const response = await fetch(proxyUrl(url), { 
+            const response = await fetch(proxyUrl(attemptUrl.toString()), { 
                 signal: controller.signal 
             });
             
@@ -306,6 +320,13 @@ export async function fetchPosts(tagsQuery, popularOnly, page = 0) {
                 const authErr = new Error("AUTH_REQUIRED");
                 authErr.isAuth = true;
                 throw authErr;
+            }
+
+            if (response.status === 429 || response.status === 403) {
+                const rateLimitError = new Error("RATE_LIMIT");
+                rateLimitError.isRateLimit = true;
+                rateLimitError.retryAfterMs = getRetryAfterMs(response.headers.get('Retry-After')) ?? 60_000;
+                throw rateLimitError;
             }
 
             if (isRateLimitResponse(response.status)) {
@@ -322,7 +343,18 @@ export async function fetchPosts(tagsQuery, popularOnly, page = 0) {
             
             const text = await response.text();
             if (!text || text.trim() === '') {
-                return [];
+                // A blank body is not a valid empty result; retry it instead of
+                // letting the gallery mistake a transient proxy response for EOF.
+                console.warn(`[Rule34 API] Posts fetch returned an empty body (attempt ${attempt + 1}/${apiRetries})`);
+                if (attempt < apiRetries - 1) {
+                    console.log(`[Rule34 API] Retrying in ${apiRetryDelay / 1000}s...`);
+                    await new Promise(resolve => setTimeout(resolve, apiRetryDelay));
+                    return fetchWithRetry(attempt + 1);
+                }
+                const emptyResponseError = new Error("RATE_LIMIT");
+                emptyResponseError.isRateLimit = true;
+                emptyResponseError.originalError = new Error("Empty response body");
+                throw emptyResponseError;
             }
             
             const trimmed = text.trim();
@@ -392,7 +424,7 @@ export async function fetchPosts(tagsQuery, popularOnly, page = 0) {
                 throw timeoutError;
             }
             
-            if (err.message === "RATE_LIMIT" || err.message === "AUTH_REQUIRED" || err.message === "PARSE_ERROR") {
+            if (err.message === "RATE_LIMIT" || err.message === "AUTH_REQUIRED" || err.message === "PARSE_ERROR" || err.message === "NETWORK_ERROR") {
                 throw err;
             }
 
@@ -473,4 +505,3 @@ export async function savePuzzleCompleted(completedPuzzles) {
         return false;
     }
 }
-

@@ -10,7 +10,7 @@ import { saveTursoConfigToServer, saveSettingsToServer } from '../init/initServe
 import { colorPresets } from '../theme/themePresets.js';
 import { debouncedSaveSetting, setAccent } from '../theme/themeManager.js';
 import { OnlineUI } from '../puzzle/onlineUI.js';
-import { rememberScroll, restoreScroll } from '../scrollState.js';
+import { rememberScroll, rememberScrollAt, restoreScroll } from '../scrollState.js?v=2.5.6';
 
 export function initSettingsModal(options = {}) {
     const {
@@ -25,6 +25,20 @@ export function initSettingsModal(options = {}) {
     } = options;
 
     let currentSort = getCurrentSort();
+    let scrollToTopAfterSettings = false;
+    const scrollToTopForFloatingSearch = () => {
+        const searchContainer = document.getElementById('searchContainer');
+        const settingsOpen = document.getElementById('settings-modal')?.classList.contains('open');
+        if (settingsOpen) {
+            // Настройки блокируют прокрутку документа. Обновляем сохранённую
+            // позицию, чтобы закрытие модалки восстановило страницу наверху.
+            scrollToTopAfterSettings = true;
+            rememberScrollAt('page', 0);
+            return;
+        }
+        if (!searchContainer?.classList.contains('is-floating')) return;
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    };
     // Заполняется ниже, когда инициализируется разворот живого предпросмотра
     // на весь экран — закрытие самой модалки (крестик/фон/Escape) должно
     // сначала свернуть предпросмотр, иначе он остаётся висеть поверх всего
@@ -237,10 +251,10 @@ export function initSettingsModal(options = {}) {
         // 1. Открытие/закрытие модального окна настроек
         if (settingsBtn && settingsModal) {
             settingsBtn.addEventListener('click', () => {
+                rememberScroll('page');
                 // Пока открыта модалка, прокрутка страницы под ней блокируется
                 // (overflow: hidden + height: 100vh в search.css), из-за чего
                 // scrollY обнуляется — позицию запоминаем заранее.
-                rememberScroll('page');
                 prepareSettingsFlyOut();
                 // Обновляем SafeScreen в настройках
                 if (window.safeScreen) {
@@ -676,7 +690,12 @@ export function initSettingsModal(options = {}) {
             settingsModal.classList.remove('open');
             if (typeof stopDemoScroll === 'function') stopDemoScroll();
             checkAndRemoveModalOpenClass();
+            if (scrollToTopAfterSettings) rememberScrollAt('page', 0);
             restoreScroll('page');
+            if (scrollToTopAfterSettings) {
+                requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+            }
+            scrollToTopAfterSettings = false;
         };
 
         if (settingsCloseBtn && settingsModal) {
@@ -1586,6 +1605,7 @@ export function initSettingsModal(options = {}) {
             currentSort = val;
             setCurrentSort(val);
             localStorage.setItem('r34_current_sort', val);
+            scrollToTopForFloatingSearch();
             
             updateLikesGroupVisibility();
             
@@ -1746,6 +1766,7 @@ export function initSettingsModal(options = {}) {
     if (settingsOnlyGifsCheckbox) {
         settingsOnlyGifsCheckbox.addEventListener('change', () => {
             localStorage.setItem('r34_only_gifs', settingsOnlyGifsCheckbox.checked ? 'true' : 'false');
+            scrollToTopForFloatingSearch();
             if (window.galleryController && window.tagSearch) {
                 window.galleryController.resetAndLoad(window.tagSearch.getTagsQuery());
             }
@@ -1843,6 +1864,7 @@ export function initSettingsModal(options = {}) {
         settingsScrollModeSelect.addEventListener('change', () => {
             const value = settingsScrollModeSelect.value || 'infinite';
             localStorage.setItem('r34_scroll_mode', value);
+            scrollToTopForFloatingSearch();
             
             if (window.galleryController) {
                 window.galleryController.page = 0;
@@ -2265,4 +2287,3 @@ export function initSettingsModal(options = {}) {
         });
     });
 }
-

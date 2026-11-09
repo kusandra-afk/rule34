@@ -3,8 +3,8 @@ import { lockPageScroll, releasePageScroll } from '../backgroundPause.js';
  * Puzzle Game Launcher & Menu Component
  */
 
-import { PuzzleGame } from './puzzleGame.js?v=2.5.4';
-import { PuzzleOnlineManager } from './puzzleOnline.js';
+import { PuzzleGame } from './puzzleGame.js?v=2.5.6';
+import { PuzzleOnlineManager } from './puzzleOnline.js?v=2.5.6';
 import { loadResume, clearResume } from '../puzzle/resume.js';
 import { icon } from '../icons.js';
 import { getSavedExcludedTags } from '../init/initServerSync.js';

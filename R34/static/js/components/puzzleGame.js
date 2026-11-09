@@ -1,13 +1,13 @@
 // CHECKPOINT: PuzzleGame component fixed and verified
 import { fetchPostById } from '../api.js';
 import { icon } from '../icons.js';
-import { PuzzleOnlineManager } from './puzzleOnline.js?v=2.5.4';
+import { PuzzleOnlineManager } from './puzzleOnline.js?v=2.5.6';
 import { PuzzleUI } from '../puzzle/puzzleUI.js';
 import { PuzzleStorage } from '../puzzle/puzzleStorage.js';
 import { playSound, stopPuzzleSounds } from '../puzzle/puzzleAudio.js?v=2.5.3';
 import { spawnConfetti } from '../puzzle/puzzleConfetti.js';
 import { drawJigsawEdge } from '../puzzle/puzzleGeometry.js';
-import { rememberScroll, restoreScroll } from '../scrollState.js';
+import { rememberScroll, restoreScroll } from '../scrollState.js?v=2.5.6';
 import { saveResume, clearResume } from '../puzzle/resume.js';
 
 // ============================================================

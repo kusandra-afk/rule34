@@ -2,7 +2,7 @@
  * Gallery Controller - Handles post loading, API communication, filtering and pagination
  */
 
-import { fetchPosts, proxyUrl } from '../api.js';
+import { fetchPosts, proxyUrl } from '../api.js?v=3.0.2';
 import { icon } from '../icons.js';
 
 export class GalleryController {
@@ -23,6 +23,7 @@ export class GalleryController {
         this.lastTagsQuery = '';
         this.isInitialLoad = true;
         this.debounceTimeout = null;
+        this._scrollResumeTimeout = null;
         this._pendingQuery = null;
 
         window.reachedEnd = false;
@@ -86,6 +87,7 @@ export class GalleryController {
         }
         this._pendingQuery = null;
         this.loading = true;
+        let loadSucceeded = false;
 
         if (append) {
             if (this.paginationLoader) this.paginationLoader.style.display = 'block';
@@ -201,7 +203,27 @@ export class GalleryController {
                 try {
                     let xmlUrl = `https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&tags=${encodeURIComponent(query)}&limit=1`;
                     const xmlResp = await fetch(proxyUrl(xmlUrl));
+                    if (xmlResp.status === 401) {
+                        const authError = new Error('AUTH_REQUIRED');
+                        authError.isAuth = true;
+                        throw authError;
+                    }
+                    if (
+                        xmlResp.status === 403
+                        || xmlResp.status === 429
+                        || xmlResp.status >= 500
+                    ) {
+                        const rateLimitError = new Error('RATE_LIMIT');
+                        rateLimitError.isRateLimit = true;
+                        throw rateLimitError;
+                    }
                     const xmlStr = await xmlResp.text();
+                    if (!xmlStr.trim()) {
+                        const rateLimitError = new Error('RATE_LIMIT');
+                        rateLimitError.isRateLimit = true;
+                        rateLimitError.originalError = new Error('Empty count response');
+                        throw rateLimitError;
+                    }
                     const match = xmlStr.match(/<posts\s+count="(\d+)"/i);
                     if (match) {
                         totalCount = parseInt(match[1], 10);
@@ -209,6 +231,9 @@ export class GalleryController {
                     }
                 } catch (e) {
                     console.error('[GalleryController] Error fetching total count:', e);
+                    if (e?.message === 'RATE_LIMIT' || e?.isRateLimit === true) {
+                        this.handleLoadError(e, true, () => this.resetAndLoad(tagsQuery));
+                    }
                 }
                 this.isInitialLoad = false;
             }
@@ -216,14 +241,12 @@ export class GalleryController {
             const apiLimit = parseInt(localStorage.getItem('r34_api_limit') || '40', 10);
             const limit = Math.min(Math.max(apiLimit, 1), 1000);
 
-            // Если API отдал меньше постов, чем лимит страницы (или вообще ничего),
-            // это последняя партия — дальше подгружать нечего. В этом случае
-            // показываем реальное количество постов ПОСЛЕ клиентской фильтрации
-            // (исключённые теги / только GIF / мин. длительность), а не сырое
-            // totalCount из отдельного API-запроса, которое ничего не знает об этой
-            // фильтрации — иначе счётчик может показывать "1 результат" при пустой
-            // галерее, если единственный найденный пост попал под исключённый тег.
-            const isLastBatch = originalLength === 0 || originalLength < limit;
+            // Для обычных запросов короткая страница означает конец выдачи. При
+            // фильтре GIF продолжаем после короткого непустого ответа: pid может
+            // ещё содержать следующие GIF, поэтому проверяем конец пустой страницей.
+            // На последней странице показываем фактический размер галереи после
+            // клиентской фильтрации, а не сырой totalCount, который её не учитывает.
+            const isLastBatch = originalLength === 0 || (!onlyGifsEnabled && originalLength < limit);
             let realCount;
             if (isLastBatch) {
                 realCount = append ? ((this.gallery?.currentPosts?.length || 0) + posts.length) : posts.length;
@@ -269,6 +292,7 @@ export class GalleryController {
                 }
             }
             window.reachedEnd = this.reachedEnd;
+            loadSucceeded = true;
 
             // Auto-load if viewport is insufficiently filled
             setTimeout(() => {
@@ -302,6 +326,37 @@ export class GalleryController {
             } else if (this.arrowButton) {
                 this.arrowButton.classList.remove('is-searching');
                 this.arrowButton.removeAttribute('aria-busy');
+            }
+
+            // Если после клиентского GIF-фильтра страница не добавила карточек
+            // (или добавила слишком мало, чтобы sentinel вышел из rootMargin),
+            // IntersectionObserver не получит нового пересечения сам. Повторно
+            // наблюдаем sentinel, чтобы продолжить пагинацию, пока он у экрана.
+            if (
+                loadSucceeded
+                && !this.reachedEnd
+                && !this._pendingQuery
+                && !this.loading
+                && localStorage.getItem('r34_only_gifs') === 'true'
+                && (localStorage.getItem('r34_scroll_mode') || 'infinite') === 'infinite'
+                && !document.body.classList.contains('modal-open')
+            ) {
+                if (this._scrollObserver && this._scrollSentinel) {
+                    this._scrollObserver.unobserve(this._scrollSentinel);
+                }
+                clearTimeout(this._scrollResumeTimeout);
+                this._scrollResumeTimeout = setTimeout(() => {
+                    this._scrollResumeTimeout = null;
+                    if (
+                        !this.reachedEnd
+                        && !this.loading
+                        && localStorage.getItem('r34_only_gifs') === 'true'
+                        && (localStorage.getItem('r34_scroll_mode') || 'infinite') === 'infinite'
+                        && !document.body.classList.contains('modal-open')
+                    ) {
+                        this.resumeInfiniteScroll();
+                    }
+                }, 1500);
             }
         }
     }
@@ -410,7 +465,7 @@ export class GalleryController {
         this.errorEl.classList.remove('active', 'rate-limit');
     }
 
-    handleLoadError(error, append) {
+    handleLoadError(error, append, retryAction = null) {
         if (!this.errorEl) return;
 
         if (error && error.message === "AUTH_REQUIRED") {
@@ -444,7 +499,8 @@ export class GalleryController {
             if (retryBtn) {
                 retryBtn.onclick = () => {
                     this._clearError();
-                    this.immediateLoadPosts(this.tagSearch?.getTagsQuery() || '', append);
+                    if (retryAction) retryAction();
+                    else this.immediateLoadPosts(this.tagSearch?.getTagsQuery() || '', append);
                 };
             }
             if (append) {
@@ -459,7 +515,10 @@ export class GalleryController {
         const isRateLimit = error && (error.message === "RATE_LIMIT" || error.isRateLimit === true);
         if (isRateLimit) {
             console.warn('[GalleryController] API Rate Limit encountered. Cooldown started.');
-            const totalSeconds = 15;
+            const retryAfterSeconds = Number.isFinite(error.retryAfterMs)
+                ? Math.ceil(error.retryAfterMs / 1000)
+                : 15;
+            const totalSeconds = Math.max(retryAfterSeconds, 1);
             let secondsLeft = totalSeconds;
             this.errorEl.innerHTML = `
                 <div class="rate-limit-box">
@@ -475,7 +534,8 @@ export class GalleryController {
 
             const retryNow = () => {
                 this._clearError();
-                this.immediateLoadPosts(this.tagSearch?.getTagsQuery() || '', append);
+                if (retryAction) retryAction();
+                else this.immediateLoadPosts(this.tagSearch?.getTagsQuery() || '', append);
             };
 
             if (window._rateLimitInterval) clearInterval(window._rateLimitInterval);

@@ -1714,7 +1714,10 @@ export class Gallery {
             img.className = 'media-content';
             img.decoding = 'async';
             img.alt = post.tags || '';
-            img.loading = 'lazy';
+            // The gallery IntersectionObserver already gates creation and
+            // loading to nearby cards. A second native lazy-loading gate can
+            // delay the request until after unloadMedia clears its source.
+            img.loading = 'eager';
             img.fetchPriority = lowPowerMode ? 'low' : 'auto';
             
             const spinner = document.createElement('div');

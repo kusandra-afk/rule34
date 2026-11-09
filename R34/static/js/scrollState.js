@@ -45,10 +45,15 @@ function applyScroll(top) {
 
 export function rememberScroll(key) {
     if (!key) return 0;
+    return rememberScrollAt(key, window.scrollY || window.pageYOffset || 0);
+}
+
+export function rememberScrollAt(key, top) {
+    if (!key) return 0;
     release();
-    const top = window.scrollY || window.pageYOffset || 0;
-    positions.set(key, top);
-    return top;
+    const position = Number.isFinite(top) ? Math.max(0, top) : 0;
+    positions.set(key, position);
+    return position;
 }
 
 export function forgetScroll(key) {
