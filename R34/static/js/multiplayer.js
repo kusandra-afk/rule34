@@ -753,6 +753,3 @@ export class BaseOnlineEngine {
         this.emit('closed', 'Вы вышли из комнаты');
     }
 }
-
-// Backwards compatibility alias
-export class MultiplayerClient extends BaseOnlineEngine {}

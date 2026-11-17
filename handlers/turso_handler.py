@@ -1,6 +1,7 @@
 import json
 import time
-import os
+
+from handlers import console_ui as ui
 
 def get_turso_settings(load_settings_func=None, load_turso_config_func=None):
     """Load Turso settings from turso_config.json"""
@@ -14,17 +15,6 @@ def get_turso_settings(load_settings_func=None, load_turso_config_func=None):
             config = load_turso_config_func()
             url = config.get('turso_url', '')
             token = config.get('turso_token', '')
-            print(f'[DEBUG] Loaded Turso config - URL: {url[:50]}... Token: {"***" if token else "EMPTY"}')
-        else:
-            # Fallback: direct file read (without decryption - for backward compatibility)
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            turso_config_file = os.path.join(base_dir, 'R34', '.secrets', 'turso_config.json')
-            
-            if os.path.exists(turso_config_file):
-                with open(turso_config_file, 'r', encoding='utf-8') as f:
-                    config = json.load(f)
-                    url = config.get('turso_url', '')
-                    token = config.get('turso_token', '')
         
         # Load enabled setting from settings.json
         if load_settings_func:
@@ -43,7 +33,7 @@ def get_turso_settings(load_settings_func=None, load_turso_config_func=None):
         
         return url, token, enabled
     except Exception as e:
-        print(f'Error loading Turso settings: {e}')
+        ui.error(f'Turso: не удалось прочитать настройки: {e}')
         return '', '', False
 
 def execute_turso_query(sql, params=None, session=None, load_settings_func=None, load_turso_config_func=None):
@@ -77,7 +67,7 @@ def execute_turso_query(sql, params=None, session=None, load_settings_func=None,
 
 def initialize_turso_tables(session=None, load_settings_func=None, load_turso_config_func=None):
     """Initialize Turso tables if they don't exist"""
-    url, token, enabled = get_turso_settings(load_settings_func, load_turso_config_func)
+    _, _, enabled = get_turso_settings(load_settings_func, load_turso_config_func)
     if not enabled:
         return False
     
@@ -149,7 +139,7 @@ def get_turso_favorites(session=None, load_settings_func=None, load_turso_config
                 session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func
             )
         except Exception as e:
-            print(f'[Turso Debug] Purge of old tombstoned favorites failed (non-fatal): {e}')
+            ui.debug(f'Turso: purge старых томбстонов избранного не удался: {e}')
 
     result = execute_turso_query('SELECT id, change, is_deleted FROM favorites ORDER BY updated_at DESC', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
     
@@ -164,11 +154,11 @@ def get_turso_favorites(session=None, load_settings_func=None, load_turso_config
         err_msg = result['error']
         
     if has_column_error and 'is_deleted' in err_msg:
-        print('[Turso Debug] is_deleted column is missing. Attempting self-healing ALTER TABLE...')
+        ui.debug('Turso: нет колонки is_deleted, добавляю через ALTER TABLE')
         try:
             execute_turso_query('ALTER TABLE favorites ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
         except Exception as alter_err:
-            print(f'[Turso Debug] ALTER TABLE failed: {alter_err}')
+            ui.debug(f'Turso: ALTER TABLE не удался: {alter_err}')
         
         # Retry original query
         result = execute_turso_query('SELECT id, change, is_deleted FROM favorites ORDER BY updated_at DESC', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
@@ -188,8 +178,8 @@ def get_turso_favorites(session=None, load_settings_func=None, load_turso_config
             
             if rows is None:
                 # If we still have an error (like no is_deleted even after alter), fallback to selecting just id, change
-                print(f'[Turso Debug] query resulted in rows=None (or error). Result: {result}')
-                print('[Turso Debug] Falling back to query without is_deleted column...')
+                ui.debug(f'Turso: запрос вернул пусто или ошибку: {result}')
+                ui.debug('Turso: повторяю запрос без колонки is_deleted')
                 result_fallback = execute_turso_query('SELECT id, change FROM favorites ORDER BY updated_at DESC', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
                 
                 rows = None
@@ -221,10 +211,10 @@ def get_turso_favorites(session=None, load_settings_func=None, load_turso_config
                     pass
             return favorites
         except Exception as e:
-            print(f'[Turso Debug] Error parsing favorites result: {e}')
+            ui.debug(f'Turso: не удалось разобрать ответ: {e}')
             return None
     else:
-        print('[Turso Debug] execute_turso_query returned None')
+        ui.debug('Turso: execute_turso_query вернул None')
     return None
 
 def _statement_errors(payload):
@@ -257,8 +247,13 @@ def _statement_errors(payload):
 def save_turso_favorites(favorites, session=None, load_settings_func=None, load_turso_config_func=None):
     """Save favorites to Turso safely using chunked upserts (only id, change, is_deleted)"""
     url, token, enabled = get_turso_settings(load_settings_func, load_turso_config_func)
-    if not enabled:
-        print('Turso sync disabled, skipping favorites save')
+    # Флаг включённости сам по себе ничего не значит: синхронизация может быть
+    # «включена» в настройках, но без адреса и токена. Проверять только флаг
+    # мало — запрос уходил на пустой URL, requests падал с «Invalid URL ''», и
+    # в консоли это выглядело как поломка, хотя избранное спокойно сохранялось
+    # локально. Это не ошибка, а неготовое облако → только debug.
+    if not enabled or not url or not token:
+        ui.debug('Turso: облако не настроено, избранное остаётся локальным')
         return False
     
     try:
@@ -301,7 +296,7 @@ def save_turso_favorites(favorites, session=None, load_settings_func=None, load_
             chunk = statements[i:i + batch_size]
             response = session.post(url, headers=headers, json={'statements': chunk}, timeout=20)
             if response.status_code != 200:
-                print(f'[Turso DB] Failed to save favorites chunk {i//batch_size + 1}. Status code: {response.status_code}')
+                ui.warn(f'Turso: облако не приняло пакет избранного (статус {response.status_code}), данные сохранены локально')
                 all_success = False
                 continue
             try:
@@ -309,14 +304,14 @@ def save_turso_favorites(favorites, session=None, load_settings_func=None, load_
             except Exception:
                 errors = []
             if errors:
-                print(f'[Turso DB] Favorites upsert rejected: {errors[0]}')
+                ui.warn(f'Turso: облако отклонило часть избранного: {errors[0]}')
                 all_success = False
 
         if all_success:
-            print(f'[Turso DB] Successfully batched and synced {len(favorites)} favorites (safe upsert)')
+            ui.debug(f'Turso: отправлено {len(favorites)} избранных (safe upsert)')
         return all_success
     except Exception as e:
-        print(f'[Turso DB] Error saving favorites to Turso: {e}')
+        ui.warn(f'Turso: облако не приняло избранное, данные сохранены локально: {e}')
         return False
 
 def get_turso_puzzles(session=None, load_settings_func=None, load_turso_config_func=None, purge_days=None):
@@ -340,7 +335,7 @@ def get_turso_puzzles(session=None, load_settings_func=None, load_turso_config_f
                 session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func
             )
         except Exception as e:
-            print(f'[Turso Debug] Purge of old tombstoned puzzles failed (non-fatal): {e}')
+            ui.debug(f'Turso: purge старых томбстонов пазлов не удался: {e}')
 
     result = execute_turso_query('SELECT data FROM puzzles ORDER BY updated_at DESC', session=session, load_settings_func=load_settings_func, load_turso_config_func=load_turso_config_func)
     if result:
@@ -373,8 +368,10 @@ def get_turso_puzzles(session=None, load_settings_func=None, load_turso_config_f
 def save_turso_puzzles(puzzles, session=None, load_settings_func=None, load_turso_config_func=None):
     """Save puzzles to Turso using safe chunked upsert"""
     url, token, enabled = get_turso_settings(load_settings_func, load_turso_config_func)
-    if not enabled:
-        print('Turso sync disabled, skipping puzzles save')
+    # См. комментарий в save_turso_favorites: без адреса и токена писать некуда,
+    # и это не ошибка.
+    if not enabled or not url or not token:
+        ui.debug('Turso: облако не настроено, пазлы остаются локальными')
         return False
 
     try:
@@ -418,7 +415,7 @@ def save_turso_puzzles(puzzles, session=None, load_settings_func=None, load_turs
             chunk = statements[i:i + batch_size]
             response = session.post(url, headers=headers, json={'statements': chunk}, timeout=20)
             if response.status_code != 200:
-                print(f'[Turso DB] Failed to save puzzles chunk. Status code: {response.status_code}')
+                ui.warn(f'Turso: облако не приняло пакет пазлов (статус {response.status_code}), данные сохранены локально')
                 all_success = False
                 continue
             try:
@@ -426,12 +423,12 @@ def save_turso_puzzles(puzzles, session=None, load_settings_func=None, load_turs
             except Exception:
                 errors = []
             if errors:
-                print(f'[Turso DB] Puzzles upsert rejected: {errors[0]}')
+                ui.warn(f'Turso: облако отклонило часть пазлов: {errors[0]}')
                 all_success = False
 
         if all_success:
-            print(f'[Turso DB] Successfully batched and synced {len(puzzles)} puzzles (safe upsert)')
+            ui.debug(f'Turso: отправлено {len(puzzles)} пазлов (safe upsert)')
         return all_success
     except Exception as e:
-        print(f'[Turso DB] Error saving puzzles to Turso: {e}')
+        ui.warn(f'Turso: облако не приняло пазлы, данные сохранены локально: {e}')
         return False

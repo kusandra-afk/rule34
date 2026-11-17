@@ -48,7 +48,7 @@ function mixRgb(colorStr, accentRgb, amount) {
  * Теперь источник правды один: r34_theme_accent, а alt/glow всегда выводятся
  * из него.
  */
-export const ACCENT_KEYS = ['--accent', '--accent-alt', '--accent-glow'];
+const ACCENT_KEYS = ['--accent', '--accent-alt', '--accent-glow'];
 
 // Старые сборки писали акцент в r34_expert_--accent. Чтобы такая настройка
 // не потерялась молча, перенимаем её как основной акцент.

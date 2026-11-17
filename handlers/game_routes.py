@@ -584,7 +584,8 @@ def _classify_and_cache(cache_key, character_tag, copyright_tags):
         return result
     except Exception as e:
         print('[game_routes] classify failed for', cache_key, ':', e)
-        return {'type': 'unknown', 'title': None, 'source': 'none'}
+        return {'type': 'unknown', 'title': None, 'source': 'none',
+                'failed': True, 'error': str(e)}
     finally:
         with _inflight_lock:
             _inflight.discard(cache_key)
@@ -660,13 +661,3 @@ def api_game_prefetch():
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
-
-@game_bp.route('/api/game/classify_stats', methods=['GET'])
-def api_game_classify_stats():
-    with _cache_lock:
-        total = len(_cache)
-        by_type = {}
-        for v in _cache.values():
-            t = (v or {}).get('type', 'unknown')
-            by_type[t] = by_type.get(t, 0) + 1
-    return jsonify({'ok': True, 'total': total, 'byType': by_type})

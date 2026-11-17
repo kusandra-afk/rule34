@@ -37,13 +37,6 @@ def unmark_session(response):
 
 auth_bp = Blueprint('auth_bp', __name__)
 
-@auth_bp.route('/firebase-applet-config.json')
-def firebase_config_page():
-    config_path = os.path.join(BASE_DIR, 'firebase-applet-config.json')
-    if os.path.exists(config_path):
-        return send_file(config_path)
-    return jsonify({}), 404
-
 @auth_bp.route('/')
 def index():
     user_id, api_key = get_saved_api_key()
@@ -71,20 +64,20 @@ def api_key_login():
     api_key = str(data.get('api_key', '')).strip()
     
     if not user_id or not api_key:
-        return jsonify({'ok': False, 'error': 'Введите оба поля!'})
+        return jsonify({'ok': False, 'error': 'Введите оба поля!'}), 400
         
     if not user_id.isdigit():
         clear_creds()
-        return jsonify({'ok': False, 'error': 'User ID должен состоять только из цифр!'})
+        return jsonify({'ok': False, 'error': 'User ID должен состоять только из цифр!'}), 400
 
     if check_api_key_valid(user_id, api_key):
         if not save_api_creds(user_id, api_key):
             clear_creds()
-            return jsonify({'ok': False, 'error': 'Не удалось сохранить ключи на диск. Проверьте права записи в папку R34/.secrets.'})
+            return jsonify({'ok': False, 'error': 'Не удалось сохранить ключи на диск. Проверьте права записи в папку R34/.secrets.'}), 500
         return mark_session(jsonify({'ok': True}))
     else:
         clear_creds()
-        return jsonify({'ok': False, 'error': 'Ошибка! Неверный user_id или api_key. Проверьте данные и повторите попытку.'})
+        return jsonify({'ok': False, 'error': 'Ошибка! Неверный user_id или api_key. Проверьте данные и повторите попытку.'}), 401
 
 @auth_bp.route('/logout')
 def logout():

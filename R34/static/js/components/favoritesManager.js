@@ -180,7 +180,6 @@ export class FavoritesManager {
             window.addEventListener('resize', () => {
                 const liveGroup = document.getElementById('favColumnsGroup');
                 if (!liveGroup) return;
-                const liveCols = parseInt(localStorage.getItem('r34_favorites_cols'), 10) || 2;
                 const maxAllowed = getMaxAllowedColumns();
                 liveGroup.querySelectorAll('.fav-col-btn').forEach(btn => {
                     const dataCols = btn.getAttribute('data-cols');

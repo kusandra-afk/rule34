@@ -78,12 +78,21 @@
    поток она не добавляет, поэтому её появление и исчезновение тоже не
    двигают галерею. Отступы слева/справа повторяют padding контейнера (на
    телефоне их правит adaptive.css). */
-.search-container.is-scrolled-away .r34-mini-bar {
+.r34-mini-bar {
+  /* Полоска — всегда оверлей над панелью: в потоке она не участвует, поэтому
+     появление и исчезновение не меняют высоту документа и не сдвигают ленту.
+     Раньше абсолютной она становилась только при скрытой шапке и в момент
+     раскрытия успевала на кадр вернуться в поток со своей полной высотой —
+     галерея прыгала вниз и обратно. */
   position: absolute;
   top: 0;
   left: 24px;
   right: 24px;
   margin-bottom: 0;
+  pointer-events: none;
+}
+
+.r34-mini-bar.is-visible {
   pointer-events: auto;
 }
 
@@ -366,71 +375,22 @@ body.can-hover .r34-mini-action:hover {
 }
 
 /* ---------- Ряд с тумблером ---------- */
-.r34-toggle-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  animation: fadeIn 0.5s var(--dur) var(--ease) backwards;
-}
 
-.r34-toggle-label {
-  color: var(--adaptive-text-main, rgba(255, 255, 255, 0.85));
-  font-size: 0.95rem;
-  font-weight: 500;
-  letter-spacing: 0.2px;
-  user-select: none;
-}
+
+
 
 /* ---------- Скрытие тегов (чекбокс) ---------- */
-.r34-hide-tags-row {
-  display: flex;
-  align-items: center;
-}
 
-.r34-hide-tags-label {
-  display: flex;
-  align-items: center;
-  color: var(--adaptive-text-muted, rgba(255, 255, 255, 0.65));
-  font-size: 0.85rem;
-  cursor: pointer;
-  user-select: none;
-  transition: color var(--dur);
-}
 
-body.can-hover .r34-hide-tags-label:hover, body:not(.can-hover) .r34-hide-tags-label:active {
-  color: var(--adaptive-text-main, rgba(255, 255, 255, 0.95));
-}
 
-.r34-hide-tags-label input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  margin-right: 8px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--glass-border);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--dur);
-}
 
-.r34-hide-tags-label input[type="checkbox"]:checked {
-  background: var(--accent);
-  border-color: var(--accent);
-}
 
-.r34-hide-tags-label input[type="checkbox"]:checked:after {
-  content: "";
-  width: 11px;
-  height: 11px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-}
+
+
+
+
+
+
 
 /* ---------- Активные теги ---------- */
 /* Ограничение высоты нужно только «плавающей» шапке — когда контейнер

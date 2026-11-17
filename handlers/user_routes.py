@@ -1,7 +1,7 @@
-import re
 import time
 import json
 from flask import Blueprint, request, jsonify
+from handlers import console_ui as ui
 from handlers.core_utils import (
     get_saved_api_key, load_my_favorites, get_turso_favorites, save_my_favorites_optimized,
     save_turso_favorites, are_favorites_equal, load_excluded_tags, save_excluded_tags,
@@ -14,18 +14,6 @@ from handlers.core_utils import (
 user_bp = Blueprint('user_bp', __name__)
 
 
-@user_bp.route('/api/my-profile', methods=['GET', 'OPTIONS'])
-def api_my_profile():
-    if request.method == 'OPTIONS':
-        return jsonify({'ok': True})
-    user_id, api_key = get_saved_api_key()
-    favorites = load_my_favorites()
-    return jsonify({
-        'ok': True,
-        'userId': user_id or '',
-        'hasApiKey': bool(api_key),
-        'favoritesCount': len(favorites)
-    })
 
 @user_bp.route('/api/my-favorites', methods=['GET', 'POST', 'OPTIONS'])
 def api_my_favorites_handler():
@@ -35,7 +23,6 @@ def api_my_favorites_handler():
         turso_favorites = get_turso_favorites()
         local_favorites = load_my_favorites()
         
-        print(f'[Favorites Sync] GET favorites: Turso={len(turso_favorites) if turso_favorites is not None else "Error"}, Local={len(local_favorites)}')
         
         if turso_favorites is not None:
             turso_fav_map = {str(f.get('id')): f for f in turso_favorites}
@@ -56,11 +43,9 @@ def api_my_favorites_handler():
             need_save_turso = not are_favorites_equal(merged_favorites, turso_favorites)
             
             if need_save_local:
-                print(f'[Favorites Sync] Saving merged favorites ({len(merged_favorites)}) locally')
                 save_my_favorites_optimized(merged_favorites)
             
             if need_save_turso:
-                print(f'[Favorites Sync] Uploading merged favorites ({len(merged_favorites)}) to Turso')
                 save_turso_favorites(merged_favorites)
                 
             active_favorites = [f for f in merged_favorites if f.get('is_deleted', 0) == 0]
@@ -114,10 +99,10 @@ def api_excluded_tags_handler():
     else:
         data = request.json or {}
         tags = data.get('tags')
-        print(f'[API] POST /api/excluded-tags: received {len(tags) if isinstance(tags, list) else "not a list"} tags')
         if not isinstance(tags, list):
             return jsonify({'ok': False, 'error': 'Invalid tags format'}), 400
-        save_excluded_tags(tags)
+        if not save_excluded_tags(tags):
+            return jsonify({'ok': False, 'error': 'excluded_tags_not_saved'}), 500
         return jsonify({'ok': True, 'tags': tags})
 
 @user_bp.route('/api/turso-config', methods=['GET', 'POST', 'OPTIONS'])
@@ -132,7 +117,8 @@ def api_turso_config_handler():
         url = str(data.get('turso_url', '')).strip()
         token = str(data.get('turso_token', '')).strip()
         config = {'turso_url': url, 'turso_token': token}
-        save_turso_config(config)
+        if not save_turso_config(config):
+            return jsonify({'ok': False, 'error': 'turso_config_not_saved'}), 500
         return jsonify({'ok': True, 'config': config})
 
 @user_bp.route('/api/settings', methods=['GET', 'POST', 'OPTIONS'])
@@ -148,7 +134,8 @@ def api_settings_handler():
         if not isinstance(settings, dict):
             return jsonify({'ok': False, 'error': 'Invalid settings format'}), 400
         sanitized = sanitize_settings(settings)
-        save_settings(sanitized)
+        if not save_settings(sanitized):
+            return jsonify({'ok': False, 'error': 'settings_not_saved'}), 500
         return jsonify({'ok': True, 'settings': sanitized})
 
 @user_bp.route('/api/favorite', methods=['POST', 'OPTIONS'])
@@ -208,7 +195,20 @@ def api_favorite():
                 pass
 
         invalidate_caches()
-        return jsonify({'ok': True, 'verified': verified})
+        if not verified:
+            # Ни один способ не сработал: rule34 не принял изменение. Раньше
+            # это уходило как 200 с ok:true и флагом verified:false — ошибка
+            # выглядела успехом и в консоли, и для всякого, кто смотрел на
+            # статус. Теперь это честная ошибка шлюза.
+            return jsonify({
+                'ok': False,
+                'verified': False,
+                # Локальная отметка к этому моменту уже сохранена отдельным
+                # запросом /api/my-favorites, поэтому пишем именно так: иначе
+                # строка «не подтвердил» читается как «избранное потерялось».
+                'error': 'rule34 не подтвердил изменение — в галерее отметка сохранена локально',
+            }), 502
+        return jsonify({'ok': True, 'verified': True})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
@@ -253,52 +253,6 @@ def api_enrich_favorites():
     enriched = enrich_favorites_with_post_data(optimized_list)
     return jsonify({'ok': True, 'posts': enriched})
 
-@user_bp.route('/api/add-post-by-id', methods=['POST', 'OPTIONS'])
-def api_add_post_by_id():
-    if request.method == 'OPTIONS':
-        return jsonify({'ok': True})
-    data = request.json or {}
-    post_id = data.get('postId')
-    if not post_id:
-        return jsonify({'ok': False, 'error': 'Укажите ID поста'}), 400
-    
-    pid = re.sub(r'\D', '', str(post_id))
-    if not pid:
-        return jsonify({'ok': False, 'error': 'Неверный ID поста'}), 400
-
-    try:
-        url = f"https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&id={pid}&json=1&fields=tag_info"
-        resp = session.get(url, headers={'User-Agent': REAL_USER_AGENT}, timeout=15)
-        if resp.status_code == 200:
-            text = resp.text
-            if text and text.strip().startswith('['):
-                posts = json.loads(text)
-                if isinstance(posts, list) and len(posts) > 0 and posts[0]:
-                    post = posts[0]
-                    favorites = load_my_favorites()
-                    pid_str = str(pid)
-                    now_ts = int(time.time() * 1000)
-                    
-                    existing_idx = None
-                    for i, f in enumerate(favorites):
-                        if str(f.get('id')) == pid_str:
-                            existing_idx = i
-                            break
-                    
-                    if existing_idx is not None:
-                        favorites[existing_idx]['is_deleted'] = 0
-                        favorites[existing_idx]['change'] = now_ts
-                    else:
-                        favorites.insert(0, {'id': pid_str, 'change': now_ts, 'is_deleted': 0})
-                        
-                    save_my_favorites_optimized(favorites)
-                    save_turso_favorites(favorites)
-                    
-                    active_count = len([f for f in favorites if f.get('is_deleted', 0) == 0])
-                    return jsonify({'ok': True, 'post': post, 'totalFavorites': active_count})
-        return jsonify({'ok': False, 'error': 'Пост с таким ID не найден на Rule34'}), 404
-    except Exception as e:
-        return jsonify({'ok': False, 'error': str(e)}), 500
 
 @user_bp.route('/api/puzzle-completed', methods=['GET', 'POST', 'OPTIONS'])
 def api_puzzle_completed():
@@ -309,7 +263,6 @@ def api_puzzle_completed():
             turso_puzzles = get_turso_puzzles()
             local_puzzles = load_puzzle_completed()
 
-            print(f'[Puzzles Sync] GET puzzles: Turso={len(turso_puzzles) if turso_puzzles else 0}, Local={len(local_puzzles)}')
 
             # По умолчанию в библиотеку попадают только активные (не-томбстоны).
             # С параметром includeDeleted=1 отдаём и удалённые — это «корзина»:
@@ -373,11 +326,14 @@ def api_puzzle_completed():
                 if not found:
                     return jsonify({'ok': False, 'error': 'puzzle_not_found'}), 404
 
-                save_puzzle_completed_optimized(local_puzzles)
+                if not save_puzzle_completed_optimized(local_puzzles):
+                    return jsonify({'ok': False, 'error': 'puzzles_not_saved'}), 500
                 try:
                     save_turso_puzzles(optimize_puzzles(local_puzzles))
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Облако необязательно: локально уже сохранено, поэтому
+                    # ответ остаётся успешным, но сбой видно в консоли.
+                    ui.warn(f'puzzles: Turso save failed: {e}')
                 active = len([p for p in local_puzzles if not p.get('is_deleted')])
                 return jsonify({'ok': True, 'remaining': active, 'action': data.get('action')})
 
@@ -386,20 +342,15 @@ def api_puzzle_completed():
                 return jsonify({'ok': False, 'error': 'Invalid puzzles format'}), 400
             
             optimized_puzzles = optimize_puzzles(puzzles)
-            save_puzzle_completed_optimized(optimized_puzzles)
+            if not save_puzzle_completed_optimized(optimized_puzzles):
+                return jsonify({'ok': False, 'error': 'puzzles_not_saved'}), 500
             try:
                 save_turso_puzzles(optimized_puzzles)
-            except Exception:
-                pass
+            except Exception as e:
+                ui.warn(f'puzzles: Turso save failed: {e}')
             return jsonify({'ok': True})
     except Exception as e:
         print(f"Error in api_puzzle_completed: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'ok': False, 'error': str(e)}), 500
-
-@user_bp.route('/api/history', methods=['GET', 'POST', 'OPTIONS'])
-def api_history_handler():
-    if request.method == 'OPTIONS':
-        return jsonify({'ok': True})
-    return jsonify({'ok': True, 'history': []})

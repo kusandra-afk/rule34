@@ -30,7 +30,6 @@ export function spawnConfetti(container) {
     // Получаем цвета из CSS переменных для синхронизации с темой
     const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ff3b6b';
     const accentAltColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-alt').trim() || '#ff5e8c';
-    const lightColor = getComputedStyle(document.documentElement).getPropertyValue('--light').trim() || '#f4f6fb';
     
     const colors = [
         accentColor,

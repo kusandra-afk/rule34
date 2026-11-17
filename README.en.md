@@ -8,8 +8,10 @@
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.x-000000?style=flat-square&logo=flask&logoColor=white)
-![Platform](https://img.shields.io/badge/Android%20%C2%B7%20Windows%20%C2%B7%20Linux-supported-2ea44f?style=flat-square)
+![Deps](https://img.shields.io/badge/backend-6%20pip%20packages-2ea44f?style=flat-square)
+![Platform](https://img.shields.io/badge/Android%20%C2%B7%20Windows%20%C2%B7%20Linux%20%C2%B7%20macOS-supported-2ea44f?style=flat-square)
 ![Local](https://img.shields.io/badge/self--hosted-local%20only-8b5cf6?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
 ![Age](https://img.shields.io/badge/18%2B-NSFW-c0392b?style=flat-square)
 
 </div>
@@ -23,6 +25,55 @@
 The project started out of plain annoyance: existing sites were unpleasant to use, slow, or
 poor on phones. So this one ships its own frontend, its own themes and a fully local server —
 your keys and data never leave your machine.
+
+<details>
+<summary><b>Contents</b></summary>
+
+- [Screenshots](#-screenshots)
+- [What's inside](#-whats-inside)
+- [Quick start](#-quick-start)
+- [CLI options](#️-cli-options)
+- [Games](#-games)
+- [Interface language](#-interface-language)
+- [Themes and styling](#-themes-and-styling)
+- [Data and privacy](#-data-and-privacy)
+- [Project structure](#-project-structure)
+- [Checks](#-checks)
+- [Troubleshooting](#-troubleshooting)
+- [Updating](#-updating)
+- [Contributing](#-contributing)
+
+</details>
+
+---
+
+## 📸 Screenshots
+
+> Feed thumbnails are blurred in these images so no explicit content ends up in the repository.
+
+**Desktop**
+
+| Gallery | Favorites |
+|---|---|
+| ![Gallery on desktop](docs/screenshots/desktop-gallery.png) | ![Favorites on desktop](docs/screenshots/desktop-favorites.png) |
+
+| Media info | Settings |
+|---|---|
+| ![Media info](docs/screenshots/desktop-media-info.png) | ![Settings](docs/screenshots/desktop-settings.png) |
+
+| Game selection | Puzzle |
+|---|---|
+| ![Game selection](docs/screenshots/desktop-game-select.png) | ![Puzzle](docs/screenshots/desktop-puzzle.png) |
+
+**Phone**
+
+| Gallery | Favorites | Settings |
+|---|---|---|
+| <img src="docs/screenshots/mobile-gallery.png" alt="Gallery on a phone" width="260"> | <img src="docs/screenshots/mobile-favorites.png" alt="Favorites on a phone" width="260"> | <img src="docs/screenshots/mobile-settings.png" alt="Settings on a phone" width="260"> |
+
+| Media info | Game selection | Puzzle |
+|---|---|---|
+| <img src="docs/screenshots/mobile-media-info.png" alt="Media info on a phone" width="260"> | <img src="docs/screenshots/mobile-game-select.png" alt="Game selection on a phone" width="260"> | <img src="docs/screenshots/mobile-puzzle.png" alt="Puzzle on a phone" width="260"> |
 
 ---
 
@@ -43,6 +94,9 @@ your keys and data never leave your machine.
 ---
 
 ## 🚀 Quick start
+
+**Requirements:** Python 3.8+ (on Windows, tick *Add python.exe to PATH*),
+optionally `node` — it is only needed for the JS and dictionary checks in `tests/`.
 
 ### Android (Termux)
 
@@ -194,6 +248,10 @@ expert style editor for detailed tweaks.
 │       └── js/          # UI, puzzle, multiplayer, themes, viewers
 ├── game_data/           # cached game data
 └── safe_screen/         # "safe screen" files
+├── tests/               # self-checking test suite (see tests/README.md)
+│   ├── run_tests.py     # walks the project: python, JS, CSS, HTML, i18n, server
+│   └── README.md        # test docs (ru: tests/README.md)
+└── LICENSE              # MIT
 ```
 
 ---
@@ -210,6 +268,40 @@ expert style editor for detailed tweaks.
 | Gyroscope and VR don't work on a phone | Use `--https`, or open the site via `localhost` |
 | It asks you to log in again | Open `/logout` and enter your `user_id` and API key again |
 | Slow on a low-end phone | Enable "Low-end device mode", reduce columns and card preloading |
+
+---
+
+## 🧪 Checks
+
+The project ships a self-checking test suite — a single file `tests/run_tests.py`,
+standard library only, no browser. It walks the project (pages, Python, JS, CSS,
+JSON, translations), finds entry points on its own and names the file, line and
+reason for every failure.
+
+```bash
+python tests/run_tests.py             # everything (~6 s)
+python tests/run_tests.py --fast      # skip the HTTP run and node --check
+python tests/run_tests.py --lang en   # English output
+```
+
+The output language defaults to the one chosen in the app (`R34/.secrets/language.json`);
+`--lang ru|en` overrides it. Details in [tests/README.md](tests/README.md)
+(English: [tests/README.en.md](tests/README.en.md)).
+
+---
+
+## 🔄 Updating
+
+```bash
+# in the project folder
+git pull
+```
+
+- Local data (`R34/.secrets/`, `game_data/`) is not in the repository, so
+  `git pull` will not overwrite it.
+- If the server no longer starts after an update, delete `R34/.secrets/language.json` —
+  the next launch will ask for the language and access mode again.
+- To confirm everything is in place, run `python tests/run_tests.py`.
 
 ---
 

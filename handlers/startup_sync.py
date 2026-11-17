@@ -11,6 +11,7 @@ server.py. Из-за этого они выполнялись ТОЛЬКО пр�
 из gunicorn-хука, из ручного скрипта.
 """
 
+from handlers import console_ui as ui
 from handlers.core_utils import (
     get_turso_settings, initialize_turso_tables,
     get_turso_favorites, load_my_favorites, enrich_favorites_with_post_data,
@@ -58,28 +59,30 @@ def _puzzles_changed(turso_puzzles, merged_puzzles):
     return False
 
 
-def sync_favorites_on_startup():
+def sync_favorites_on_startup(lang='en'):
     """Сливает избранное. Возвращает (было_изменение, счётчик)."""
     turso_favorites = get_turso_favorites()
     local_favorites = load_my_favorites()
 
     if turso_favorites is None:
         if local_favorites:
-            print(f'Uploading {len(local_favorites)} local favorites to Turso...')
-            save_turso_favorites(enrich_favorites_with_post_data(local_favorites))
+            ui.info(ui.t(lang, 'turso_upload_fav', count=len(local_favorites)))
+            if not save_turso_favorites(enrich_favorites_with_post_data(local_favorites)):
+                ui.warn(ui.t(lang, 'turso_save_failed'))
             return True, len(local_favorites)
         return False, 0
 
     merged = _merge_favorites(turso_favorites, local_favorites)
     if len(merged) > len(turso_favorites):
-        print(f'Merging favorites: {len(turso_favorites)} in Turso, '
-              f'{len(local_favorites)} local, {len(merged)} merged')
-        save_turso_favorites(enrich_favorites_with_post_data(merged))
+        ui.info(ui.t(lang, 'turso_merge_fav', turso=len(turso_favorites),
+                       local=len(local_favorites), merged=len(merged)))
+        if not save_turso_favorites(enrich_favorites_with_post_data(merged)):
+            ui.warn(ui.t(lang, 'turso_save_failed'))
         return True, len(merged)
     return False, len(turso_favorites)
 
 
-def sync_puzzles_on_startup():
+def sync_puzzles_on_startup(lang='en'):
     """Сливает пазлы. Возвращает (было_изменение, счётчик)."""
     turso_puzzles = get_turso_puzzles()
     local_puzzles = load_puzzle_completed()
@@ -91,23 +94,25 @@ def sync_puzzles_on_startup():
         # уже существующего пазла (новый вариант, отметка удаления) количество
         # не меняет, и такой апдейт молча оставался локальным.
         if len(optimized) > len(turso_puzzles) or _puzzles_changed(turso_puzzles, optimized):
-            print(f'Merging puzzles: {len(turso_puzzles)} in Turso, '
-                  f'{len(local_puzzles)} local, {len(optimized)} merged')
-            save_turso_puzzles(optimized)
+            ui.info(ui.t(lang, 'turso_merge_puz', turso=len(turso_puzzles),
+                           local=len(local_puzzles), merged=len(optimized)))
+            if not save_turso_puzzles(optimized):
+                ui.warn(ui.t(lang, 'turso_save_failed'))
             save_puzzle_completed_optimized(optimized)
             return True, len(optimized)
         return False, len(turso_puzzles)
 
     if not turso_puzzles and local_puzzles:
-        print(f'Uploading {len(local_puzzles)} local puzzles to Turso...')
+        ui.info(ui.t(lang, 'turso_upload_puz', count=len(local_puzzles)))
         optimized = optimize_puzzles(local_puzzles)
-        save_turso_puzzles(optimized)
+        if not save_turso_puzzles(optimized):
+            ui.warn(ui.t(lang, 'turso_save_failed'))
         return True, len(optimized)
 
     return False, len(turso_puzzles or [])
 
 
-def run_startup_sync():
+def run_startup_sync(lang='en'):
     """Точка входа: создаёт таблицы и сливает данные, если Turso включён.
 
     Все ошибки ловятся внутри: недоступный Turso не должен мешать серверу
@@ -116,33 +121,37 @@ def run_startup_sync():
     try:
         url, token, enabled = get_turso_settings()
     except Exception as e:
-        print(f'Could not read Turso settings: {e}')
+        ui.warn(ui.t(lang, 'turso_settings_failed', error=e))
         return False
 
+    # Выключенный Turso — не событие: его состояние видно в стартовом отчёте.
     if not enabled:
-        print('Turso sync is disabled or not configured')
+        return False
+    if not url or not token:
+        # Без адреса и токена каждая попытка синхронизации падала на пустом URL —
+        # раньше это выглядело как «синхронизация включена», а данные тихо не
+        # уезжали никогда. Отдельную строку здесь не печатаем: состояние Turso
+        # есть в стартовом отчёте, дублировать его над баннером не нужно.
         return False
 
-    print('Turso sync is enabled, initializing tables...')
     try:
         if not initialize_turso_tables():
-            print('Failed to initialize Turso tables')
+            ui.error(ui.t(lang, 'turso_tables_failed'))
             return False
     except Exception as e:
-        print(f'Failed to initialize Turso tables: {e}')
+        ui.error(ui.t(lang, 'turso_tables_failed') + ': ' + str(e))
         return False
 
-    print('Turso tables initialized successfully')
-    print('Checking for initial sync...')
+    ui.good(ui.t(lang, 'turso_tables_ok'))
 
     try:
-        sync_favorites_on_startup()
+        sync_favorites_on_startup(lang)
     except Exception as e:
-        print(f'Favorites startup sync failed (non-fatal): {e}')
+        ui.warn(ui.t(lang, 'turso_fav_failed', error=e))
 
     try:
-        sync_puzzles_on_startup()
+        sync_puzzles_on_startup(lang)
     except Exception as e:
-        print(f'Puzzles startup sync failed (non-fatal): {e}')
+        ui.warn(ui.t(lang, 'turso_puz_failed', error=e))
 
     return True

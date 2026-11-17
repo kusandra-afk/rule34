@@ -1,15 +1,14 @@
 import { TagSearch } from './components/tagSearch.js?v=2.4.8';
 import { Gallery } from './components/gallery.js';
 import { SafeScreen } from './components/safeScreen.js';
-import { PuzzleGame } from './components/puzzleGame.js?v=2.5.6';
 import { ExpertStylesEditor } from './components/expertStylesEditor.js';
-import { ExcludedTagsModal } from './modals/excludedTagsModal.js';
+import { ExcludedTagsSync } from './modals/excludedTagsSync.js';
 import { initTutorialModal, checkAndRemoveModalOpenClass } from './modals/tutorialModal.js';
 import { showConfirmModal } from './modals/confirmModal.js';
 import { openGameChoiceModal } from './modals/gameChoiceModal.js';
-import { startPuzzleGame } from './components/puzzleLauncher.js?v=2.5.6';
+import { startPuzzleGame } from './components/puzzleLauncher.js?v=2.5.10';
 import { GuessUI } from './components/guessUI.js';
-import { initSettingsModal } from './modals/settingsModal.js?v=2.5.7';
+import { initSettingsModal } from './modals/settingsModal.js?v=2.6.0';
 import { initR34SelectDropdowns } from './components/customDropdown.js';
 import { ApiSettingsManager } from './settings/apiSettings.js';
 import { applyThemeSettings, debouncedApplyThemeSettings, applyAdaptiveText, setAccent, setBackground } from './theme/themeManager.js';
@@ -18,12 +17,13 @@ import { GalleryController } from './controllers/galleryController.js?v=2.5.17';
 import { ModeController } from './controllers/modeController.js?v=2.5.6';
 import { initServerSync, getSavedExcludedTags, saveSavedExcludedTags, loadSettingsFromServer, loadTursoConfigFromServer, loadExcludedTagsFromServer } from './init/initServerSync.js?v=2.5.0';
 import { initSafeScreen } from './init/initSafeScreen.js';
-import { debounce, setRangeGradient } from './utils.js';
+import { setRangeGradient } from './utils.js';
 import { tursoSync } from './tursoSync.js';
 import { initEffects } from './effects/ripple.js';
 import { initI18n } from './i18n/i18n.js';
 import { initLanguageSettings } from './settings/languageSettings.js';
 import { initBackgroundPause } from './backgroundPause.js';
+import { DevPanel } from './components/devPanel.js?v=1.7.4';
 
 // Export globally for backwards compatibility and inline handlers
 window.applyThemeSettings = applyThemeSettings;
@@ -435,6 +435,12 @@ document.addEventListener('DOMContentLoaded', () => {
         r34ResultsCount
     });
     window.gallery = gallery;
+
+    // Служебная панель (DEV): метрики ленты и сети прямо на странице. На
+    // телефоне DevTools нет вообще — там она и нужна. Включается переключателем
+    // в настройках или по Ctrl+Shift+D, состояние помнится в localStorage.
+    window.devPanel = new DevPanel();
+    window.devPanel.mount();
     window.galleryApp = gallery;
 
     // 6. Секретный триггер на заголовок (5 кликов для выбора игры)
@@ -508,7 +514,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     gallery.onLoadMore = () => {
-        console.log('[Gallery] onLoadMore triggered', { loading: galleryController.loading, reachedEnd: galleryController.reachedEnd, puzzleActive: window.puzzleGameActive });
         if (!galleryController.loading && !galleryController.reachedEnd) {
             galleryController.page++;
             galleryController.immediateLoadPosts(tagSearch.getTagsQuery(), true);
@@ -524,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // 10 & 11. Синхронизация исключённых тегов с поиском и первоначальная загрузка
-    const excludedTagsModal = new ExcludedTagsModal({
+    const excludedTagsSync = new ExcludedTagsSync({
         getSavedExcludedTags: () => getSavedExcludedTags(),
         saveSavedExcludedTags: async (tags) => saveSavedExcludedTags(tags),
         getTagSearch: () => tagSearch,
@@ -532,8 +537,8 @@ document.addEventListener('DOMContentLoaded', () => {
             galleryController.resetAndLoad(tagSearch.getTagsQuery());
         }
     });
-    excludedTagsModal.init();
-    window.excludedTagsModal = excludedTagsModal;
+    excludedTagsSync.init();
+    window.excludedTagsSync = excludedTagsSync;
 
     // Первоначальная загрузка: ждем синхронизации тегов с сервера, чтобы не спамить
     // двойным запросом в API, но с таймаутом безопасности на случай медленного ответа
@@ -551,8 +556,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Загрузка исключенных тегов с сервера и синхронизация с поиском
     loadExcludedTagsFromServer().then(tags => {
         clearTimeout(safetyLoadTimeout);
-        if (excludedTagsModal) {
-            excludedTagsModal.syncInitialTagsToSearch();
+        if (excludedTagsSync) {
+            excludedTagsSync.syncInitialTagsToSearch();
         }
         executeInitialLoad();
     }).catch(() => {
@@ -578,7 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setCurrentSort: (val) => { currentSort = val; },
         applyThemeSettings: () => applyThemeSettings(),
         debouncedApplyThemeSettings: () => debouncedApplyThemeSettings(),
-        rebuildExcludedTagsInTagSearch: () => excludedTagsModal && excludedTagsModal.syncInitialTagsToSearch(),
+        rebuildExcludedTagsInTagSearch: () => excludedTagsSync && excludedTagsSync.syncInitialTagsToSearch(),
         showConfirmModal: (title, msg) => showConfirmModal(title, msg)
     });
 

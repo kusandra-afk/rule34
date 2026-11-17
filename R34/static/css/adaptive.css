@@ -29,13 +29,7 @@
     height: 40px;
   }
 
-  .fullscreen-puzzle-btn {
-    top: 16px;
-    left: 64px;
-    width: 40px;
-    height: 40px;
-    font-size: 1.05rem;
-  }
+  
 
   .media-fullscreen-container .media-content {
     max-width: 100vw;
@@ -82,7 +76,7 @@
   /* Умная шапка по скроллу работает на телефоне так же, как на ПК:
      панель уезжает вверх, снизу остаётся компактная полоска. Отступы
      полоски повторяют padding контейнера. */
-  .search-container.is-scrolled-away .r34-mini-bar {
+  .r34-mini-bar {
     left: 16px;
     right: 16px;
   }
@@ -199,28 +193,11 @@
   }
 
   /* Ряд тумблеров — сеткой в 2 колонки */
-  .r34-toggle-row {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 12px !important;
-    width: 100% !important;
-  }
+  
 
-  .r34-toggle-row > div {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 6px !important;
-    width: 100% !important;
-  }
+  
 
-  .r34-toggle-label {
-    font-size: 0.78rem !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.5px !important;
-    opacity: 0.65 !important;
-  }
+  
 
   .r34-select {
     width: 100% !important;
@@ -406,13 +383,7 @@
     box-shadow: var(--shadow-md) !important;
   }
 
-  .hd-btn.hd-active,
-  .video-bottom-hd-btn.hd-active {
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-alt) 100%) !important;
-    border: none !important;
-    color: var(--light) !important;
-    box-shadow: 0 0 12px var(--accent-glow) !important;
-  }
+  
 }
 
 /* ============================================================
@@ -423,7 +394,7 @@
     padding: 0 10px;
   }
 
-  .search-container.is-scrolled-away .r34-mini-bar {
+  .r34-mini-bar {
     left: 10px;
     right: 10px;
   }
@@ -439,10 +410,7 @@
     margin: 16px 0 8px 0;
   }
 
-  .r34-toggle-row {
-    grid-template-columns: 1fr !important;
-    gap: 8px !important;
-  }
+  
 
   .r34-search-input {
     min-width: 0; /* важно для сжатия во flex */
@@ -586,8 +554,6 @@
     transition: transform 0.08s var(--ease-out) !important;
   }
 
-  .keep-btn:active,
-  .confirm-btn:active,
   .r34-btn-primary:active,
   .r34-btn-secondary:active,
   .r34-btn-danger:active {
@@ -602,7 +568,7 @@
     box-shadow: 0 0 16px var(--accent-glow) !important;
     transition: transform 0.08s var(--ease-out) !important;
   }
-  .r34-btn-secondary, .r34-btn-primary, .confirm-btn, .keep-btn {
+  .r34-btn-secondary, .r34-btn-primary {
     min-height: 44px !important;
   }
 

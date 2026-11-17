@@ -8,8 +8,10 @@
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.x-000000?style=flat-square&logo=flask&logoColor=white)
-![Platform](https://img.shields.io/badge/Android%20%C2%B7%20Windows%20%C2%B7%20Linux-supported-2ea44f?style=flat-square)
+![Deps](https://img.shields.io/badge/backend-6%20pip%20packages-2ea44f?style=flat-square)
+![Platform](https://img.shields.io/badge/Android%20%C2%B7%20Windows%20%C2%B7%20Linux%20%C2%B7%20macOS-supported-2ea44f?style=flat-square)
 ![Local](https://img.shields.io/badge/self--hosted-local%20only-8b5cf6?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
 ![Age](https://img.shields.io/badge/18%2B-NSFW-c0392b?style=flat-square)
 
 </div>
@@ -23,6 +25,55 @@
 Проект родился из простого раздражения: готовые сайты не устраивали ни интерфейсом, ни
 скоростью, ни поведением на телефоне. Поэтому здесь свой фронтенд, свои темы и полностью
 локальный сервер — данные и ключи не покидают вашу машину.
+
+<details>
+<summary><b>Содержание</b></summary>
+
+- [Скриншоты](#-скриншоты)
+- [Что внутри](#-что-внутри)
+- [Быстрый старт](#-быстрый-старт)
+- [Параметры запуска](#️-параметры-запуска)
+- [Игры](#-игры)
+- [Язык интерфейса](#-язык-интерфейса)
+- [Темы и оформление](#-темы-и-оформление)
+- [Данные и приватность](#-данные-и-приватность)
+- [Структура проекта](#-структура-проекта)
+- [Проверки](#-проверки)
+- [Решение проблем](#-решение-проблем)
+- [Обновление](#-обновление)
+- [Участие](#-участие)
+
+</details>
+
+---
+
+## 📸 Скриншоты
+
+> Превью в ленте на снимках размыты: в репозиторий не попадает откровенный контент.
+
+**ПК**
+
+| Галерея | Избранное |
+|---|---|
+| ![Галерея на ПК](docs/screenshots/desktop-gallery.png) | ![Избранное на ПК](docs/screenshots/desktop-favorites.png) |
+
+| Информация о медиа | Настройки |
+|---|---|
+| ![Информация о медиа](docs/screenshots/desktop-media-info.png) | ![Настройки](docs/screenshots/desktop-settings.png) |
+
+| Выбор игры | Пазл |
+|---|---|
+| ![Выбор игры](docs/screenshots/desktop-game-select.png) | ![Пазл](docs/screenshots/desktop-puzzle.png) |
+
+**Телефон**
+
+| Галерея | Избранное | Настройки |
+|---|---|---|
+| <img src="docs/screenshots/mobile-gallery.png" alt="Галерея на телефоне" width="260"> | <img src="docs/screenshots/mobile-favorites.png" alt="Избранное на телефоне" width="260"> | <img src="docs/screenshots/mobile-settings.png" alt="Настройки на телефоне" width="260"> |
+
+| Информация о медиа | Выбор игры | Пазл |
+|---|---|---|
+| <img src="docs/screenshots/mobile-media-info.png" alt="Информация о медиа на телефоне" width="260"> | <img src="docs/screenshots/mobile-game-select.png" alt="Выбор игры на телефоне" width="260"> | <img src="docs/screenshots/mobile-puzzle.png" alt="Пазл на телефоне" width="260"> |
 
 ---
 
@@ -43,6 +94,9 @@
 ---
 
 ## 🚀 Быстрый старт
+
+**Требования:** Python 3.8+ (на Windows — с галочкой *Add python.exe to PATH*),
+необязательно `node` — он нужен только для проверок JS и словарей в `tests/`.
 
 ### Android (Termux)
 
@@ -196,6 +250,10 @@ python server.py --mode lan --https --port 3000
 │       └── js/          # интерфейс, пазл, мультиплеер, темы, просмотрщики
 ├── game_data/           # кэш игровых данных
 └── safe_screen/         # файлы «безопасного экрана»
+├── tests/               # самопроверяющийся набор тестов (см. tests/README.md)
+│   ├── run_tests.py     # обход проекта: python, JS, CSS, HTML, i18n, сервер
+│   └── README.md        # документация теста (en: tests/README.en.md)
+└── LICENSE              # MIT
 ```
 
 ---
@@ -212,6 +270,41 @@ python server.py --mode lan --https --port 3000
 | Не работают гироскоп и VR с телефона | Нужен `--https` или доступ через `localhost` |
 | Просит вход заново / не пускает | Откройте `/logout` и введите `user_id` с API-ключом заново |
 | Подлагивает на слабом телефоне | Включите «Режим для слабых устройств», уменьшите число колонок и предзагрузку карточек |
+
+---
+
+## 🧪 Проверки
+
+В проекте есть самопроверяющийся набор тестов — один файл `tests/run_tests.py`,
+только стандартная библиотека Python, без браузера. Он сам обходит проект (страницы,
+Python, JS, CSS, JSON, переводы), сам находит точки входа и на каждый провал
+показывает файл, строку и причину.
+
+```bash
+python tests/run_tests.py             # всё (~6 с)
+python tests/run_tests.py --fast      # без HTTP-прогона и node --check
+python tests/run_tests.py --lang en   # вывод по-английски
+```
+
+Язык вывода по умолчанию берётся из настроек приложения (`R34/.secrets/language.json`),
+`--lang ru|en` переопределяет его. Подробнее — в [tests/README.md](tests/README.md)
+(английский: [tests/README.en.md](tests/README.en.md)).
+
+---
+
+## 🔄 Обновление
+
+```bash
+# в папке проекта
+git pull
+cd R34/.secrets && python -c "import json; print(json.load(open('language.json')))"  # настройки на месте
+```
+
+- Локальные данные (`R34/.secrets/`, `game_data/`) при обновлении не трогаются —
+  они не в репозитории, поэтому `git pull` их не затрёт.
+- Если после обновления сервер не стартует, удалите `R34/.secrets/language.json` —
+  при следующем запуске он снова спросит язык и режим доступа.
+- Проверить, что всё на месте, можно прогоном `python tests/run_tests.py`.
 
 ---
 

@@ -1,4 +1,3 @@
-import { setRangeGradient, formatCount, extractHexColor, debounce } from './utils.js';
 
 export function proxyUrl(url) {
     return '/proxy?url=' + encodeURIComponent(url);
@@ -293,7 +292,6 @@ export async function fetchPosts(tagsQuery, popularOnly, page = 0) {
                 const cacheAge = Date.now() - cachedData.timestamp;
                 // Кэш действителен 5 минут
                 if (cacheAge < 5 * 60 * 1000) {
-                    console.log('[Rule34 API] Using cached response for:', url);
                     return cachedData.data;
                 }
             } catch (e) {

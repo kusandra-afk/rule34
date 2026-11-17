@@ -87,7 +87,7 @@ export function getAccentGlow(hexColor, intensity) {
  * #rgb / #rrggbb → { h, s, l } (в градусах и процентах).
  * Возвращает null, если цвет не hex — тогда вызывающий код оставляет значение как есть.
  */
-export function hexToHsl(hexColor) {
+function hexToHsl(hexColor) {
     if (!hexColor || typeof hexColor !== 'string' || !hexColor.startsWith('#')) return null;
     let hex = hexColor.trim().replace('#', '');
     if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
@@ -115,7 +115,7 @@ export function hexToHsl(hexColor) {
     return { h, s: s * 100, l: l * 100 };
 }
 
-export function hslToHex(h, s, l) {
+function hslToHex(h, s, l) {
     const sN = Math.max(0, Math.min(100, s)) / 100;
     const lN = Math.max(0, Math.min(100, l)) / 100;
     const c = (1 - Math.abs(2 * lN - 1)) * sN;

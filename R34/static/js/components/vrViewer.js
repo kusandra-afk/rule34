@@ -30,8 +30,8 @@ function loadThree() {
     return threeModulePromise;
 }
 
-export const VR_PROJECTIONS = ['360', '180'];
-export const VR_STEREO_MODES = ['mono', 'sbs', 'tb'];
+const VR_PROJECTIONS = ['360', '180'];
+const VR_STEREO_MODES = ['mono', 'sbs', 'tb'];
 
 // Слово «Стерео» вынесено в отдельный span: на узком экране оно прячется
 // через CSS, иначе панель управления разъезжается на четыре строки и

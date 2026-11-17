@@ -1,7 +1,6 @@
 // CHECKPOINT: PuzzleGame component fixed and verified
 import { fetchPostById } from '../api.js';
 import { icon } from '../icons.js';
-import { PuzzleOnlineManager } from './puzzleOnline.js?v=2.5.6';
 import { PuzzleUI } from '../puzzle/puzzleUI.js';
 import { PuzzleStorage } from '../puzzle/puzzleStorage.js';
 import { playSound, stopPuzzleSounds } from '../puzzle/puzzleAudio.js?v=2.5.3';
@@ -1240,6 +1239,36 @@ export class PuzzleGame {
                 stroke: var(--success) !important;
                 stroke-width: 4px !important;
                 opacity: 1 !important;
+                /* Без сброса задержки обводка нижних рядов перекрашивалась
+                   через 1.3 с — уже после снятия класса, и вспышки не было. */
+                transition-delay: 0s !important;
+            }
+
+            /* Упрощённый режим: SVG-контуров у деталей нет, поэтому вспышку
+               правильной стыковки рисуем заливкой по форме детали. */
+            .puzzle-tile-flash {
+                position: absolute;
+                inset: 0;
+                z-index: 4;
+                pointer-events: none;
+                background: rgba(74, 222, 128, 0.5);
+                opacity: 0;
+                transition: opacity 0.12s ease;
+            }
+            .puzzle-tile.flash-green .puzzle-tile-flash { opacity: 1; }
+
+            /* Разрез в упрощённом режиме: контуров нет, поэтому линии сетки
+               поднимаем над деталями и красим акцентом. Иначе нарезка
+               выглядела так, будто детали просто уехали в лоток. */
+            .puzzle-board.perf-mode.cutting .puzzle-grid-mesh {
+                opacity: 1 !important;
+                z-index: 5 !important;
+                transition: none !important;
+            }
+            .puzzle-board.perf-mode.cutting .puzzle-grid-mesh line {
+                stroke: var(--accent-alt) !important;
+                stroke-width: 0.06 !important;
+                stroke-dasharray: none !important;
             }
 
             .puzzle-tile-outline path {
@@ -2579,6 +2608,10 @@ export class PuzzleGame {
         if (status === 'playing' && this.tileElements) {
             this.tileElements.forEach(el => {
                 el.style.touchAction = 'none';
+                // Ступенчатая задержка нужна только вступительной нарезке:
+                // на нижних рядах она доходит до 1.3 с и гасит зелёную
+                // вспышку стыковки, которая живёт 0.6 с.
+                el.style.removeProperty('--row-delay');
             });
         }
         const statusText = document.getElementById('puzzle-status-text');
@@ -2658,6 +2691,7 @@ export class PuzzleGame {
             this.trayDiv.querySelectorAll('.puzzle-tile').forEach(el => el.remove());
         }
         this.board.innerHTML = '';
+        this.board.classList.remove('perf-mode');
         this.tileElements.clear();
         this.svgDefsContainer.innerHTML = '';
 
@@ -2817,6 +2851,13 @@ export class PuzzleGame {
                 strokeDark.setAttribute('stroke-linejoin', 'round');
                 outlineSvg.appendChild(strokeDark);
                 element.appendChild(outlineSvg);
+            } else {
+                // Контуров нет — вспышку правильной стыковки рисуем заливкой,
+                // а разрез показываем линиями сетки (см. .perf-mode в CSS).
+                this.board.classList.add('perf-mode');
+                const flash = document.createElement('div');
+                flash.className = 'puzzle-tile-flash';
+                element.appendChild(flash);
             }
 
             const numSpan = document.createElement('span');
@@ -3403,10 +3444,16 @@ export class PuzzleGame {
     flashGroupTiles(groupTiles, timeout = 600) {
         groupTiles.forEach(gt => {
             const el = this.tileElements.get(gt.id);
-            if (el) { 
-                el.classList.add('flash-green'); 
-                setTimeout(() => el.classList.remove('flash-green'), timeout); 
-            }
+            if (!el) return;
+            el.classList.add('flash-green');
+            // Повторная стыковка, пока висит прошлая вспышка: продлеваем её.
+            // Раньше первый таймер снимал класс почти сразу после новой
+            // стыковки, и вспышка выглядела пропущенной.
+            clearTimeout(el._flashGreenTimer);
+            el._flashGreenTimer = setTimeout(() => {
+                el.classList.remove('flash-green');
+                el._flashGreenTimer = null;
+            }, timeout);
         });
     }
 
@@ -3560,6 +3607,9 @@ export class PuzzleGame {
                     groupData.tiles.forEach(t => { t.boardX += avgShiftX; t.boardY += avgShiftY; dirtyTileIds.add(t.id); });
                 }
             }
+            // Вспышка только по перетащенной детали (группе): подсвечивать
+            // всю собранную группу дорого — на больших сборках это заметно
+            // лагает.
             this.flashGroupTiles(groupTiles);
             playSound('correct');
             snapped = true;
@@ -3894,8 +3944,6 @@ export class PuzzleGame {
         const maxSpeed = 20; // Увеличенная скорость автопрокрутки (было 10)
         let speed = 0;
 
-        // Находим видимые на экране границы игрового поля/лотка
-        const visibleBoardTop = Math.max(boardRect.top, 0);
 
         // Проверяем, находится ли палец в лотке
         const inTray = trayRect && (clientY >= trayRect.top - 10);
@@ -4451,6 +4499,12 @@ export class PuzzleGame {
     onWin() {
         this.isPlaying = false;
         this.hasWon = true;
+
+        // Сборка завершена: сохранённый снимок «продолжить» больше не нужен.
+        // Раньше он оставался в localStorage — в меню висела кнопка
+        // «Продолжить пазл», открывавшая уже собранное поле.
+        clearResume();
+        this._stopResumeAutosave();
 
         if (this.isOnline && this.onlineManager) {
             this.onlineManager.sendWinEvent(this.seconds, this.moves, this.isSurrendered);

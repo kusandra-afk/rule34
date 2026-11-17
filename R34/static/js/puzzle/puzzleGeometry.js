@@ -2,7 +2,7 @@
 // Jigsaw Geometry & Tab/Blank Edge Generators
 // ============================================================
 
-export function getJigsawPt(x1, y1, x2, y2, t, n_val, W, H) {
+function getJigsawPt(x1, y1, x2, y2, t, n_val, W, H) {
     const vx = x2 - x1;
     const vy = y2 - y1;
     if (!W || !H) {
@@ -25,13 +25,13 @@ export function getJigsawPt(x1, y1, x2, y2, t, n_val, W, H) {
     };
 }
 
-export function getSeamBaselineN(t, seam) {
+function getSeamBaselineN(t, seam) {
     if (!seam) return 0;
     const baseCurve = seam.baseCurve || 0;
     return baseCurve * Math.sin(t * Math.PI);
 }
 
-export function getCanonicalJigsawSegments(x1, y1, x2, y2, seam, W, H) {
+function getCanonicalJigsawSegments(x1, y1, x2, y2, seam, W, H) {
     const pos = seam.tabPos || 0.5;
     const size = seam.tabSize || 0.18;
     const rawWidth = seam.tabWidth || 0.18;

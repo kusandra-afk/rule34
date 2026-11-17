@@ -1,0 +1,336 @@
+/* ============================================================
+   Служебная панель (DEV).
+   Включается в настройках или по Ctrl+Shift+D. Смысл: держать под
+   рукой метрики ленты и сети, не открывая DevTools — на телефоне
+   DevTools нет вообще.
+
+   Раскладка:
+     • ПК      — карточка в правом нижнем углу, тащится за заголовок,
+                 положение запоминается;
+     • телефон — нижний лист на всю ширину, сворачивается в круглый
+                 значок DEV слева внизу, чтобы не мешать листать.
+   ============================================================ */
+
+.r34-dev-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 900000;           /* ниже тостов (9999999), выше карточек */
+  width: 268px;
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(14, 16, 22, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.55);
+  color: var(--light, #f4f6fb);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+
+.r34-dev-panel[hidden] {
+  display: none !important;
+}
+
+/* Свёрнутое состояние: остаётся только значок. */
+.r34-dev-panel.is-collapsed {
+  width: 46px;
+  height: 46px;              /* без высоты кружок выходил овальным: 46×48 */
+  border-radius: 50%;
+}
+.r34-dev-panel.is-collapsed .r34-dev-body,
+.r34-dev-panel.is-collapsed .r34-dev-tools,
+.r34-dev-panel.is-collapsed .r34-dev-subtitle {
+  display: none;
+}
+.r34-dev-panel.is-collapsed .r34-dev-head {
+  cursor: pointer;
+  padding: 0;
+  height: 44px;              /* 46px минус рамка панели, иначе круг растянут */
+  justify-content: center;
+}
+.r34-dev-panel.is-collapsed .r34-dev-drag {
+  display: none;
+}
+/* В кружке 44px кнопки и точка не помещаются и обрезались по краям — виден
+   только знак DEV, нажатие по нему разворачивает панель. */
+.r34-dev-panel.is-collapsed .r34-dev-dot,
+.r34-dev-panel.is-collapsed .r34-dev-btn {
+  display: none;
+}
+.r34-dev-panel.is-collapsed .r34-dev-title {
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+
+/* ── Заголовок ── */
+.r34-dev-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.r34-dev-head:active {
+  cursor: grabbing;
+}
+
+.r34-dev-title {
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--accent, #ff3b6b);
+}
+
+.r34-dev-subtitle {
+  color: var(--text-muted, rgba(244, 246, 251, 0.6));
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.r34-dev-dot {
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 6px #4ade80;
+  flex: 0 0 auto;
+}
+.r34-dev-panel.is-idle .r34-dev-dot {
+  background: #f2c94c;
+  box-shadow: 0 0 6px #f2c94c;
+}
+
+.r34-dev-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  border-radius: 6px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.r34-dev-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+.r34-dev-btn:active {
+  transform: scale(0.94);
+}
+.r34-dev-btn--close:hover {
+  background: rgba(255, 59, 107, 0.28);
+  border-color: rgba(255, 59, 107, 0.5);
+}
+
+/* ── Тело со скроллом ── */
+.r34-dev-body {
+  padding: 6px 9px 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.r34-dev-body::-webkit-scrollbar {
+  width: 6px;
+}
+.r34-dev-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+}
+
+.r34-dev-group + .r34-dev-group {
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.r34-dev-group-title {
+  color: var(--text-muted, rgba(244, 246, 251, 0.6));
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.r34-dev-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 15px;
+}
+
+.r34-dev-row-label {
+  color: var(--text-muted, rgba(244, 246, 251, 0.6));
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.r34-dev-row-value {
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+  max-width: 62%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.r34-dev-row-value.is-good { color: #4ade80; }
+.r34-dev-row-value.is-warn { color: #f2c94c; }
+.r34-dev-row-value.is-bad  { color: var(--error, #ff5c5c); }
+.r34-dev-row-value.is-muted { color: var(--text-muted, rgba(244, 246, 251, 0.55)); }
+.r34-dev-row-value.is-dim  { color: var(--text-muted, rgba(244, 246, 251, 0.6)); }
+
+/* ── Журнал ошибок ── */
+.r34-dev-log {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.r34-dev-log li {
+  color: #ffb4b4;
+  font-size: 10px;
+  word-break: break-word;
+  max-height: 2.9em;
+  overflow: hidden;
+}
+.r34-dev-log li.is-empty {
+  color: var(--text-muted, rgba(244, 246, 251, 0.45));
+}
+
+/* ── Кнопки действий ── */
+.r34-dev-tools {
+  /* Сетка 2×2, а не flex-wrap: при переносе четвёртая кнопка уезжала
+     отдельной строкой во всю ширину и выглядела как главная. */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 6px 9px 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.r34-dev-action {
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.r34-dev-action:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.r34-dev-action:active {
+  transform: scale(0.97);
+}
+.r34-dev-action--primary {
+  border-color: rgba(var(--accent-rgb, 255, 59, 107), 0.5);
+  color: var(--accent-alt, #ff5e8c);
+  /* Пятая кнопка не должна висеть в половинке строки: перезагрузка
+     занимает всю ширину и остаётся главным действием. */
+  grid-column: 1 / -1;
+}
+
+/* Результат самопроверки — те же строки, что и метрики, но с ✓/✕. */
+.r34-dev-selftest {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+/* Одна проверка самопроверки: строка «название + ✓/✕» и пояснение под ней,
+   чтобы при провале было видно, что именно не так. */
+.r34-dev-check {
+  margin-bottom: 3px;
+}
+
+.r34-dev-note {
+  color: var(--text-muted, rgba(244, 246, 251, 0.55));
+  font-size: 10px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.r34-dev-note.is-bad {
+  color: var(--error, #ff5c5c);
+}
+
+/* ── Телефон ── */
+@media (max-width: 640px), (pointer: coarse) and (max-width: 900px) {
+  .r34-dev-panel {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    max-height: 46vh;
+    border-radius: 14px 14px 12px 12px;
+  }
+
+  /* Свёрнутая панель на телефоне — круглая кнопка слева внизу,
+     над нижней навигацией, но не поверх неё. */
+  .r34-dev-panel.is-collapsed {
+    width: 44px;
+    height: 44px;
+    left: 8px;
+    right: auto;
+    bottom: 78px;
+  }
+  .r34-dev-panel.is-collapsed .r34-dev-head {
+    height: 44px;
+  }
+
+  .r34-dev-head {
+    padding: 9px 10px;
+  }
+  .r34-dev-body {
+    padding: 8px 10px 10px;
+  }
+  .r34-dev-tools {
+    padding: 8px 10px 10px;
+  }
+  .r34-dev-action {
+    padding: 7px 6px;
+    font-size: 11px;
+  }
+  /* Крупнее цели: пальцем в 10px кнопку не попасть. */
+  .r34-dev-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
+  }
+}
+
+/* Кроме тумблера панель прячет только полноэкранный просмотр поста. В
+   мини-играх и лобби она остаётся видимой: z-index 900000 выше их оверлеев
+   (55000…100000), поэтому её не закрывает игровое поле, а место, которое она
+   занимает, меняется перетаскиванием за заголовок. */

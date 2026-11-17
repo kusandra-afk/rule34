@@ -6,7 +6,7 @@ import { debounce, setRangeGradient, extractHexColor, getMaxAllowedColumns } fro
 import { icon } from '../icons.js';
 import { checkAndRemoveModalOpenClass, initTutorialModal } from './tutorialModal.js';
 import { tursoSync } from '../tursoSync.js';
-import { saveTursoConfigToServer, saveSettingsToServer } from '../init/initServerSync.js';
+import { saveTursoConfigToServer } from '../init/initServerSync.js';
 import { colorPresets } from '../theme/themePresets.js';
 import { debouncedSaveSetting, setAccent } from '../theme/themeManager.js';
 import { OnlineUI } from '../puzzle/onlineUI.js';
@@ -567,7 +567,6 @@ export function initSettingsModal(options = {}) {
                     settingsScrollbarColorManual.value = scrollbarThumbColor;
                 }
     
-                const gifAutoplay = localStorage.getItem('r34_gif_autoplay') === 'true';
                 const videoLoop = localStorage.getItem('r34_video_loop') !== 'false';
                 const settingsVideoLoopCheckbox = document.getElementById('settingsVideoLoopCheckbox');
                 if (settingsVideoLoopCheckbox) {
@@ -1887,9 +1886,21 @@ export function initSettingsModal(options = {}) {
     if (settingsDeveloperModeCheckbox) {
         settingsDeveloperModeCheckbox.addEventListener('change', () => {
             const enabled = settingsDeveloperModeCheckbox.checked;
-            localStorage.setItem('r34_dev_mode', enabled ? 'true' : 'false');
-            if (window.gallery && typeof window.gallery.updateDeveloperPanel === 'function') {
-                window.gallery.updateDeveloperPanel();
+            // Панель живёт в components/devPanel.js и сама знает, как себя
+            // показать и запомнить флаг. Пишем localStorage только как
+            // запасной путь: в приватном режиме setItem может бросить
+            // исключение, и тогда тумблер молча не сработал бы.
+            if (window.devPanel && typeof window.devPanel.setEnabled === 'function') {
+                window.devPanel.setEnabled(enabled);
+            } else {
+                try {
+                    localStorage.setItem('r34_dev_mode', enabled ? 'true' : 'false');
+                } catch (e) {
+                    /* хранилище недоступно — панель включится только в этой сессии */
+                }
+                if (window.gallery && typeof window.gallery.updateDeveloperPanel === 'function') {
+                    window.gallery.updateDeveloperPanel();
+                }
             }
         });
     }

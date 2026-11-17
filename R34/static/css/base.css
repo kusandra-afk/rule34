@@ -25,10 +25,9 @@
   --text-muted: rgba(244, 246, 251, 0.6);
   --error: #ff5c5c;
   --error-rgb: 255, 92, 92;
+  --error-glow: rgba(var(--error-rgb), 0.35);
   --success: #34e39a;
-  --success-rgb: 52, 227, 154;
   --warning: #f2c94c;
-  --warning-rgb: 242, 201, 76;
 
   /* ── Градиенты заголовков ── */
   --title-gradient: linear-gradient(120deg, #ffffff 10%, #ccd3e8 55%, var(--accent) 125%);
@@ -41,7 +40,6 @@
      Используется вместо стекла с backdrop-filter: размытие фона под
      окном дорого по GPU, а видно его всё равно не было под плотным фоном. */
   --modal-bg-solid: #14161f;
-  --modal-bg-accent: rgba(20, 22, 31, 0.985);
   /* Поверхность карточек ВНУТРИ модального окна: чуть светлее подложки,
      но непрозрачная — иначе сквозь карточку просвечивает фон окна
      и всё снова выглядит «стеклянным». */
@@ -69,33 +67,16 @@
   --button-radius: 10px;
   --input-radius: 10px;
 
-  /* ── Шкала отступов (кратна 4px) ── */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-10: 40px;
-  --space-12: 48px;
-
   /* ── Шкала длительностей (анимации) ── */
   --dur-fast: 120ms;
   --dur: 200ms;
   --dur-slow: 320ms;
   --dur-enter: 450ms;    /* entrance анимации */
-  --dur-exit: 280ms;     /* exit анимации */
   --transition-speed: 0.2s;          /* совместимость с экспертным режимом */
 
   /* ── Типографика ── */
   --site-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --base-font-size: 16px;
-  --font-xs: 0.75rem;    /* 12px */
-  --font-sm: 0.8125rem;  /* 13px */
-  --font-md: 0.875rem;   /* 14px */
-  --font-lg: 1rem;       /* 16px */
-  --font-xl: 1.25rem;    /* 20px */
 
   /* ── Геометрия ── */
   --media-radius: 20px;
@@ -149,13 +130,10 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);     /* мягкий выход */
   --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);/* пружина */
   --ease-back: cubic-bezier(0.175, 0.885, 0.32, 1.275);/* back-out — мягкое появление с лёгким перелётом (модалки) */
-  --ease-spring: cubic-bezier(0.68, -0.45, 0.45, 1.45); /* spring — для toggle и мелких элементов */
   --ease-elastic: cubic-bezier(0.68, -0.55, 0.265, 1.55); /* elastic — для entrance анимаций */
 
   /* ── Тени (слоистые, реалистичные) ── */
   --shadow-glow-sm: 0 0 15px rgba(var(--accent-rgb), 0.15);
-  --shadow-glow-md: 0 0 30px rgba(var(--accent-rgb), 0.2);
-  --shadow-glow-lg: 0 0 60px rgba(var(--accent-rgb), 0.25);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.35), 0 32px 70px rgba(0, 0, 0, 0.55);
@@ -182,7 +160,6 @@
    Без !important: эти селекторы имеют более высокую специфичность, чем базовые
    определения кнопок ниже, поэтому перекрывают их штатно через каскад. */
 .r34-btn-primary,
-.confirm-btn,
 .app-mode-btn.active,
 #toggleExpertBtn {
   color: var(--btn-primary-color, #fff);
@@ -272,9 +249,6 @@ input[type="reset"],
 .r34-btn-primary,
 .r34-btn-secondary,
 .r34-btn-danger,
-.modal-btn,
-.keep-btn,
-.confirm-btn,
 .col-btn,
 .fav-col-btn,
 .app-mode-btn,
@@ -526,170 +500,6 @@ body.can-hover .app-mode-btn:hover:not(.active), body:not(.can-hover) .app-mode-
 
 .app-mode-btn.active svg {
   transform: scale(1.06);
-}
-
-/* ============================================================
-   TAG MODAL («Хотите убрать эти тэги?») — GLASS
-   ============================================================ */
-
-.modal-tags-list {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  max-height: 180px;
-  overflow-y: auto;
-  margin: 16px 0;
-  padding: 12px 14px;
-  background: rgba(0, 0, 0, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: var(--radius-sm, 10px);
-}
-
-/* Выбранный тег в модалке. Специфичность .modal-tags-list .tag.selected (3 класса)
-   выше, чем у .tag и .tag.inactive из search.css, поэтому перекрывает их штатно —
-   !important не нужен. Для ховера тоже задаём явное состояние, чтобы не терялся
-   акцент при наведении. */
-.modal-tags-list .tag.selected {
-  background: rgba(var(--accent-rgb), 0.2);
-  border: 1px solid var(--accent);
-  color: #fff;
-  box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.3);
-}
-
-.modal-tags-list .tag.selected:hover,
-.modal-tags-list .tag.selected:active {
-  background: rgba(var(--accent-rgb), 0.28);
-  border: 1px solid var(--accent);
-  color: #fff;
-}
-
-.modal-tags-list .tag.inactive.selected {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px dashed rgba(255, 255, 255, 0.28);
-  color: rgba(255, 255, 255, 0.5);
-  box-shadow: none;
-}
-
-.tag-status-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 6px;
-  font-size: 0.8em;
-  transition: transform 0.2s var(--ease);
-}
-
-body.can-hover .tag:hover .tag-status-icon, body:not(.can-hover) .tag:active .tag-status-icon {
-  transform: scale(1.15);
-}
-
-/* Превью выбранного тега */
-.modal-tag-preview {
-  width: 100%;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.modal-tag-preview .preview-title {
-  margin-bottom: 12px;
-  text-align: center;
-  font-size: 0.76rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.42);
-}
-
-.modal-tag-preview-grid {
-  display: flex;
-  gap: 12px;
-  width: 100%;
-  padding: 10px 6px;
-  overflow-x: auto;
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-  cursor: grab;
-}
-
-.modal-tag-preview-grid:active {
-  cursor: grabbing;
-}
-
-.modal-tag-preview-grid::-webkit-scrollbar {
-  height: 6px;
-}
-
-.modal-tag-preview-grid::-webkit-scrollbar-thumb {
-  background: rgba(var(--accent-rgb), 0.55);
-  border-radius: 99px;
-}
-
-.modal-preview-img {
-  flex-shrink: 0;
-  width: 120px;
-  height: 120px;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.02);
-  box-shadow: var(--shadow-sm);
-  transition: border-color var(--transition-speed, 0.2s) var(--ease), transform var(--transition-speed, 0.2s) var(--ease);
-}
-
-body.can-hover .modal-preview-img:hover, body:not(.can-hover) .modal-preview-img:active {
-  border-color: var(--accent);
-  transform: translateY(-2px);
-}
-
-/* Кнопки модалки */
-.modal-actions {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 24px;
-}
-
-.modal-btn {
-  flex: 1;
-  padding: 12px 24px;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 0.98rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform var(--dur, 0.2s) var(--ease-out), box-shadow var(--dur, 0.2s) var(--ease-out), background var(--dur, 0.2s) var(--ease-out);
-}
-
-.keep-btn {
-  background: var(--glass-bg-strong);
-  border: 1px solid var(--glass-border);
-  color: var(--light);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-body.can-hover .keep-btn:hover, body:not(.can-hover) .keep-btn:active {
-  background: rgba(255, 255, 255, 0.13);
-  border-color: var(--glass-border-strong);
-  transform: translateY(-1px);
-}
-
-.confirm-btn {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-alt) 100%);
-  color: var(--btn-primary-color, #fff);
-  box-shadow: 0 8px 22px rgba(var(--accent-rgb), 0.32);
-}
-
-body.can-hover .confirm-btn:hover, body:not(.can-hover) .confirm-btn:active {
-  box-shadow: 0 12px 30px rgba(var(--accent-rgb), 0.48);
-  transform: translateY(-1px);
-}
-
-.confirm-btn:active,
-.keep-btn:active {
-  transform: translateY(0) scale(0.98);
 }
 
 /* ============================================================
@@ -1371,17 +1181,7 @@ body:not(.can-hover) .rate-limit-retry-btn:active {
 /* ============================================================
    UTILITIES & ACCESSIBILITY
    ============================================================ */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
+
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -1460,9 +1260,6 @@ h1 {
 .r34-btn-primary,
 .r34-btn-secondary,
 .r34-btn-danger,
-.modal-btn,
-.keep-btn,
-.confirm-btn,
 .app-mode-btn,
 .settings-tab-btn,
 .duration-preset-btn,
@@ -1476,9 +1273,6 @@ h1 {
 .r34-btn-primary::after,
 .r34-btn-secondary::after,
 .r34-btn-danger::after,
-.modal-btn::after,
-.keep-btn::after,
-.confirm-btn::after,
 .app-mode-btn::after,
 .settings-tab-btn::after,
 .duration-preset-btn::after,
@@ -1501,9 +1295,6 @@ h1 {
 body.can-hover .r34-btn-primary:hover::after,
 body.can-hover .r34-btn-secondary:hover::after,
 body.can-hover .r34-btn-danger:hover::after,
-body.can-hover .modal-btn:hover::after,
-body.can-hover .keep-btn:hover::after,
-body.can-hover .confirm-btn:hover::after,
 body.can-hover .app-mode-btn:hover::after,
 body.can-hover .settings-tab-btn:hover::after,
 body.can-hover .duration-preset-btn:hover::after,
@@ -1513,9 +1304,6 @@ body.can-hover .r34-settings-btn:hover::after,
 body:not(.can-hover) .r34-btn-primary:active::after,
 body:not(.can-hover) .r34-btn-secondary:active::after,
 body:not(.can-hover) .r34-btn-danger:active::after,
-body:not(.can-hover) .modal-btn:active::after,
-body:not(.can-hover) .keep-btn:active::after,
-body:not(.can-hover) .confirm-btn:active::after,
 body:not(.can-hover) .app-mode-btn:active::after,
 body:not(.can-hover) .settings-tab-btn:active::after,
 body:not(.can-hover) .duration-preset-btn:active::after,
@@ -1618,24 +1406,9 @@ body::after {
 /* ============================================================
    SKELETON LOADER STYLES
    ============================================================ */
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.03) 25%,
-    rgba(255, 255, 255, 0.07) 50%,
-    rgba(255, 255, 255, 0.03) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.8s ease-in-out infinite;
-  border-radius: var(--radius-sm);
-}
 
-.skeleton-card {
-  width: 100%;
-  aspect-ratio: auto;
-  min-height: 200px;
-  border-radius: var(--media-radius);
-}
+
+
 
 /* ============================================================
    RIPPLE EFFECT — Material Design стиль
@@ -1657,23 +1430,20 @@ body::after {
 /* ============================================================
    STAGGERED ANIMATION UTILITIES
    ============================================================ */
-.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
-.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
-.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
-.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
-.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
-.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
-.stagger-children > *:nth-child(8) { animation-delay: 350ms; }
-.stagger-children > *:nth-child(n+9) { animation-delay: 400ms; }
+
+
+
+
+
+
+
+
+
 
 /* ============================================================
    ENHANCED FOCUS STATES — Accessibility + Visual
    ============================================================ */
-.enhanced-focus:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring), var(--shadow-glow-sm);
-}
+
 
 /* ============================================================
    SCROLL-TO-TOP BUTTON — Улучшенный стиль

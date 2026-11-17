@@ -336,11 +336,6 @@ export function makeCustomDropdown(selectEl, { classPrefix = 'game-custom-dropdo
     return wrapper;
 }
 
-export function initAllCustomDropdowns(root = document) {
-    const selects = root.querySelectorAll('select.game-select, select.game-input');
-    selects.forEach(select => makeCustomDropdown(select));
-}
-
 // Конвертирует стандартные select'ы настроек (.r34-select) в кастомные
 // стилизованные дропдауны, единые для всего сайта, а не только для игр.
 export function initR34SelectDropdowns(root = document) {

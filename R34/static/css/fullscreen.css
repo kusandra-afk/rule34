@@ -41,26 +41,15 @@
 }
 
 /* Улучшенные переходы свайпа с визуальным фидбеком */
-.media-slide.swiping {
-    transition: none;
-    will-change: transform;
-}
 
-.media-slide.exit-left {
-    animation: swipeExitLeft 0.4s var(--ease) forwards;
-}
 
-.media-slide.exit-right {
-    animation: swipeExitRight 0.4s var(--ease) forwards;
-}
 
-.media-slide.enter-from-left {
-    animation: swipeEnterFromLeft 0.45s var(--ease) backwards;
-}
 
-.media-slide.enter-from-right {
-    animation: swipeEnterFromRight 0.45s var(--ease) backwards;
-}
+
+
+
+
+
 
 @keyframes swipeExitLeft {
     from { transform: translateX(0); opacity: 1; }
@@ -127,13 +116,7 @@
 }
 
 /* Auto-hide контролов с плавным fade */
-.media-slide .gallery-video-controls-wrapper.controls-hidden,
-.media-slide .photo-controls-bar.fullscreen.controls-hidden {
-    opacity: 0;
-    transform: translateX(-50%) translateY(12px);
-    visibility: hidden;
-    pointer-events: none;
-}
+
 
 /* Play/Pause bottom buttons style */
 .video-bottom-play-btn,
@@ -359,35 +342,8 @@ body.can-hover .fullscreen-close-btn:hover, body:not(.can-hover) .fullscreen-clo
 }
 
 /* Кнопка Секретного Пазла (Пазл) */
-.fullscreen-puzzle-btn {
-    position: absolute;
-    top: 30px;
-    left: 86px;
-    z-index: 52000;
-    width: 44px;
-    height: 44px;
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: rgba(255, 255, 255, 0.85);
-    transition: all var(--dur) var(--ease-in-out);
-    outline: none;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    font-size: 1.25rem;
-}
-body.can-hover .fullscreen-puzzle-btn:hover, body:not(.can-hover) .fullscreen-puzzle-btn:active {
-    background: rgba(255, 255, 255, 0.18);
-    border-color: var(--accent, #ff3b6b);
-    color: #fff;
-    transform: scale(1.05);
-    box-shadow: 0 0 15px rgba(var(--accent-rgb), 0.4);
-}
+
+
 
 /* Кнопка HD */
 .fullscreen-hd-btn {
@@ -728,13 +684,7 @@ body.can-hover .fullscreen-info-body .media-tag:hover {
         width: 44px;
         height: 44px;
     }
-    .fullscreen-puzzle-btn {
-        top: 15px;
-        left: 67px;
-        width: 44px;
-        height: 44px;
-        font-size: 1rem;
-    }
+    
     .fullscreen-info-toggle-btn {
         top: 15px;
         right: 15px;

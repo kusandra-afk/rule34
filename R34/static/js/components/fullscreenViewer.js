@@ -1,4 +1,3 @@
-import { escapeHtml } from '../utils.js';
 import { PhotoViewer } from './photoViewer.js';
 import { VideoPlayer } from './videoPlayer.js';
 import { downloadMedia } from '../mediaDownload.js';
@@ -113,13 +112,50 @@ export class FullscreenViewer {
         g.fullscreenIdx = index;
         g.fullscreenContainer = fsContainer;
 
-        if (fsContainer.requestFullscreen) fsContainer.requestFullscreen().catch(() => {});
-        else if (fsContainer.webkitRequestFullscreen) fsContainer.webkitRequestFullscreen();
-        else if (fsContainer.msRequestFullscreen) fsContainer.msRequestFullscreen();
+        // Полноэкранный режим обязателен. Контейнер — обычный div поверх страницы,
+        // поэтому без Fullscreen API он выглядел бы модальным окном (адресная строка
+        // и панели браузера остаются на месте), а такой режим здесь не нужен.
+        // Раньше здесь стояло .catch(() => {}): отказ браузера молча превращал
+        // просмотр в модалку. Теперь отказ закрывает просмотр и сообщает об этом.
+        const requestFs = fsContainer.requestFullscreen
+            || fsContainer.webkitRequestFullscreen
+            || fsContainer.msRequestFullscreen;
+        if (!requestFs) {
+            this._cleanupFullscreen();
+            this._notifyFullscreenUnavailable();
+            return;
+        }
+        try {
+            const fsPromise = requestFs.call(fsContainer);
+            if (fsPromise && typeof fsPromise.catch === 'function') {
+                fsPromise.catch(() => {
+                    this._cleanupFullscreen();
+                    this._notifyFullscreenUnavailable();
+                });
+            }
+        } catch (e) {
+            this._cleanupFullscreen();
+            this._notifyFullscreenUnavailable();
+            return;
+        }
 
         this._renderFullscreenMedia();
 
         this._bindFullscreenHandlers();
+    }
+
+    _notifyFullscreenUnavailable() {
+        const toast = document.createElement('div');
+        toast.className = 'r34-toast r34-toast-danger';
+        toast.innerHTML = '<span class="r34-toast-text"></span>';
+        toast.querySelector('.r34-toast-text').textContent =
+            'Браузер не разрешил полноэкранный режим. Разрешите его для этого сайта и попробуйте снова.';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
     }
 
     _downloadCurrentMedia() {

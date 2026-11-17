@@ -1,7 +1,6 @@
 import os
 import json
 import time
-import re
 import base64
 import threading
 import functools
@@ -121,24 +120,12 @@ def set_network_mode(mode):
     return NETWORK_MODE
 
 
-def get_network_mode():
-    return NETWORK_MODE
-
-
 # Locks
 CACHE_LOCK = threading.RLock()
 FILE_LOCK = threading.RLock()
 
-# Room multiplayer state & locks
+# Room multiplayer directory lock (used by /api/rooms/*)
 ROOM_LOCK = threading.RLock()
-ACTIVE_ROOMS = {}
-
-def cleanup_stale_rooms(max_age=3600):
-    now = time.time()
-    with ROOM_LOCK:
-        stale = [rid for rid, r in ACTIVE_ROOMS.items() if now - r.get('last_active', now) > max_age]
-        for rid in stale:
-            ACTIVE_ROOMS.pop(rid, None)
 
 # In-memory caches for performance
 validated_keys_cache = {}  # key -> (is_valid, timestamp)
@@ -467,8 +454,10 @@ def save_my_favorites_optimized(favorites):
         os.makedirs(os.path.dirname(MY_FAVORITES_FILE), exist_ok=True)
         with open(MY_FAVORITES_FILE, 'w', encoding='utf-8') as f:
             json.dump(favorites, f, ensure_ascii=False, indent=2)
+        return True
     except Exception as e:
         print('Error saving my_favorites.json:', e)
+        return False
 
 def are_favorites_equal(list_a, list_b):
     if not isinstance(list_a, list) or not isinstance(list_b, list):
@@ -549,9 +538,10 @@ def save_excluded_tags(tags):
         os.makedirs(os.path.dirname(EXCLUDED_TAGS_FILE), exist_ok=True)
         with open(EXCLUDED_TAGS_FILE, 'w', encoding='utf-8') as f:
             json.dump(tags, f, ensure_ascii=False, indent=2)
-        print(f'[Storage] Saved {len(tags)} excluded tags to {EXCLUDED_TAGS_FILE}')
+        return True
     except Exception as e:
         print('Error saving excluded_tags.json:', e)
+        return False
 
 @with_file_lock
 def load_turso_config():
@@ -593,8 +583,10 @@ def save_turso_config(config):
         
         with open(TURSO_CONFIG_FILE, 'w', encoding='utf-8') as f:
             json.dump(config_to_save, f, ensure_ascii=False, indent=2)
+        return True
     except Exception as e:
         print('Error saving turso_config.json:', e)
+        return False
 
 @with_file_lock
 def load_settings():
@@ -644,8 +636,10 @@ def save_settings(settings):
         os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
         with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
             json.dump(sanitize_settings(settings), f, ensure_ascii=False, indent=2)
+        return True
     except Exception as e:
         print('Error saving settings.json:', e)
+        return False
 
 @with_file_lock
 def load_character_franchise_cache():
@@ -824,8 +818,10 @@ def save_puzzle_completed_optimized(puzzles):
         os.makedirs(os.path.dirname(PUZZLE_COMPLETED_FILE), exist_ok=True)
         with open(PUZZLE_COMPLETED_FILE, 'w', encoding='utf-8') as f:
             json.dump(optimized, f, ensure_ascii=False, indent=2)
+        return True
     except Exception as e:
         print('Error saving puzzle_completed.json:', e)
+        return False
 
 def fetch_post_data(post_id):
     try:

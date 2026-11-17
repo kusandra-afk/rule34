@@ -294,6 +294,13 @@ export class CardComponent {
             }
         }
 
+        // Ссылка на сам пост и на исходный файл: по ним удобно уйти с
+        // карточки, не открывая блок с источником вручную.
+        const postPageUrl = post && post.id
+            ? `https://rule34.xxx/index.php?page=post&s=view&id=${encodeURIComponent(post.id)}`
+            : '';
+        const mediaFileUrl = post ? formatFullUrl(post.file_url || post.sample_url || '') : '';
+
         sourceBlock.innerHTML = `
             <div class="r34-source-header">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -325,7 +332,27 @@ export class CardComponent {
                 </div>
             `}
 
-                <button type="button" class="r34-source-download-btn" id="dl-btn-${post.id}" title="Скачать" aria-label="Скачать">
+            ${postPageUrl ? `
+                <a class="r34-source-icon-btn r34-source-post-btn" id="post-btn-${post.id}" href="${escapeHtml(postPageUrl)}" target="_blank" rel="noopener noreferrer" title="Открыть пост на rule34.xxx" aria-label="Открыть пост на rule34.xxx">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                        <polyline points="14 3 14 9 20 9"></polyline>
+                        <line x1="8" y1="13" x2="16" y2="13"></line>
+                        <line x1="8" y1="17" x2="13" y2="17"></line>
+                    </svg>
+                </a>
+            ` : ''}
+            ${mediaFileUrl ? `
+                <a class="r34-source-icon-btn r34-source-media-btn" id="file-btn-${post.id}" href="${escapeHtml(mediaFileUrl)}" target="_blank" rel="noopener noreferrer" title="Открыть файл в новой вкладке" aria-label="Открыть файл в новой вкладке">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                </a>
+            ` : ''}
+
+                <button type="button" class="r34-source-icon-btn r34-source-download-btn" id="dl-btn-${post.id}" title="Скачать" aria-label="Скачать">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
@@ -334,6 +361,11 @@ export class CardComponent {
                 </button>
             </div>
         `;
+
+        // Обе ссылки открываются в новой вкладке, но клик по ним не должен
+        // заодно переключать блок источника под карточкой.
+        sourceBlock.querySelectorAll('.r34-source-post-btn, .r34-source-media-btn')
+            .forEach((link) => link.addEventListener('click', (e) => e.stopPropagation()));
 
         const downloadBtn = sourceBlock.querySelector('.r34-source-download-btn');
         if (downloadBtn) {

@@ -724,7 +724,6 @@ export class PuzzleOnlineManager extends BaseOnlineEngine {
         
         super.leaveRoom();
 
-        const wasInGame = this.inGame;
         this.inGame = false;
         this.closeLobbyModal();
 

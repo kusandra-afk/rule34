@@ -19,11 +19,6 @@ class TursoSync {
         this.token = token;
         this.initialized = true;
 
-        if (this.enabled) {
-            console.log('[Turso Sync] Initialized with URL:', url);
-        } else {
-            console.log('[Turso Sync] Disabled or not configured');
-        }
     }
 
     updateSettings(enabled, url, token) {

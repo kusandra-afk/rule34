@@ -1,0 +1,20 @@
+# Secrets and local data (never publish)
+R34/.secrets/
+*.secrets
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Logs
+*.log
+/tmp/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,13 +1,15 @@
-# CHECKPOINT: Project checkpoint comment added successfully
 import os
 import sys
+import time
+import logging
 import argparse
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, jsonify, redirect, g
 from handlers.core_utils import (
-    BASE_DIR, is_allowed_origin,
-    set_network_mode, get_network_mode, NETWORK_MODE_LOCAL, NETWORK_MODE_LAN
+    BASE_DIR, is_allowed_origin, get_saved_api_key, get_turso_settings,
+    set_network_mode, NETWORK_MODE_LOCAL, NETWORK_MODE_LAN
 )
 from handlers.startup_sync import run_startup_sync
+from handlers import console_ui as ui
 
 # Import Blueprints
 from handlers.auth_routes import auth_bp, session_ok as auth_session_ok
@@ -58,7 +60,7 @@ def save_language(lang):
             json.dump({'lang': lang}, f)
         return True
     except Exception as e:
-        print(f'Не удалось сохранить язык интерфейса: {e}')
+        ui.warn('Не удалось сохранить язык интерфейса / could not save interface language: %s' % e)
         return False
 
 
@@ -83,20 +85,25 @@ def choose_language(explicit_lang):
     except Exception:
         return DEFAULT_LANGUAGE
 
+    # Язык ещё не выбран, поэтому подписи дублируются на двух языках:
+    # иначе половина пользователей видит непонятный им экран.
     print()
-    print('Choose interface language / Выберите язык интерфейса')
-    print('  1  Русский')
-    print('  2  English')
+    ui.banner('en', None)
+    print()
+    print('  ' + ui.paint('Выберите язык интерфейса  /  Choose interface language', ui.BOLD))
+    print()
+    print('  1  ' + ui.paint('Русский', ui.CYAN))
+    print('  2  ' + ui.paint('English', ui.CYAN))
     print()
     try:
-        answer = input('Language [1/2], Enter = 2: ').strip()
+        answer = input('  ' + ui.paint('Язык / Language [1/2], Enter = 2: ', ui.GREY)).strip()
     except (EOFError, KeyboardInterrupt):
         print()
         answer = ''
 
     lang = 'ru' if answer == '1' else DEFAULT_LANGUAGE
     save_language(lang)
-    print('Язык сохранён: / Language saved: ' + lang)
+    ui.good('Язык сохранён / language saved: ' + lang)
     return lang
 
 
@@ -234,14 +241,22 @@ app.register_blueprint(room_bp)
 PROTECTED_API_PREFIXES = (
     '/api/settings',
     '/api/excluded-tags',
-    '/api/my-profile',
     '/api/favorites',
     '/api/my-favorites',
     '/api/puzzle-completed',
     '/api/turso-config',
-    '/api/history',
-    '/api/sync',
 )
+
+
+@app.before_request
+def _start_request_timer():
+    """Отметка времени до всех остальных before_request.
+
+    Регистрируется ПЕРВОЙ намеренно: если предыдущий обработчик уже вернул
+    ответ (например, защита отдала 401), Flask остальные before_request не
+    вызывает — и без этой строки такие ответы вообще не попадали в лог.
+    """
+    g._r34_started_at = time.perf_counter()
 
 
 @app.before_request
@@ -263,11 +278,18 @@ def guard_user_data_api():
         return None
     if auth_session_ok():
         return None
-    return jsonify({'ok': False, 'error': 'Требуется вход в приложение'}), 401
+    return jsonify({'ok': False, 'error': ui.t(ui.current_language(), 'auth_required')}), 401
 
 
 @app.after_request
 def add_cors_headers(response):
+    # Тип файла не должен угадываться браузером: подмена MIME у статики —
+    # классический путь к исполнению чужого содержимого.
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    # Ответы API содержат личные данные (настройки, избранное, комнаты) и
+    # не должны оставаться в кеше браузера или прокси.
+    if request.path.startswith('/api/'):
+        response.headers.setdefault('Cache-Control', 'no-store')
     origin = request.headers.get('Origin')
     if is_allowed_origin(origin):
         response.headers['Access-Control-Allow-Origin'] = origin
@@ -287,13 +309,64 @@ def add_cors_headers(response):
         response.headers['Cache-Control'] = 'no-cache, must-revalidate'
     return response
 
+
+# --------------------------------------------------------------------------
+# Лог запросов
+# --------------------------------------------------------------------------
+
+def _response_error_detail(response):
+    """Текст ошибки из JSON-ответа — чтобы он попал в строку лога."""
+    try:
+        if not response.is_json:
+            return None
+        data = response.get_json(silent=True) or {}
+        message = data.get('error') or data.get('message')
+        if message:
+            return str(message)
+    except Exception:
+        pass
+    return None
+
+
+@app.after_request
+def log_request_result(response):
+    """Строка на каждый заметный запрос: метод, путь, статус, время, ошибка.
+
+    Раньше единственным следом был лог werkzeug «GET /api/... 200»: в нём
+    нет ни длительности, ни причины, а ошибки к тому же отдавались со
+    статусом 200 и потому выглядели успехом. Путь печатается без
+    query-строки: в ней встречаются api_key и прочие секреты.
+    """
+    # Самопроверка панели намеренно бьёт в закрытый API и в валидацию прокси
+    # (401/400) — это проверка защиты, а не ошибка приложения, поэтому в лог
+    # такие запросы не пишем.
+    if request.headers.get('X-R34-Self-Test') == '1':
+        return response
+    started = getattr(g, '_r34_started_at', None)
+    duration_ms = (time.perf_counter() - started) * 1000 if started else 0.0
+    ui.log_request(request.method, request.path, response.status_code,
+                   duration_ms, _response_error_detail(response))
+    return response
+
+# Расширения, для которых HTML-редирект бессмысленен и вреден: браузер получал
+# index.html с типом text/html вместо файла и падал с «Failed to load module
+# script ... MIME type of text/html», не показывая, какого файла не хватает.
+ASSET_EXTENSIONS = (
+    '.js', '.mjs', '.css', '.map', '.json', '.png', '.jpg', '.jpeg', '.gif',
+    '.webp', '.svg', '.ico', '.mp4', '.webm', '.woff', '.woff2', '.ttf'
+)
+
+
 @app.errorhandler(404)
 def page_not_found(e):
     if request.path.startswith('/api/'):
         return jsonify({'ok': False, 'error': 'not_found'}), 404
+    if request.path.lower().endswith(ASSET_EXTENSIONS):
+        # Честный 404: пусть в консоли будет видно, ЧТО именно не нашлось.
+        return 'Not found', 404, {'Content-Type': 'text/plain; charset=utf-8'}
     return redirect('/')
 
-def choose_network_mode(explicit_mode, port):
+def choose_network_mode(explicit_mode, port, lang='en'):
     """Определяет режим сетевого доступа.
 
     Порядок такой: явный флаг --mode -> вопрос в консоли (если она вообще
@@ -315,18 +388,19 @@ def choose_network_mode(explicit_mode, port):
         return NETWORK_MODE_LAN
 
     print()
-    print('Куда открывать доступ к галерее?')
+    print('  ' + ui.paint(ui.t(lang, 'net_question'), ui.BOLD))
     print()
-    print(f'  1  Только этот компьютер   http://127.0.0.1:{port}')
-    print('     Другие устройства и посторонние сайты до сервера не достанут.')
+    print(f"  1  {ui.t(lang, 'net_local')}   "
+          + ui.paint(f'http://127.0.0.1:{port}', ui.CYAN))
+    print('     ' + ui.paint(ui.t(lang, 'net_local_note'), ui.GREY))
     print()
-    print(f'  2  Этот компьютер и другие устройства в этой же сети')
-    print(f'     http://127.0.0.1:{port} и http://<адрес-в-сети>:{port}')
-    print('     Нужно, если открывать галерею с телефона или другого ПК.')
+    print(f"  2  {ui.t(lang, 'net_lan')}")
+    print('     ' + ui.paint(f'http://127.0.0.1:{port} / http://<ip>:{port}', ui.CYAN))
+    print('     ' + ui.paint(ui.t(lang, 'net_lan_note'), ui.GREY))
     print()
 
     try:
-        answer = input('Выбор [1/2], Enter = 2: ').strip()
+        answer = input('  ' + ui.paint(f"{ui.t(lang, 'choice')} [1/2], Enter = 2: ", ui.GREY)).strip()
     except (EOFError, KeyboardInterrupt):
         print()
         answer = ''
@@ -347,14 +421,17 @@ if __name__ == '__main__':
                         help='Язык интерфейса: ru или en. Сохраняется и используется при следующих запусках; если не указан, сервер спросит язык при первом запуске')
     parser.add_argument('--https', action='store_true',
                         help='Запустить по HTTPS с самоподписанным сертификатом. Нужно для гироскопа и WebXR с телефона: браузеры дают эти API только в защищённом контексте (требует пакет cryptography)')
+    parser.add_argument('--verbose', '-v', action='store_true',
+                        help='Логировать все запросы, включая статику. Без флага в лог попадают только /api и ошибки / log every request, including static files')
     args = parser.parse_args()
 
     # Язык спрашивается ДО режима сети: это первое, что видит пользователь.
     ui_lang = choose_language(args.lang)
+    ui.configure(ui_lang, args.verbose)
 
     # Режим задаётся ДО app.run(): от него зависит и адрес бинда, и то, каким
     # Origin'ам будет выдаваться CORS с credentials (см. is_allowed_origin).
-    mode = choose_network_mode(args.mode, args.port)
+    mode = choose_network_mode(args.mode, args.port, ui_lang)
     set_network_mode(mode)
 
     if args.host:
@@ -369,7 +446,7 @@ if __name__ == '__main__':
     # Синхронизация с Turso (если включена). Вся логика вынесена в
     # handlers/startup_sync.py — раньше она лежала прямо здесь, из-за чего под
     # gunicorn не выполнялась вообще.
-    run_startup_sync()
+    run_startup_sync(ui_lang)
 
     # Гироскоп (DeviceOrientation) и WebXR браузеры отдают только в
     # защищённом контексте: HTTPS либо localhost. При заходе с телефона по
@@ -382,30 +459,92 @@ if __name__ == '__main__':
         try:
             ssl_context = ensure_local_certificate()
         except ImportError:
-            print('HTTPS запрошен, но не установлен пакет cryptography.')
-            print('Установите его командой:  pip install cryptography')
-            print('Продолжаю по обычному HTTP (гироскоп и WebXR будут недоступны с телефона).')
+            ui.warn(ui.t(ui_lang, 'https_no_crypto'))
+            print('    ' + ui.t(ui_lang, 'https_install'))
+            print('    ' + ui.t(ui_lang, 'https_fallback'))
         except Exception as e:
-            print(f'Не удалось подготовить сертификат: {e}')
-            print('Продолжаю по обычному HTTP.')
+            ui.warn(ui.t(ui_lang, 'https_cert_failed', error=e))
+            print('    ' + ui.t(ui_lang, 'https_http_fallback'))
 
     scheme = 'https' if ssl_context else 'http'
-    print(f"Server Rule34 Gallery started at {scheme}://{bind_host}:{args.port}")
 
-    # Подсказки печатаем по режиму, а не «если https»: в локальном режиме
-    # адресов в сети не существует, и показывать их было бы ложью.
-    if mode == NETWORK_MODE_LOCAL:
-        print(f'Режим: только этот компьютер -> {scheme}://127.0.0.1:{args.port}')
-        print('Другие устройства и посторонние сайты до сервера не достанут.')
+    # Адреса считаем по режиму: в локальном режиме адресов в сети не
+    # существует, и показывать их было бы ложью.
+    local_url = f'{scheme}://127.0.0.1:{args.port}'
+    lan_urls = []
+    if mode != NETWORK_MODE_LOCAL:
+        lan_urls = [f'{scheme}://{address}:{args.port}'
+                    for address in local_ipv4_addresses()
+                    if address != '127.0.0.1']
+
+    # Две вещи, из-за которых «всё работает не так», но по стартовой строке
+    # понять это было нельзя: сохранены ли ключи rule34 и включён ли Turso.
+    try:
+        user_id, _api_key = get_saved_api_key()
+    except Exception:
+        user_id = None
+    try:
+        turso_url, turso_token, turso_enabled = get_turso_settings()
+    except Exception:
+        turso_url, turso_token, turso_enabled = '', '', False
+    # «Включена» и «работает» — разные вещи: адрес и токен могли не задать,
+    # и тогда каждая синхронизация падает на пустом URL. Об этом надо
+    # сказать сразу, а не показывать бодрое «включена».
+    if not turso_enabled:
+        turso_state = 'off'
+    elif turso_url and turso_token:
+        turso_state = 'on'
     else:
-        print(f'Режим: доступен в локальной сети -> {scheme}://127.0.0.1:{args.port}')
-        for address in local_ipv4_addresses():
-            if address != '127.0.0.1':
-                print(f'    {scheme}://{address}:{args.port}')
-        if ssl_context:
-            # Только ASCII-совместимые символы: консоль Windows работает в cp1251,
-            # и «экзотика» вроде стрелки U+2192 роняет процесс с UnicodeEncodeError
-            # ещё до app.run() — сервер просто не стартует.
-            print('Телефон один раз предупредит о неизвестном сертификате - это ожидаемо')
-            print('для домашнего сервера: "Дополнительно" -> "Перейти на сайт".')
-    app.run(host=bind_host, port=args.port, threaded=True, ssl_context=ssl_context)
+        turso_state = 'broken'
+
+    # Werkzeug печатает свою строку на каждый запрос: она дублирует наш лог
+    # и не содержит длительности. Оставляем от неё только ошибки.
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
+
+    game_cache_dir = os.path.join(BASE_DIR, 'game_data')
+
+    # Проверки окружения выводятся в том же отчёте, что и адрес: иначе на
+    # «почему не работает» приходится отвечать после открытия браузера.
+    # cryptography — необязательная: нужна только для --https.
+    import platform
+    deps_status = []
+    for module_name, label, optional in (
+        ('flask', 'Flask', False),
+        ('requests', 'requests', False),
+        ('Crypto', 'pycryptodome', False),
+        ('cryptography', 'cryptography', True),
+    ):
+        try:
+            __import__(module_name)
+            deps_status.append((label, True, optional))
+        except Exception:
+            deps_status.append((label, False, optional))
+
+    ui.startup_report(ui_lang, {
+        'python': platform.python_version(),
+        'deps': deps_status,
+        'mode': mode,
+        'https': bool(ssl_context),
+        'local_url': local_url,
+        'lan_urls': lan_urls,
+        'user_id': user_id,
+        'turso': turso_state,
+        'secrets_dir': os.path.join(BASE_DIR, 'R34', '.secrets'),
+        'cache_dir': game_cache_dir if os.path.isdir(game_cache_dir) else '',
+        'verbose': args.verbose,
+    })
+    print()
+
+    # Flask печатает «* Serving Flask app» и «* Debug mode: off» уже после
+    # нашего отчёта — это выглядит как хвост от чужой программы.
+    try:
+        import flask.cli
+        flask.cli.show_server_banner = lambda *a, **k: None
+    except Exception:
+        pass
+
+    try:
+        app.run(host=bind_host, port=args.port, threaded=True, ssl_context=ssl_context)
+    except KeyboardInterrupt:
+        print()
+        ui.info(ui.t(ui_lang, 'shutdown'))

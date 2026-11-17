@@ -30,7 +30,7 @@ const pausedVideos = new Set();
 const pausedGifs = new Set();
 let locked = false;
 
-export function hasOpenOverlay() {
+function hasOpenOverlay() {
     return !!document.querySelector(OVERLAY_SELECTOR);
 }
 

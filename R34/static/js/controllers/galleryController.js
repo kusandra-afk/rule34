@@ -60,11 +60,9 @@ export class GalleryController {
     }
 
     async loadPosts(tagsQuery = '', append = false) {
-        console.log('[GalleryController] loadPosts called', { tagsQuery, append, loading: this.loading, reachedEnd: this.reachedEnd });
 
         // Block loading when puzzle is active (unless forced)
         if (window.puzzleGameActive && !window._forceLoadPosts) {
-            console.log('[GalleryController] Blocked by puzzleGameActive flag');
             return;
         }
 

@@ -1,4 +1,3 @@
-import time
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from flask import Blueprint, request, Response, stream_with_context, jsonify
 from handlers.core_utils import (
@@ -67,7 +66,10 @@ def proxy():
             if name.lower() in allowed_headers and value:
                 pass_headers[name] = str(value)
 
-        status_code = response.status_code if response.status_code in (200, 206, 429) or response.status_code >= 500 else 200
+        # Раньше любой 4xx (кроме 401/403 выше) подменялся на 200: браузер
+        # видел «успех» и пустое тело, а настоящая причина отказа rule34
+        # терялась. Отдаём статус как есть.
+        status_code = response.status_code
 
         if 'json' in content_type.lower() or 'xml' in content_type.lower():
             try:

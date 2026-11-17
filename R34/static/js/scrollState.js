@@ -56,14 +56,6 @@ export function rememberScrollAt(key, top) {
     return position;
 }
 
-export function forgetScroll(key) {
-    positions.delete(key);
-}
-
-export function getRememberedScroll(key) {
-    return positions.get(key) || 0;
-}
-
 export function restoreScroll(key, options = {}) {
     if (!key || !positions.has(key)) return;
 

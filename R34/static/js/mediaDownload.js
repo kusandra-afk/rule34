@@ -5,7 +5,7 @@
 // открылась бы вкладка с картинкой. Через прокси адрес свой, download
 // работает, а сервер стримит файл, не держа его целиком в памяти.
 
-export function buildDownloadName(post) {
+function buildDownloadName(post) {
     const cleanUrl = String((post && post.file_url) || '').split('?')[0];
     const match = cleanUrl.match(/\.[a-z0-9]{2,5}$/i);
     const ext = match ? match[0] : '.jpg';

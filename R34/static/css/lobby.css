@@ -4,25 +4,15 @@
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  --game-primary-gradient: linear-gradient(135deg, var(--accent, #8b5cf6), var(--accent-alt, #6366f1));
-  --game-secondary-gradient: linear-gradient(135deg, var(--accent-alt, #f59e0b), var(--accent, #ec4899));
   --game-success-gradient: linear-gradient(135deg, #10b981, #059669);
-  --game-danger-gradient: linear-gradient(135deg, #ef4444, #dc2626);
   --game-accent-color: var(--accent, #a78bfa);
-  --game-accent-secondary: var(--accent-alt, #fbbf24);
-  --game-accent-orange: #f59e0b;
-  --game-accent-pink: var(--accent, #ec4899);
-  --game-accent-green: #10b981;
-  --game-accent-red: #ef4444;
   
   --game-glass-bg: var(--glass-bg, rgba(15, 15, 24, 0.7));
   --game-glass-border: var(--glass-border, rgba(255, 255, 255, 0.12));
-  --game-glass-border-strong: var(--glass-border-strong, rgba(255, 255, 255, 0.18));
   
   --game-radius-sm: 12px;
   --game-radius-md: 16px;
   --game-radius-lg: 20px;
-  --game-radius-xl: 24px;
 }
 
 /* ═══ Бейджи и логотипы ═══ */
@@ -32,17 +22,9 @@
   color: var(--accent, #d8b4fe);
 }
 
-.game-badge-gradient-secondary {
-  background: linear-gradient(135deg, rgba(var(--accent-rgb, 245, 158, 11), 0.2), rgba(var(--accent-rgb, 236, 72, 153), 0.15));
-  border-color: rgba(var(--accent-rgb, 245, 158, 11), 0.4);
-  color: var(--accent, #fcd34d);
-}
 
-.game-badge-gradient-success {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.15));
-  border-color: rgba(16, 185, 129, 0.4);
-  color: #6ee7b7;
-}
+
+
 
 .game-logo-icon {
   width: 34px;
@@ -57,9 +39,7 @@
   box-shadow: 0 0 16px var(--accent-glow, rgba(167, 139, 250, 0.5));
 }
 
-.game-logo-icon-higherlower {
-  background: linear-gradient(135deg, var(--accent, #a78bfa), var(--accent-alt, #f43f5e));
-}
+
 
 .game-logo-icon-puzzle {
   background: linear-gradient(135deg, var(--accent, #fbbf24), var(--accent-alt, #10b981));
@@ -241,19 +221,7 @@ body.can-hover .game-mode-card.multiplayer:hover, body:not(.can-hover) .game-mod
 }
 
 /* ═══ Карточки информации о комнате ═══ */
-.game-room-card {
-  width: 100%;
-  background: linear-gradient(135deg, rgba(var(--accent-rgb, 167, 139, 250), 0.12), rgba(var(--accent-rgb, 99, 102, 241), 0.08));
-  border: 1px solid rgba(var(--accent-rgb, 167, 139, 250), 0.3);
-  border-radius: var(--game-radius-lg);
-  padding: 18px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 14px;
-  box-sizing: border-box;
-}
+
 
 .game-room-code-val {
   font-size: 1.4rem;
@@ -264,17 +232,7 @@ body.can-hover .game-mode-card.multiplayer:hover, body:not(.can-hover) .game-mod
 }
 
 /* ═══ Списки участников лобби ═══ */
-.game-player-list {
-  width: 100%;
-  background: rgba(15, 15, 24, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--game-radius-lg);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  box-sizing: border-box;
-}
+
 
 .game-player-row {
   display: flex;
@@ -344,20 +302,9 @@ body.can-hover .game-start-btn:hover, body:not(.can-hover) .game-start-btn:activ
 }
 
 /* ═══ Дополнительные утилиты карточек и форм ═══ */
-.game-card-setup {
-  max-width: 580px;
-  margin: 0 auto;
-}
 
-.game-menu-container-compact {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 16px;
-  width: 100%;
-  box-sizing: border-box;
-}
+
+
 
 .game-form-group {
   display: flex;
@@ -376,26 +323,11 @@ body.can-hover .game-start-btn:hover, body:not(.can-hover) .game-start-btn:activ
   margin: 6px 0;
 }
 
-.game-setting-box {
-  background: rgba(255, 255, 255, 0.05);
-  padding: 10px 14px;
-  border-radius: var(--game-radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
 
-.game-setting-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
 
-.game-range-slider {
-  width: 100%;
-  accent-color: var(--accent, #a78bfa);
-  cursor: pointer;
-  height: 6px;
-}
+
+
+
 
 .game-code-input {
   text-align: center;
@@ -417,14 +349,7 @@ body.can-hover .game-start-btn:hover, body:not(.can-hover) .game-start-btn:activ
   padding: 10px 16px;
 }
 
-.game-pills-row {
-  flex: 1;
-  text-align: center;
-  justify-content: center;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
+
 
 .game-warning-tag {
   display: none;
@@ -436,16 +361,7 @@ body.can-hover .game-start-btn:hover, body:not(.can-hover) .game-start-btn:activ
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-.game-preview-img {
-  width: 100%;
-  height: 160px;
-  border-radius: var(--game-radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-color: rgba(0, 0, 0, 0.3);
-}
+
 
 /* ═══ КАСТОМНЫЕ ЭЛЕМЕНТЫ УПРАВЛЕНИЯ (SELECT, TOGGLE, CHECKBOX) ═══ */
 
@@ -593,125 +509,36 @@ select.game-select option,
 }
 
 /* 2. Переключатель (Toggle Switch) */
-.game-switch {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  user-select: none;
-}
 
-.game-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-  position: absolute;
-}
 
-.game-switch-slider {
-  position: relative;
-  display: inline-block;
-  width: 44px;
-  height: 24px;
-  background-color: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 9999px;
-  transition: all var(--dur) var(--ease);
-  box-sizing: border-box;
-}
 
-.game-switch-slider::before {
-  content: "";
-  position: absolute;
-  height: 18px;
-  width: 18px;
-  left: 2px;
-  bottom: 2px;
-  background-color: #e2e8f0;
-  border-radius: 50%;
-  transition: all var(--dur) var(--ease);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-}
 
-.game-switch input:checked + .game-switch-slider {
-  background: var(--game-primary-gradient);
-  border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.6);
-  box-shadow: 0 0 12px var(--accent-glow, rgba(139, 92, 246, 0.4));
-}
 
-.game-switch input:checked + .game-switch-slider::before {
-  transform: translateX(20px);
-  background-color: #fff;
-}
 
-body.can-hover .game-switch:hover .game-switch-slider, body:not(.can-hover) .game-switch:active .game-switch-slider {
-  border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.5);
-}
 
-.game-switch-label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-}
+
+
+
+
+
+
+
+
 
 /* 3. Чекбоксы (Custom Checkbox) */
-.game-checkbox {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  user-select: none;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-}
 
-.game-checkbox input {
-  position: absolute;
-  opacity: 0;
-  cursor: pointer;
-  height: 0;
-  width: 0;
-}
 
-.game-checkbox-mark {
-  height: 20px;
-  width: 20px;
-  background-color: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--dur) var(--ease);
-  box-sizing: border-box;
-}
 
-.game-checkbox-mark::after {
-  content: "";
-  display: none;
-  width: 5px;
-  height: 9px;
-  border: solid white;
-  border-width: 0 2.5px 2.5px 0;
-  transform: rotate(45deg) translate(-1px, -1px);
-}
 
-body.can-hover .game-checkbox:hover input ~ .game-checkbox-mark, body:not(.can-hover) .game-checkbox:active input ~ .game-checkbox-mark {
-  background-color: rgba(255, 255, 255, 0.14);
-  border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.5);
-}
 
-.game-checkbox input:checked ~ .game-checkbox-mark {
-  background: var(--game-primary-gradient);
-  border-color: rgba(var(--accent-rgb, 167, 139, 250), 0.6);
-  box-shadow: 0 0 12px var(--accent-glow, rgba(139, 92, 246, 0.4));
-}
 
-.game-checkbox input:checked ~ .game-checkbox-mark::after {
-  display: block;
-}
+
+
+
+
+
+
+
 
 .game-sync-logs {
   width: 100%;

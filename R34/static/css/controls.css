@@ -276,63 +276,16 @@ body.can-hover .center-play-btn:hover {
 }
 
 /* ---------- Громкость ---------- */
-.video-volume {
-  width: 90px;
-  height: 6px;
-  margin: 0 10px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 99px;
-  accent-color: var(--accent);
-}
 
-@media (max-width: 900px) {
-  .video-volume {
-    display: none !important;
-  }
-}
+
+
 
 /* ---------- HD-кнопки ---------- */
-.hd-btn,
-.video-bottom-hd-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 36px;
-  height: 28px;
-  margin-left: 4px;
-  padding: 2px 8px;
-  background: var(--glass-bg-strong);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-xs);
-  color: rgba(255, 255, 255, 0.75);
-  font-family: inherit;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-  outline: none;
-  user-select: none;
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  transition: all var(--transition-speed, 0.2s) var(--ease);
-}
 
-body.can-hover .hd-btn:hover,
-body:not(.can-hover) .hd-btn:active,
-body.can-hover .video-bottom-hd-btn:hover, body:not(.can-hover) .video-bottom-hd-btn:active {
-  background: rgba(var(--accent-rgb), 0.25);
-  border-color: rgba(var(--accent-rgb), 0.6);
-  color: #fff;
-  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.35);
-}
 
-.hd-btn.hd-active,
-.video-bottom-hd-btn.hd-active {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-alt, #ff5e8c) 100%);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.55);
-}
+
+
+
 
 /* ---------- Двойной тап (Seek Indicator) ---------- */
 .seek-indicator {
@@ -444,12 +397,7 @@ body.can-hover .video-bottom-hd-btn:hover, body:not(.can-hover) .video-bottom-hd
   }
   
   /* Бейдж длительности */
-  .video-duration-badge {
-    padding: 2px 6px !important;
-    font-size: 0.68rem !important;
-    bottom: 8px !important;
-    right: 8px !important;
-  }
+  
 
   /* Спиннер загрузки */
   .video-loading-spinner {
@@ -504,9 +452,7 @@ body.can-hover .video-bottom-hd-btn:hover, body:not(.can-hover) .video-bottom-hd
   }
   
   /* Скрываем бейдж длительности, если совсем мало места */
-  .video-duration-badge {
-    display: none !important;
-  }
+  
 
   /* Совсем маленький спиннер */
   .video-loading-spinner {

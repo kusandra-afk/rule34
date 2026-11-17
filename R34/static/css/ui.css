@@ -6,32 +6,16 @@
 /* Карточка модалки тегов: относительная позиция для плавающей кнопки */
 
 /* Кнопка закрытия, парящая в углу модалки */
-.modal-close-float {
-  position: absolute;
-  top: 16px;
-  right: 20px;
-  z-index: 5;
-}
+
 
 /* Ряд «добавить новый тег» — контейнер для саджестов */
-.modal-new-tag-row {
-  position: relative;
-  margin-top: 16px;
-}
+
 
 /* Саджесты внутри модалки тегов — прижаты к инпуту */
-.modal-new-tag-row .suggestions-container {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  width: 100%;
-  z-index: 1000;
-}
+
 
 /* Кнопка «Подтвердить» на всю ширину */
-.modal-btn-full {
-  width: 100%;
-}
+
 
 /* Кнопка-иконка настроек в табах (не растягивается) */
 .app-mode-btn--icon {
@@ -58,10 +42,7 @@ body.can-hover .r34-btn-primary:hover, body:not(.can-hover) .r34-btn-primary:act
    в base.css) — все кнопки приложения «вдавливаются» одинаково. */
 .r34-btn-primary:active,
 .r34-btn-secondary:active,
-.r34-btn-danger:active,
-.modal-btn:active,
-.keep-btn:active,
-.confirm-btn:active {
+.r34-btn-danger:active {
   transform: var(--press-transform);
   transition-duration: var(--press-duration);
 }
@@ -1327,48 +1308,15 @@ body.can-hover .expert-preset-btn:hover, body:not(.can-hover) .expert-preset-btn
   gap: 12px;
 }
 
-.expert-cat-block {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 6px;
-}
 
-.expert-cat-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  cursor: pointer;
-  user-select: none;
-  transition: all var(--transition-speed, 0.2s) var(--ease);
-}
 
-body.can-hover .expert-cat-header:hover, body:not(.can-hover) .expert-cat-header:active {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: var(--accent);
-}
 
-.expert-cat-title {
-  font-size: 0.85rem;
-  font-weight: bold;
-  color: var(--accent);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 
-.expert-cat-count {
-  font-size: 0.7rem;
-  padding: 2px 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  color: var(--light, #fff);
-  opacity: 0.85;
-}
+
+
+
+
+
 
 .expert-card-row {
   display: flex;
@@ -1444,27 +1392,11 @@ body.can-hover .expert-info-btn:hover, body:not(.can-hover) .expert-info-btn:act
   box-shadow: 0 6px 24px rgba(0,0,0,0.4);
 }
 
-.expert-help-block {
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
-}
 
-.expert-help-block:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-  padding-bottom: 0;
-}
 
-.expert-help-subhead {
-  font-weight: bold;
-  color: var(--accent);
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.78rem;
-}
+
+
+
 
 .expert-links-container {
   display: flex;
@@ -1511,13 +1443,7 @@ body.can-hover .expert-link-tools:hover, body:not(.can-hover) .expert-link-tools
   border-color: #10b981;
 }
 
-.expert-preview-wrapper {
-  margin-top: 10px;
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-}
+
 
 /* Ромбики вместо синих ромбов */
 .expert-help-list {
@@ -2363,9 +2289,9 @@ body:not(.can-hover) #favColumnsGroup .fav-col-btn:active {
 /* Spinner Button Loader */
 .puzzle-loader-spinner { width: 16px; height: 16px; border-width: 2px; border-style: solid; border-radius: 50%; display: inline-block; vertical-align: middle; }
 .puzzle-loader-spinner-light { border-top-color: #fff; border-right-color: transparent; border-bottom-color: transparent; border-left-color: transparent; animation: pzSpin 1s linear infinite; }
-.puzzle-loader-spinner-dark { border-top-color: #000; border-right-color: transparent; border-bottom-color: transparent; border-left-color: transparent; animation: pzSpin 1s linear infinite; }
+
 .puzzle-loader-text { vertical-align: middle; margin-left: 8px; }
-.puzzle-loader-text-dark { color: #000; }
+
 @keyframes pzSpin { 100% { transform: rotate(360deg); } }
 
 /* Game Choice Modal Styles */
@@ -2439,7 +2365,7 @@ body:not(.can-hover) #favColumnsGroup .fav-col-btn:active {
 }
 
 /* Puzzle Library Empty Message */
-.puzzle-lib-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: var(--adaptive-text-muted, rgba(255,255,255,0.4)); }
+
 .puzzle-lib-empty-icon { font-size: 3rem; margin-bottom: 16px; color: var(--accent); }
 .puzzle-lib-empty-title { font-size: 1.1rem; font-weight: 600; color: var(--adaptive-text-main, #fff); margin-bottom: 8px; }
 .puzzle-lib-empty-subtitle { font-size: 0.9rem; color: var(--adaptive-text-muted, rgba(255,255,255,0.4)); }
@@ -2617,8 +2543,8 @@ body:not(.can-hover) #favColumnsGroup .fav-col-btn:active {
 .puzzle-lib-info { display:flex; flex-direction:column; gap: 6px; }
 .puzzle-lib-variant-count { font-size:0.8rem; font-weight:700; color:var(--accent); display:flex; align-items:center; gap: 6px; }
 .puzzle-lib-date { font-size:0.75rem; color:var(--adaptive-text-muted, rgba(255,255,255,0.5)); display:flex; align-items:center; gap: 6px; }
-.puzzle-lib-id-badge { display:inline-flex; align-items:center; font-size:0.7rem; color:var(--adaptive-text-muted, rgba(255,255,255,0.4)); background:rgba(255,255,255,0.05); padding: 2px 6px; border-radius:4px; align-self:flex-start; margin-top: 4px; border:1px solid rgba(255,255,255,0.05); cursor:pointer; transition:all var(--dur); }
-.puzzle-lib-id-badge:hover { background:rgba(16,185,129,0.1); color:#10b981; border-color:rgba(16,185,129,0.2); }
+
+
 
 .puzzle-lib-date-row { display:flex; justify-content:space-between; align-items:center; width:100%; gap: 8px; }
 .puzzle-lib-post-badge { background:var(--modal-surface-2, #232735); color:var(--adaptive-text-main, rgba(255,255,255,0.8)); font-size:0.7rem; font-weight:700; padding: 2px 8px; border-radius:6px; cursor:pointer; border:1px solid var(--glass-border); display:flex; align-items:center; gap: 4px; transition:all var(--dur); white-space:nowrap; }

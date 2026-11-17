@@ -7,7 +7,6 @@ import { icon } from '../icons.js';
 // Акцентная тройка управляется из одного места (settingsAccent / r34_theme_accent),
 // а --accent-alt и --accent-glow выводятся из основного цвета. Поэтому пресеты
 // ниже задают только сам акцент, иначе ручной цвет и пресеты конфликтовали.
-const ACCENT_FAMILY = ['--accent', '--accent-alt', '--accent-glow'];
 
 const applyAccentColor = (value) => {
     if (typeof window.setAccent === 'function') {
@@ -16,7 +15,7 @@ const applyAccentColor = (value) => {
 };
 
 // Helper to parse any CSS color (HEX, RGB, HSL, var(...), named, gradients)
-export function parseColor(colorStr) {
+function parseColor(colorStr) {
     if (!colorStr) return { r: 12, g: 13, b: 18, a: 1 };
     colorStr = String(colorStr).trim();
 
@@ -86,7 +85,7 @@ export function parseColor(colorStr) {
 }
 
 // Relative luminance (WCAG standard)
-export function getLuminance(r, g, b) {
+function getLuminance(r, g, b) {
     const a = [r, g, b].map(v => {
         v /= 255;
         return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
@@ -95,7 +94,7 @@ export function getLuminance(r, g, b) {
 }
 
 // Compute contrast for surface
-export function getContrastForSurface(surfaceColorStr, baseBgColorStr) {
+function getContrastForSurface(surfaceColorStr, baseBgColorStr) {
     const parsedSurface = parseColor(surfaceColorStr);
     let finalR = parsedSurface.r;
     let finalG = parsedSurface.g;
@@ -200,7 +199,7 @@ export function recalculateAllAdaptiveText() {
     root.style.setProperty('--suggestion-text-color', suggestionText.main);
 }
 
-export const defaultVariables = {
+const defaultVariables = {
     '--accent': { 
         val: '#ff3b6b', 
         desc: 'Главный акцентный цвет',

@@ -45,7 +45,7 @@ export const saveSavedExcludedTags = async (tagsList) => {
     await saveExcludedTagsToServer(normalizedTags);
 };
 
-export function isSettingsSyncKey(key) {
+function isSettingsSyncKey(key) {
     return key && key.startsWith('r34_') && !SETTINGS_SYNC_EXCLUDE_KEYS.has(key) && !SETTINGS_SYNC_EXCLUDE_PREFIXES.some(prefix => key.startsWith(prefix));
 }
 
@@ -71,8 +71,7 @@ export async function loadExcludedTagsFromServer(onLoaded) {
     return [];
 }
 
-export async function saveExcludedTagsToServer(tagsList, onSaved) {
-    console.log('[ServerSync] Saving excluded tags to server:', tagsList);
+async function saveExcludedTagsToServer(tagsList, onSaved) {
     // Also sync to localStorage for GalleryController client-side filtering
     localStorage.setItem('r34_excluded_tags', JSON.stringify(tagsList));
     

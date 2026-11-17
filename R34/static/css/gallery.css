@@ -125,8 +125,8 @@ body.r34-low-power-mode .r34-search-row::after {
 }
 
 body.r34-low-power-mode :is(
-  .r34-btn-primary, .r34-btn-secondary, .r34-btn-danger, .modal-btn,
-  .keep-btn, .confirm-btn, .app-mode-btn, .settings-tab-btn,
+  .r34-btn-primary, .r34-btn-secondary, .r34-btn-danger,
+  .app-mode-btn, .settings-tab-btn,
   .duration-preset-btn, .r34-search-arrow-btn, .r34-tag-mode-btn,
   .r34-settings-btn
 )::after {
@@ -340,10 +340,7 @@ body.can-hover .media-container.custom-cols:hover, body:not(.can-hover) .media-c
   transition: transform 0.5s var(--ease);
 }
 
-.gallery-video-preview {
-  filter: blur(2px) grayscale(0.35);
-  opacity: 0.85;
-}
+
 
 /* ---------- Угловые кнопки карточки ---------- */
 .fullscreen-btn {
@@ -551,26 +548,7 @@ body.can-hover .sound-toggle-btn:hover svg, body:not(.can-hover) .sound-toggle-b
 }
 
 /* Бейдж длительности видео */
-.video-duration-badge {
-  position: absolute;
-  bottom: 12px;
-  right: 12px;
-  z-index: 12;
-  padding: 3px 8px;
-  background: var(--dark);
-  border: 1px solid var(--glass-border);
-  border-radius: 999px;
-  color: var(--light);
-  font-size: 0.76rem;
-  font-weight: 700;
-  font-family: var(--site-font, inherit);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.5px;
-  pointer-events: none;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: var(--shadow-sm);
-}
+
 
 /* ---------- Избранное (профиль) ---------- */
 #profile-results {
@@ -687,11 +665,7 @@ body.can-hover .like-btn.liked:hover, body:not(.can-hover) .like-btn.liked:activ
 }
 
 /* Ошибка синхронизации */
-.like-btn.sync-error {
-  color: var(--error) !important;
-  text-shadow: 0 0 15px var(--error);
-  animation: shake var(--dur-slow) var(--ease-in-out);
-}
+
 
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
@@ -700,17 +674,7 @@ body.can-hover .like-btn.liked:hover, body:not(.can-hover) .like-btn.liked:activ
 }
 
 /* Синхронизация (стеклянная пульсация) */
-.like-btn.syncing {
-  opacity: 0.9;
-  pointer-events: none;
-  background: var(--glass-bg-strong) !important;
-  border: 1px solid var(--glass-border-strong) !important;
-  color: var(--text-muted) !important;
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  box-shadow: var(--shadow-lg), inset 0 0 12px var(--glass-highlight) !important;
-  animation: heart-pulse-glass 1.2s var(--ease-in-out) infinite;
-}
+
 
 @keyframes heart-pulse-glass {
   0%, 100% {
@@ -1004,40 +968,11 @@ body.can-hover .media-tag:hover, body:not(.can-hover) .media-tag:active {
 }
 
 /* ---------- Кнопка закрытия зума ---------- */
-.zoom-close-btn {
-  position: fixed;
-  top: 24px;
-  right: 24px;
-  z-index: 100010;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  background: rgba(13, 15, 22, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 50%;
-  color: #fff;
-  font-size: 28px;
-  line-height: 1;
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  transition: all var(--dur) var(--ease);
-}
 
-body.can-hover .zoom-close-btn:hover, body:not(.can-hover) .zoom-close-btn:active {
-  background: rgba(var(--accent-rgb), 0.25);
-  border-color: rgba(var(--accent-rgb), 0.45);
-  color: #fff;
-  transform: scale(1.1) rotate(90deg);
-  box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.3);
-}
 
-.zoom-close-btn:active {
-  transform: scale(0.9) rotate(90deg);
-}
+
+
+
 
 /* ============================================================
    БЛОК ИСТОЧНИКА (сливается с низом карточки)
@@ -1136,15 +1071,7 @@ body.can-hover .r34-source-plain-text-wrapper:hover, body:not(.can-hover) .r34-s
   border-color: rgba(255, 255, 255, 0.12);
 }
 
-.r34-source-plain-label {
-  display: flex;
-  align-items: center;
-  color: var(--text-muted, rgba(255, 255, 255, 0.5));
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-}
+
 
 .r34-source-plain-text-container {
   display: flex;
@@ -1175,7 +1102,9 @@ body.can-hover .r34-source-plain-text-wrapper:hover, body:not(.can-hover) .r34-s
   position: relative;
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
+  row-gap: 8px;
   width: 100%;
   min-width: 0;
   padding: 12px 18px;
@@ -1250,10 +1179,11 @@ body.can-hover .r34-source-link-btn:hover svg.link-icon, body:not(.can-hover) .r
 .r34-domain-badge {
   margin-left: auto;
   min-width: 0;
-  max-width: 150px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 100%;
+  /* Домен не обрезаем многоточием: если места мало, кнопка переносит бейдж
+     на свою строку (flex-wrap), и «twitter.com»/«patreon.com» видно целиком. */
+  overflow-wrap: anywhere;
+  white-space: normal;
   padding: 3px 12px;
   background: rgba(6, 7, 12, 0.75);
   border: 1px solid var(--card-border-color, rgba(255, 255, 255, 0.08));
@@ -1382,25 +1312,9 @@ body.can-hover .r34-source-link-btn:hover .r34-link-arrow, body:not(.can-hover) 
 /* ============================================================
    SKELETON LOADING — Карточки-заглушки
    ============================================================ */
-.media-container.skeleton-card-placeholder {
-  background: var(--dark-2);
-  border-color: rgba(255, 255, 255, 0.04);
-  pointer-events: none;
-}
 
-.media-container.skeleton-card-placeholder .skeleton-inner {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.02) 25%,
-    rgba(255, 255, 255, 0.06) 50%,
-    rgba(255, 255, 255, 0.02) 75%
-  );
-  background-size: 300% 100%;
-  animation: shimmer 2s ease-in-out infinite;
-  border-radius: var(--media-radius);
-}
+
+
 
 /* ============================================================
    СКАЧИВАНИЕ В БЛОКЕ ИСТОЧНИКА
@@ -1409,26 +1323,33 @@ body.can-hover .r34-source-link-btn:hover .r34-link-arrow, body:not(.can-hover) 
    ============================================================ */
 .r34-source-row {
   display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
   align-items: stretch;
   gap: 10px;
   min-width: 0;
 }
 
+/* Ссылка и три кнопки — всегда одна строка: кнопки стоят на уровне
+   ссылки, даже если домен внутри неё переносится. */
 .r34-source-row > .r34-source-link-container,
 .r34-source-row > .r34-source-plain-text-wrapper,
 .r34-source-row > .r34-source-empty-state {
-  flex: 1 1 auto;
+  flex: 1 1 150px;
   min-width: 0;
 }
 
-.r34-source-download-btn {
+.r34-source-icon-btn {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
+  align-self: stretch;
   width: 46px;
   min-width: 46px;
+  height: auto;
+  min-height: 44px;
   padding: 0;
   border-radius: calc(var(--media-radius, 20px) / 1.5);
   border: 1px solid var(--card-border-color, rgba(255, 255, 255, 0.08));
@@ -1440,7 +1361,7 @@ body.can-hover .r34-source-link-btn:hover .r34-link-arrow, body:not(.can-hover) 
   transition: all var(--card-transition-speed, 300ms) var(--ease);
 }
 
-.r34-source-download-btn svg {
+.r34-source-icon-btn svg {
   flex-shrink: 0;
   color: var(--accent);
   filter: drop-shadow(0 0 4px var(--accent-glow));
@@ -1448,8 +1369,8 @@ body.can-hover .r34-source-link-btn:hover .r34-link-arrow, body:not(.can-hover) 
               filter var(--card-transition-speed, 300ms) var(--ease);
 }
 
-body.can-hover .r34-source-download-btn:hover,
-body:not(.can-hover) .r34-source-download-btn:active {
+body.can-hover .r34-source-icon-btn:hover,
+body:not(.can-hover) .r34-source-icon-btn:active {
   background: rgba(255, 255, 255, 0.06);
   border-color: var(--accent);
   color: #fff;
@@ -1457,22 +1378,61 @@ body:not(.can-hover) .r34-source-download-btn:active {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3), 0 0 14px var(--accent-glow);
 }
 
-body.can-hover .r34-source-download-btn:hover svg,
-body:not(.can-hover) .r34-source-download-btn:active svg {
+body.can-hover .r34-source-icon-btn:hover svg,
+body:not(.can-hover) .r34-source-icon-btn:active svg {
   transform: translateY(2px) scale(1.08);
   filter: drop-shadow(0 0 8px var(--accent-glow));
 }
 
-.r34-source-download-btn:active {
+.r34-source-icon-btn:active {
   transform: scale(0.96) translateY(0);
 }
 
 @media (max-width: 520px) {
   .r34-source-row {
-    gap: 8px;
+    gap: 6px;
   }
-  .r34-source-download-btn {
-    width: 42px;
-    min-width: 42px;
+  .r34-source-row > .r34-source-link-container,
+  .r34-source-row > .r34-source-plain-text-wrapper,
+  .r34-source-row > .r34-source-empty-state {
+    flex: 1 1 130px;
+  }
+  /* Три кнопки на телефоне компактнее: иначе строка со ссылкой и доменом
+     не помещается по ширине. */
+  .r34-source-icon-btn {
+    width: 36px;
+    min-width: 36px;
+    height: auto;
+    min-height: 36px;
+  }
+
+  /* Длинная подпись рядом с доменом не помещалась и уезжала на вторую
+     строку. Оставляем одну аккуратную строку: иконка · домен целиком · ↗,
+     а контекст даёт заголовок «Источник медиафайла» над блоком. */
+  .r34-source-link-btn {
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 9px 12px;
+  }
+
+  .r34-source-action-label {
+    display: none;
+  }
+
+  /* Иконка-цепочка съедала ширину, из-за чего домен переносился и «пилюля»
+     становилась выше кнопок. На телефоне ссылку выдают стрелка и сам домен. */
+  .r34-source-link-btn .link-icon {
+    display: none;
+  }
+
+  .r34-domain-badge {
+    margin-left: 0;
+    flex: 0 1 auto;
+    font-size: 0.72rem;
+    text-align: left;
+  }
+
+  .r34-link-arrow {
+    margin-left: auto;
   }
 }

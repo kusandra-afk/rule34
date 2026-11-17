@@ -3,12 +3,12 @@
 // Добавляет волновой эффект при нажатии на кнопки и карточки
 // ============================================================
 
-export class RippleEffect {
+class RippleEffect {
   static init() {
     // Инициализация ripple для всех кнопок
     const rippleTargets = document.querySelectorAll(
       '.r34-btn-primary, .r34-btn-secondary, .r34-btn-danger, ' +
-      '.modal-btn, .keep-btn, .confirm-btn, .app-mode-btn, ' +
+      '.app-mode-btn, ' +
       '.settings-tab-btn, .duration-preset-btn, .r34-search-arrow-btn, ' +
       '.r34-tag-mode-btn, .r34-settings-btn, .video-btn, .sound-btn, ' +
       '.like-btn, .fullscreen-btn, .scroll-to-top-btn'
@@ -54,7 +54,7 @@ export class RippleEffect {
 // SCROLL TO TOP — Плавная кнопка возврата наверх
 // ============================================================
 
-export class ScrollToTop {
+class ScrollToTop {
   static btn = null;
   static visible = false;
 
@@ -105,7 +105,7 @@ export class ScrollToTop {
 // SMOOTH ENTRANCE — Анимация появления элементов при скролле
 // ============================================================
 
-export class SmoothEntrance {
+class SmoothEntrance {
   static observer = null;
 
   static init() {
@@ -135,7 +135,7 @@ export class SmoothEntrance {
 // TAG ANIMATIONS — Плавное появление/исчезновение тегов
 // ============================================================
 
-export class TagAnimations {
+class TagAnimations {
   static init() {
     // Наблюдаем за изменениями в active-tags контейнере
     const activeTags = document.getElementById('activeTags');

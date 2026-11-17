@@ -1,8 +1,6 @@
-import { formatCount, escapeHtml, throttle } from '../utils.js';
+import { formatCount, throttle } from '../utils.js';
 import { localeTag } from '../i18n/i18n.js';
 import { VideoPlayer } from './videoPlayer.js';
-import { PhotoViewer } from './photoViewer.js';
-import { proxyUrl } from '../api.js';
 import { icon } from '../icons.js';
 import { StorageManager } from '../storage.js';
 import { CardComponent } from './cardComponent.js';
@@ -251,21 +249,13 @@ export class Gallery {
     }
 
     updateDeveloperPanel() {
-        const panel = document.getElementById('r34-dev-panel');
-        if (!panel) return;
-        const enabled = localStorage.getItem('r34_dev_mode') === 'true';
-        panel.hidden = !enabled;
-        if (!enabled) return;
-        const cardCount = this.currentPosts ? this.currentPosts.length : 0;
-        const renderedCards = this.resultsDiv ? this.resultsDiv.querySelectorAll('.media-container').length : 0;
-        const activeVideos = this.resultsDiv ? this.resultsDiv.querySelectorAll('video.media-content').length : 0;
-        panel.innerHTML = `
-            <div style="font-weight:700; margin-bottom:6px; color:var(--accent);">DEV</div>
-            <div>Карточек: ${cardCount}</div>
-            <div>Отрисовано: ${renderedCards}</div>
-            <div>Видео: ${activeVideos}</div>
-            <div>Предзагрузка: ${this.preloadMode}</div>
-        `;
+        // Сама панель живёт в components/devPanel.js: у неё свой таймер, метрики
+        // сети, журнал ошибок и самопроверка. Здесь только сигнал «лента
+        // перерисовалась, обнови цифры» — метод оставлен, потому что его зовут
+        // и рендер ленты, и настройки при переключении тумблера.
+        if (window.devPanel && typeof window.devPanel.refresh === 'function') {
+            window.devPanel.refresh();
+        }
     }
 
     async syncFavorites() {
@@ -789,11 +779,33 @@ export class Gallery {
     }
 
     _hydrateCard(placeholder) {
+        if (!placeholder.isConnected) return;
+        if (placeholder._hydrateTimer) {
+            clearTimeout(placeholder._hydrateTimer);
+            placeholder._hydrateTimer = null;
+        }
         const idx = parseInt(placeholder.dataset.idx, 10);
         // Тот же гистерезис, что и в _virtualizeCard — см. комментарий там.
         const nowTs = performance.now();
         const lastTs = this._virtualTransitionAt.get(idx) || 0;
-        if (nowTs - lastTs < 400) return;
+        const elapsed = nowTs - lastTs;
+        if (elapsed < 400) {
+            // Гистерезис не должен оставлять пустое место на экране. Заглушку,
+            // которую уже видно, собираем сразу: при быстром рывке вверх/вниз
+            // повторного пересечения может не быть, пока она не выйдет за
+            // rootMargin. Остальные повторяем по таймеру — иначе такая
+            // заглушка так и висела бы пустой, пока до неё не долистают и не
+            // уедут обратно.
+            const rect = placeholder.getBoundingClientRect();
+            const onScreen = rect.bottom > 0 && rect.top < window.innerHeight;
+            if (!onScreen) {
+                placeholder._hydrateTimer = setTimeout(
+                    () => this._hydrateCard(placeholder),
+                    420 - elapsed
+                );
+                return;
+            }
+        }
         this._virtualTransitionAt.set(idx, nowTs);
 
         const post = this.currentPosts[idx];
