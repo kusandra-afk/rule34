@@ -15,7 +15,7 @@ import { applyThemeSettings, debouncedApplyThemeSettings, applyAdaptiveText, set
 import { colorPresets, bgPresets, hoverPresets, fontPresets, getContrastYIQ, getBgLuminance, getAccentGlow, getAccentAlt } from './theme/themePresets.js';
 import { GalleryController } from './controllers/galleryController.js?v=2.5.17';
 import { ModeController } from './controllers/modeController.js?v=2.5.6';
-import { initServerSync, getSavedExcludedTags, saveSavedExcludedTags, loadSettingsFromServer, loadTursoConfigFromServer, loadExcludedTagsFromServer } from './init/initServerSync.js?v=2.5.0';
+import { initServerSync, getSavedExcludedTags, saveSavedExcludedTags, loadSettingsFromServer, loadTursoConfigFromServer, loadExcludedTagsFromServer } from './init/initServerSync.js?v=2.5.1';
 import { initSafeScreen } from './init/initSafeScreen.js';
 import { setRangeGradient } from './utils.js';
 import { tursoSync } from './tursoSync.js';
@@ -420,6 +420,17 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.removeItem('r34_search_mode');
 
     // Загрузка настроек с сервера
+    // Разовая миграция: тумблер «Игнорировать» для исключённых/
+    // включённых тегов должен быть выключен по умолчанию. Старые
+    // сохранённые значения true сбрасываем один раз.
+    try {
+        if (!localStorage.getItem('r34_ignore_toggle_migration_v1')) {
+            localStorage.removeItem('r34_ignore_excluded_tags');
+            localStorage.removeItem('r34_ignore_included_tags');
+            localStorage.setItem('r34_ignore_toggle_migration_v1', '1');
+        }
+    } catch (e) {}
+
     loadSettingsFromServer().then(() => {
         applyThemeSettings();
         // Настройки с сервера могли принести язык, выбранный на другом

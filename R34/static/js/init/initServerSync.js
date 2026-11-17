@@ -31,7 +31,9 @@ const SETTINGS_SYNC_EXCLUDE_KEYS = new Set([
     'r34_active_tags',
     'r34_turso_url',
     'r34_turso_token',
-    'r34_viewed_posts'
+    'r34_viewed_posts',
+    'r34_ignore_excluded_tags',
+    'r34_ignore_included_tags'
 ]);
 
 export const getSavedExcludedTags = () => {
